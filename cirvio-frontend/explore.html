@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore — CIRVIO</title>
+    <meta name="description"
+        content="Explore books, notes, calculators and study material on CIRVIO, organised by category.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2E3624">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" href="icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CIRVIO">
+    <meta name="mobile-web-app-capable" content="yes">
+    <style>
+        /* ============ EXPLORE HERO ============ */
+        .explore-hero {
+            background: var(--olive-deep);
+            color: var(--ivory);
+            padding: 46px 0 30px;
+        }
+
+        .explore-hero .eyebrow {
+            color: var(--gold);
+        }
+
+        .explore-hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(1.9rem, 3.6vw, 2.7rem);
+            line-height: 1.14;
+            margin: 14px 0 8px;
+        }
+
+        .explore-hero h1 em {
+            font-style: italic;
+            color: var(--gold);
+        }
+
+        .explore-hero p {
+            color: rgba(255, 249, 239, .8);
+            font-size: .96rem;
+            max-width: 520px;
+            margin-bottom: 26px;
+        }
+
+        .explore-search {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--ivory);
+            border-radius: 999px;
+            padding: 6px 8px 6px 20px;
+            max-width: 620px;
+            box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .45);
+        }
+
+        .explore-search svg {
+            width: 19px;
+            height: 19px;
+            stroke: var(--sage);
+            flex-shrink: 0;
+        }
+
+        .explore-search input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-family: var(--font-body);
+            font-size: .93rem;
+            color: var(--charcoal);
+            padding: 10px 0;
+        }
+
+        .explore-search input::placeholder {
+            color: #a49f8c;
+        }
+
+        .explore-search button {
+            background: var(--terracotta);
+            color: #fff;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: background .2s ease;
+        }
+
+        .explore-search button:hover {
+            background: var(--terracotta-deep);
+        }
+
+        .explore-search button svg {
+            width: 17px;
+            height: 17px;
+            stroke: #fff;
+        }
+
+        .quick-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+
+        .qf-chip {
+            background: rgba(255, 249, 239, .1);
+            border: 1px solid rgba(255, 249, 239, .3);
+            color: var(--ivory);
+            font-size: .78rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all .2s ease;
+            white-space: nowrap;
+        }
+
+        .qf-chip:hover {
+            border-color: var(--gold);
+        }
+
+        .qf-chip.active {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: var(--olive-deep);
+        }
+
+        /* ============ STICKY CATEGORY RAIL ============ */
+        .cat-rail-wrap {
+            position: sticky;
+            top: 84px;
+            z-index: 40;
+            background: var(--ivory);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 8px 20px -16px rgba(63, 74, 50, .3);
+        }
+
+        .cat-rail {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 14px 24px;
+            scrollbar-width: none;
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .cat-rail::-webkit-scrollbar {
+            display: none;
+        }
+
+        .cat-chip {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex-shrink: 0;
+            background: var(--cream);
+            border: 1px solid transparent;
+            color: var(--olive-deep);
+            font-size: .8rem;
+            font-weight: 700;
+            padding: 9px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all .2s ease;
+            scroll-snap-align: start;
+        }
+
+        .cat-chip svg {
+            width: 15px;
+            height: 15px;
+            stroke: var(--olive);
+            flex-shrink: 0;
+        }
+
+        .cat-chip:hover {
+            border-color: var(--sage);
+        }
+
+        .cat-chip.active {
+            background: var(--terracotta);
+            color: #fff;
+        }
+
+        .cat-chip.active svg {
+            stroke: #fff;
+        }
+
+        /* ============ EXPLORE SECTIONS ============ */
+        .explore-main {
+            padding: 34px 0 20px;
+        }
+
+        .explore-section {
+            padding: 26px 0;
+            scroll-margin-top: 150px;
+        }
+
+        .explore-section+.explore-section {
+            border-top: 1px solid var(--border);
+        }
+
+        .es-head {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .es-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--cream);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .es-icon svg {
+            width: 21px;
+            height: 21px;
+            stroke: var(--olive);
+        }
+
+        .es-head-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .es-head-text h2 {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            color: var(--olive-deep);
+            line-height: 1.2;
+        }
+
+        .es-head-text span {
+            font-size: .78rem;
+            color: var(--sage);
+            font-weight: 600;
+        }
+
+        .es-viewall {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: none;
+            border: none;
+            color: var(--terracotta);
+            font-size: .8rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .es-viewall svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--terracotta);
+            transition: transform .2s ease;
+        }
+
+        .es-viewall.open svg {
+            transform: rotate(180deg);
+        }
+
+        .es-scroll-wrap {
+            position: relative;
+        }
+
+        .es-scroll {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            scroll-snap-type: x proximity;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+
+        .es-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .es-scroll .p-card {
+            flex: 0 0 228px;
+            scroll-snap-align: start;
+        }
+
+        .es-scroll.grid-mode {
+            flex-wrap: wrap;
+            overflow: visible;
+        }
+
+        .es-scroll.grid-mode .p-card {
+            flex: 0 0 228px;
+        }
+
+        .es-arrow {
+            position: absolute;
+            top: 84px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #fff;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 5;
+            transition: transform .15s ease;
+        }
+
+        .es-arrow:hover {
+            transform: scale(1.08);
+        }
+
+        .es-arrow svg {
+            width: 16px;
+            height: 16px;
+            stroke: var(--olive-deep);
+        }
+
+        .es-arrow.left {
+            left: -14px;
+        }
+
+        .es-arrow.right {
+            right: -14px;
+        }
+
+        .es-empty {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--ivory);
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+        }
+
+        .es-empty svg {
+            width: 30px;
+            height: 30px;
+            stroke: var(--sage);
+            flex-shrink: 0;
+        }
+
+        .es-empty p {
+            font-family: var(--font-display);
+            font-size: 1.05rem;
+            color: var(--olive-deep);
+        }
+
+        .es-empty span {
+            font-size: .8rem;
+            color: #8a856f;
+        }
+
+        .es-empty .btn {
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .explore-noresults {
+            text-align: center;
+            padding: 70px 20px;
+        }
+
+        .explore-noresults svg {
+            width: 42px;
+            height: 42px;
+            stroke: var(--sage);
+            margin: 0 auto 14px;
+        }
+
+        .explore-noresults p {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            color: var(--olive-deep);
+            margin-bottom: 6px;
+        }
+
+        .explore-noresults span {
+            font-size: .86rem;
+            color: #8a856f;
+        }
+
+        @media (max-width: 780px) {
+            .cat-rail-wrap {
+                top: 74px;
+            }
+
+            .explore-section {
+                scroll-margin-top: 128px;
+            }
+
+            .es-arrow {
+                display: none;
+            }
+
+            .es-empty {
+                flex-wrap: wrap;
+            }
+
+            .es-empty .btn {
+                margin-left: 0;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .explore-hero {
+                padding: 34px 0 24px;
+            }
+        }
+
+        @media (max-width: 460px) {
+            .es-scroll .p-card,
+            .es-scroll.grid-mode .p-card {
+                flex-basis: 178px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ============ HEADER ============ -->
+    <div class="header-wrap">
+        <header class="header" id="siteHeader">
+            <a href="index.html#home" class="logo" aria-label="CIRVIO home">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO — Sell. Donate. Share Knowledge.">
+            </a>
+
+            <nav class="nav-links">
+                <a href="index.html#browse" data-nav="browse">Browse</a>
+                <a href="explore.html" data-nav="explore">Explore</a>
+                <a href="index.html#donate" data-nav="donate">Donate</a>
+                <a href="index.html#how" data-nav="how">How it Works</a>
+                <a href="index.html#about" data-nav="about">About</a>
+            </nav>
+
+            <div class="header-search" style="position:relative;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search books, notes, calculators, ISBN..."
+                    autocomplete="off">
+                <div class="loc">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
+                        <circle cx="12" cy="9" r="2.4" />
+                    </svg>
+                    Mumbai
+                </div>
+                <div class="search-suggest" id="searchSuggest">
+                    <div class="sg-label">Trending searches</div>
+                    <div class="sg-item" data-q="NCERT Class 12"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>NCERT Class 12</div>
+                    <div class="sg-item" data-q="JEE Previous Papers"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>JEE Previous Year Papers</div>
+                    <div class="sg-item" data-q="Casio Calculator"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>Casio FX-991ES Calculator</div>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1.6" />
+                        <circle cx="19" cy="21" r="1.6" />
+                        <path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z" />
+                    </svg>
+                    <span class="badge-count" id="cartCount">0</span>
+                </button>
+                <button class="btn-icon" id="wishBtn" aria-label="Wishlist" title="Wishlist">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    <span class="badge-count" id="wishCount">0</span>
+                </button>
+                <button class="btn-icon" aria-label="Notifications" title="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    <span class="badge-count" id="notifCount">3</span>
+                </button>
+                <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                </a>
+                <div class="header-cta">
+                    <a href="sell.html" class="btn btn-terracotta btn-sm"><span>Sell</span></a>
+                </div>
+                <button class="btn-icon hamburger" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line class="ham-line ham-1" x1="4" y1="7" x2="20" y2="7" />
+                        <line class="ham-line ham-2" x1="4" y1="12" x2="20" y2="12" />
+                        <line class="ham-line ham-3" x1="4" y1="17" x2="20" y2="17" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+    </div>
+
+    <!-- mobile menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-panel">
+            <div class="mp-top">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO">
+                <button class="btn-icon close-btn" id="closeMenuBtn" aria-label="Close menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+            <nav>
+                <a href="index.html#browse" data-nav="browse">Browse</a>
+                <a href="explore.html" data-nav="explore">Explore</a>
+                <a href="index.html#donate" data-nav="donate">Donate</a>
+                <a href="index.html#how" data-nav="how">How it Works</a>
+                <a href="index.html#about" data-nav="about">About</a>
+                <a href="index.html#contact">Contact</a>
+            </nav>
+            <div class="mp-quick">
+                <a href="profile.html#saved" class="mp-quick-item" id="mpWishBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    Wishlist
+                    <span class="badge-count" id="mpWishCount">0</span>
+                </a>
+                <a href="profile.html#messages" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.4a8.4 8.4 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5z" />
+                    </svg>
+                    Messages
+                    <span class="badge-count" id="mpMsgCount" style="display:none;">0</span>
+                </a>
+                <a href="#" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    Notifications
+                    <span class="badge-count" id="mpNotifCount">3</span>
+                </a>
+                <a href="profile.html" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                    My Account
+                </a>
+            </div>
+            <div class="mp-cta">
+                <a href="sell.html" class="btn btn-terracotta">Sell an Item</a>
+                <a href="index.html#donate" class="btn btn-outline">Donate</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ EXPLORE HERO ============ -->
+    <section class="explore-hero">
+        <div class="container reveal">
+            <span class="eyebrow">Explore CIRVIO</span>
+            <h1>Find Books, Notes &amp;<br><em>Everything</em> in Between</h1>
+            <p>Browse listings the way you browse a food app — pick a category, scroll the picks, and tap through
+                to what you need.</p>
+            <div class="explore-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <input type="text" id="exploreSearchInput" placeholder="Search within categories — title, subject, ISBN..."
+                    autocomplete="off">
+                <button id="exploreSearchBtn" aria-label="Search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4.3-4.3" />
+                    </svg>
+                </button>
+            </div>
+            <div class="quick-filters" id="quickFilters">
+                <button class="qf-chip active" data-filter="all">All Listings</button>
+                <button class="qf-chip" data-filter="under200">Under ₹200</button>
+                <button class="qf-chip" data-filter="under500">Under ₹500</button>
+                <button class="qf-chip" data-filter="free">Free &amp; Donations</button>
+                <button class="qf-chip" data-filter="discount">Biggest Discounts</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ STICKY CATEGORY RAIL ============ -->
+    <div class="cat-rail-wrap">
+        <div class="cat-rail" id="catRail"></div>
+    </div>
+
+    <!-- ============ CATEGORY SECTIONS ============ -->
+    <main class="explore-main">
+        <div class="container">
+            <div id="exploreSections"></div>
+            <div class="explore-noresults" id="exploreNoResults" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <p>No listings match that search</p>
+                <span>Try a different keyword or clear the filter above.</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer id="contact">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-about">
+                    <div class="footer-logo">
+                        <img class="logo-img" src="cirvio-logo-footer.png"
+                            alt="CIRVIO — Sell. Donate. Share Knowledge.">
+                    </div>
+                    <p>Sell. Donate. Share Knowledge. A student marketplace for books, notes and study materials — built
+                        to give every book a second life.</p>
+                    <div class="footer-social">
+                        <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="5" />
+                                <circle cx="12" cy="12" r="4" />
+                                <circle cx="17.5" cy="6.5" r="1" />
+                            </svg></a>
+                        <a href="#" aria-label="Twitter"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                                <path
+                                    d="M22 5.8c-.7.3-1.5.6-2.3.7a4 4 0 0 0 1.8-2.2 8 8 0 0 1-2.5 1 4 4 0 0 0-6.9 3.6A11.4 11.4 0 0 1 3.8 4.6a4 4 0 0 0 1.2 5.3 4 4 0 0 1-1.8-.5v.1a4 4 0 0 0 3.2 3.9 4 4 0 0 1-1.8.1 4 4 0 0 0 3.7 2.8A8 8 0 0 1 2 17.9a11.4 11.4 0 0 0 6.2 1.8c7.4 0 11.5-6.2 11.5-11.5v-.5A8.2 8.2 0 0 0 22 5.8z" />
+                            </svg></a>
+                        <a href="#" aria-label="LinkedIn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="3" />
+                                <path d="M7 10v7M7 7v.01M11 17v-4.5a2 2 0 0 1 4 0V17M11 10v7" />
+                            </svg></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Marketplace</h4>
+                    <ul>
+                        <li><a href="index.html#browse">Browse Books</a></li>
+                        <li><a href="explore.html">Explore</a></li>
+                        <li><a href="index.html#browse">Search</a></li>
+                        <li><a href="profile.html#saved">Wishlist</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Sell &amp; Donate</h4>
+                    <ul>
+                        <li><a href="sell.html">Start Selling</a></li>
+                        <li><a href="sell.html?type=donate">Donate Books</a></li>
+                        <li><a href="#">Seller Policy</a></li>
+                        <li><a href="#">Donation Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="index.html#how">How it Works</a></li>
+                        <li><a href="#">FAQs</a></li>
+                        <li><a href="#">Safety Guidelines</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Terms &amp; Conditions</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Refund Policy</a></li>
+                        <li><a href="#">Cookie Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© 2026 CIRVIO. All rights reserved. · hello@cirvio.in · +91 98765 43210</span>
+                <div class="footer-pay">
+                    <span>UPI</span><span>Razorpay</span><span>Cards</span><span>Net Banking</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- bottom mobile nav -->
+    <nav class="bottom-nav">
+        <ul>
+            <li><a href="index.html#home" data-nav="home"><svg viewBox="0 0 24 24" fill="none"
+                        stroke-width="2">
+                        <path d="M3 11l9-8 9 8" />
+                        <path d="M5 10v10h14V10" />
+                    </svg>Home</a></li>
+            <li><a href="explore.html" class="active" data-nav="explore"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4.3-4.3" />
+                    </svg>Explore</a></li>
+            <li><a href="sell.html"><span class="sell-fab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg></span></a></li>
+            <li><a href="status.html" data-nav="status"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>Status</a></li>
+            <li><a href="profile.html" data-nav="profile"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>Profile</a></li>
+        </ul>
+    </nav>
+
+    <!-- toast -->
+    <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M20 6L9 17l-5-5" />
+        </svg><span id="toastMsg">Added to wishlist</span></div>
+
+    <!-- quick view modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+            <div class="modal-img"><img id="modalImg" src="" alt=""></div>
+            <div class="modal-info">
+                <button class="btn-icon modal-close" id="modalClose" aria-label="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+                <div class="p-cat" id="modalCat"></div>
+                <h3 id="modalTitle"></h3>
+                <div class="p-price-row">
+                    <span class="p-price" id="modalPrice"></span>
+                    <span class="p-orig" id="modalOrig"></span>
+                    <span class="p-disc" id="modalDisc"></span>
+                </div>
+                <p class="modal-desc" id="modalDesc"></p>
+                <div class="modal-facts">
+                    <div><strong id="modalCond"></strong>Condition</div>
+                    <div><strong id="modalLoc"></strong>Location</div>
+                    <div><strong id="modalSeller"></strong>Seller</div>
+                    <div><strong id="modalPosted"></strong>Posted</div>
+                </div>
+                <div class="modal-actions">
+                    <a href="#" class="btn btn-terracotta" id="modalContactBtn">Contact Seller</a>
+                    <a href="#" class="btn btn-outline" id="modalOfferBtn">Make an Offer</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="common.js"></script>
+    <script>
+        /* ============================================================
+           DEMO DATA — kept in sync with index.html so product IDs,
+           categories and images line up across the site.
+        ============================================================ */
+        const CATEGORIES = [
+            { name: "School Books", count: "3,240", icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' },
+            { name: "College Books", count: "5,180", icon: '<path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>' },
+            { name: "Competitive Exams", count: "2,910", icon: '<circle cx="12" cy="8" r="6"/><path d="M9 13.5 6.5 22l5.5-3 5.5 3-2.5-8.5"/>' },
+            { name: "Novels", count: "1,860", icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h6M9 11h4"/>' },
+            { name: "Notes", count: "4,020", icon: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>' },
+            { name: "Study Material", count: "2,340", icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/>' },
+            { name: "Calculators", count: "860", icon: '<rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="4"/><circle cx="9" cy="13" r="1"/><circle cx="12" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="12" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>' },
+            { name: "Guides & Reference", count: "1,530", icon: '<path d="M12 6.3C10.5 5 8.3 4 6 4a5.5 5.5 0 0 0 0 11c2.3 0 4.5 1 6 2.3 1.5-1.3 3.7-2.3 6-2.3a5.5 5.5 0 0 0 0-11c-2.3 0-4.5 1-6 2.3z"/><path d="M12 6.3V19"/>' },
+            { name: "Question Banks", count: "1,210", icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8.5 9a3.5 3.5 0 1 1 4.9 3.2c-.9.4-1.4 1.1-1.4 1.8"/><circle cx="12" cy="17" r="0.6"/>' },
+            { name: "Practical Files", count: "640", icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' },
+            { name: "Stationery Bundles", count: "980", icon: '<path d="M2 12h4l3-9 4 18 3-9h6"/>' },
+            { name: "Free & Donations", count: "720", icon: '<path d="M12 2C7 6 4 11 4 15a8 8 0 0 0 16 0c0-4-3-9-8-13z"/><path d="M12 22V10"/>' },
+        ];
+
+        const PRODUCTS = [
+            { id: 1, title: "Engineering Mathematics by B.S. Grewal", cat: "College Books", price: 280, orig: 650, cond: "Good", loc: "Powai, Mumbai", seller: "Aarav M.", time: "2h ago", type: "sell", img: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70", desc: "Widely used engineering maths textbook covering all core topics for first-year engineering students. Minor highlighting in first two chapters, spine intact." },
+            { id: 2, title: "NCERT Class 12 Physics Part 1 & 2", cat: "School Books", price: 150, orig: 340, cond: "Like New", loc: "Andheri, Mumbai", seller: "Priya S.", time: "5h ago", type: "sell", img: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=500&q=70", desc: "Complete set of NCERT Class 12 Physics textbooks, barely used, no markings. Perfect for board exam preparation." },
+            { id: 3, title: "Organic Chemistry — Morrison & Boyd", cat: "Competitive Exams", price: 420, orig: 900, cond: "Excellent", loc: "Kothrud, Pune", seller: "Rohan K.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=500&q=70", desc: "Classic organic chemistry reference used for NEET and JEE preparation. All pages intact, light cover wear." },
+            { id: 4, title: "JEE Main Previous Year Question Papers", cat: "Question Banks", price: 0, orig: 250, cond: "Good", loc: "Vashi, Navi Mumbai", seller: "Sneha D.", time: "3h ago", type: "donate", img: "https://images.unsplash.com/photo-1509266272358-7701da638078?w=500&q=70", desc: "10-year compilation of JEE Main previous papers with solutions. Donating to help a fellow aspirant — pickup preferred." },
+            { id: 5, title: "NEET Biology Handwritten Notes", cat: "Notes", price: 180, orig: 400, cond: "Excellent", loc: "Bandra, Mumbai", seller: "Meera J.", time: "6h ago", type: "sell", img: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=500&q=70", desc: "Neatly organized handwritten biology notes covering the full NEET syllabus, colour-coded diagrams included." },
+            { id: 6, title: "Casio FX-991ES Plus Scientific Calculator", cat: "Calculators", price: 650, orig: 1200, cond: "Good", loc: "Baner, Pune", seller: "Karan V.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1587145820098-24e73c66d5a8?w=500&q=70", desc: "Fully functional scientific calculator, ideal for engineering and competitive exams. Comes with original cover." },
+            { id: 7, title: "Data Structures Handwritten Notes (CS)", cat: "Notes", price: 120, orig: 0, cond: "Good", loc: "Malad, Mumbai", seller: "Ishaan R.", time: "4h ago", type: "free", img: "https://images.unsplash.com/photo-1517842645767-c639042777db?w=500&q=70", desc: "Semester 3 Data Structures notes with solved examples and diagrams. Giving away for free to a junior in need." },
+            { id: 8, title: "Indian Polity by M. Laxmikanth", cat: "Competitive Exams", price: 350, orig: 695, cond: "Like New", loc: "Dwarka, Delhi", seller: "Ananya T.", time: "8h ago", type: "sell", img: "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=500&q=70", desc: "Latest edition of the definitive UPSC Indian Polity reference. No markings, used for one attempt only." },
+            { id: 9, title: "Rich Dad Poor Dad — Robert Kiyosaki", cat: "Novels", price: 99, orig: 299, cond: "Good", loc: "Koramangala, Bengaluru", seller: "Vivaan P.", time: "12h ago", type: "sell", img: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&q=70", desc: "Popular personal finance book, gently used with a few dog-eared pages. Great condition overall." },
+            { id: 10, title: "The Alchemist — Paulo Coelho", cat: "Novels", price: 0, orig: 250, cond: "Fair", loc: "Salt Lake, Kolkata", seller: "Riya B.", time: "1d ago", type: "donate", img: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&q=70", desc: "A well-loved copy ready for its next reader. Donating as part of our campus book drive this month." },
+            { id: 11, title: "B.Com Semester 3 Complete Notes Set", cat: "Study Material", price: 220, orig: 480, cond: "Excellent", loc: "Nungambakkam, Chennai", seller: "Aditya N.", time: "9h ago", type: "sell", img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=500&q=70", desc: "Complete B.Com semester 3 notes including accounting, costing and business law summaries." },
+            { id: 12, title: "Class 10 CBSE Complete Book Set", cat: "School Books", price: 600, orig: 1400, cond: "Good", loc: "Sector 15, Gurugram", seller: "Diya C.", time: "2d ago", type: "sell", img: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=500&q=70", desc: "Full set of Class 10 CBSE textbooks across all subjects. Some highlighting present in Maths and Science." },
+        ];
+
+        function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+        function discountPct(p) {
+            if (!p.orig || p.price === 0) return null;
+            return Math.round(((p.orig - p.price) / p.orig) * 100);
+        }
+
+        /* ============================================================
+           PRODUCT CARD (same markup/behaviour as the homepage grid)
+        ============================================================ */
+        function productCard(p) {
+            const disc = discountPct(p);
+            const isWish = CirvioStore.getWishlist().map(String).includes(String(p.id));
+            let tag = '';
+            if (p.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
+            else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
+            return `
+  <a class="p-card" data-id="${p.id}" data-title="${p.title.toLowerCase()}" data-cat="${p.cat.toLowerCase()}"
+     data-price="${p.price}" data-disc="${disc || 0}" data-type="${p.type}"
+     href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
+    <div class="p-thumb">
+      ${tag}
+      <button class="p-wish ${isWish ? 'active' : ''}" data-id="${p.id}" aria-label="Save to wishlist">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+      </button>
+      <img src="${p.img}" alt="${p.title}" loading="lazy">
+      <div class="p-qv" data-id="${p.id}">Quick View</div>
+    </div>
+    <div class="p-body">
+      <div class="p-cat">${p.cat}</div>
+      <div class="p-title">${p.title}</div>
+      <div class="p-price-row">
+        <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
+        ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
+        ${disc ? `<span class="p-disc">${disc}% off</span>` : ''}
+      </div>
+      <div class="p-meta">
+        <span class="cond">${p.cond}</span>
+        <span>${p.loc}</span>
+      </div>
+      <div class="p-foot">
+        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${p.seller}</span>
+        <span>${p.time}</span>
+      </div>
+    </div>
+    <div class="p-card-actions">
+      <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
+        data-id="${p.id}" data-title="${p.title.replace(/"/g, '&quot;')}" data-price="${p.price}" data-img="${p.img}">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
+        Add to Cart
+      </button>
+    </div>
+  </a>`;
+        }
+
+        /* ============================================================
+           RENDER — sticky category rail
+        ============================================================ */
+        const catRail = document.getElementById('catRail');
+        catRail.innerHTML = CATEGORIES.map(c => `
+  <button class="cat-chip" data-target="cat-${slugify(c.name)}">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg>
+    ${c.name}
+  </button>
+`).join('');
+
+        /* ============================================================
+           RENDER — per-category sections
+        ============================================================ */
+        const sectionsHolder = document.getElementById('exploreSections');
+        PRODUCTS.splice(0, PRODUCTS.length);
+        function renderExploreSections() {
+            sectionsHolder.innerHTML = CATEGORIES.map(c => {
+            const slug = slugify(c.name);
+            const items = PRODUCTS.filter(p => p.cat === c.name);
+            const body = items.length
+                ? `<div class="es-scroll-wrap">
+                     <button class="es-arrow left" data-scroll="${slug}" data-dir="-1" aria-label="Scroll left">
+                       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                     </button>
+                     <div class="es-scroll" id="scroll-${slug}">${items.map(productCard).join('')}</div>
+                     <button class="es-arrow right" data-scroll="${slug}" data-dir="1" aria-label="Scroll right">
+                       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                     </button>
+                   </div>`
+                : `<div class="es-empty">
+                     <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg>
+                     <div>
+                       <p>No listings yet in ${c.name}</p>
+                       <span>Be the first student to list something here.</span>
+                     </div>
+                     <a href="sell.html" class="btn btn-terracotta btn-sm">List an Item</a>
+                   </div>`;
+            return `
+  <section class="explore-section reveal" id="cat-${slug}" data-cat="${c.name}">
+    <div class="es-head">
+      <div class="es-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg></div>
+      <div class="es-head-text">
+        <h2>${c.name}</h2>
+        <span>${c.count} listings on CIRVIO${items.length ? ` · ${items.length} shown here` : ''}</span>
+      </div>
+      ${items.length > 1 ? `<button class="es-viewall" data-slug="${slug}">View all<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>` : ''}
+    </div>
+    ${body}
+  </section>`;
+            }).join('');
+        }
+        renderExploreSections();
+
+        /* ============================================================
+           SCROLL ARROWS
+        ============================================================ */
+        sectionsHolder.addEventListener('click', (e) => {
+            const arrow = e.target.closest('.es-arrow');
+            if (arrow) {
+                const strip = document.getElementById('scroll-' + arrow.dataset.scroll);
+                if (strip) strip.scrollBy({ left: 260 * Number(arrow.dataset.dir), behavior: 'smooth' });
+                return;
+            }
+            const viewAll = e.target.closest('.es-viewall');
+            if (viewAll) {
+                const strip = document.getElementById('scroll-' + viewAll.dataset.slug);
+                if (!strip) return;
+                const grid = strip.classList.toggle('grid-mode');
+                viewAll.classList.toggle('open', grid);
+                viewAll.firstChild.textContent = grid ? 'Show less' : 'View all';
+                const wrap = strip.closest('.es-scroll-wrap');
+                wrap.querySelectorAll('.es-arrow').forEach(a => a.style.display = grid ? 'none' : 'flex');
+                return;
+            }
+            /* wishlist + quick view (event delegation, same behaviour as homepage) */
+            const wishBtn = e.target.closest('.p-wish');
+            const qvBtn = e.target.closest('.p-qv');
+            if (wishBtn) {
+                e.preventDefault();
+                const id = wishBtn.dataset.id;
+                const list = CirvioStore.getWishlist();
+                if (list.map(String).includes(String(id))) { CirvioStore.setWishlist(list.filter(x => String(x) !== String(id))); showToast('Removed from wishlist'); }
+                else { list.push(id); CirvioStore.setWishlist(list); showToast('Added to wishlist'); }
+                refreshWishBadge();
+                wishBtn.classList.toggle('active');
+                return;
+            }
+            if (qvBtn) {
+                e.preventDefault();
+                openModal(qvBtn.dataset.id);
+            }
+        });
+
+        /* ============================================================
+           CATEGORY RAIL — click to scroll, scrollspy to highlight
+        ============================================================ */
+        catRail.addEventListener('click', (e) => {
+            const chip = e.target.closest('.cat-chip');
+            if (!chip) return;
+            const target = document.getElementById(chip.dataset.target);
+            if (target) target.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        const allChips = () => [...catRail.querySelectorAll('.cat-chip')];
+        const railIO = new IntersectionObserver((entries) => {
+            entries.forEach(en => {
+                if (!en.isIntersecting) return;
+                const slug = en.target.id;
+                allChips().forEach(c => c.classList.toggle('active', c.dataset.target === slug));
+                const activeChip = catRail.querySelector('.cat-chip.active');
+                if (activeChip) activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            });
+        }, { rootMargin: '-140px 0px -65% 0px', threshold: 0 });
+        function observeExploreSections() {
+            document.querySelectorAll('.explore-section').forEach(s => railIO.observe(s));
+        }
+        observeExploreSections();
+
+        /* ============================================================
+           QUICK FILTER CHIPS + LIVE SEARCH
+        ============================================================ */
+        const quickFilters = document.getElementById('quickFilters');
+        const exploreSearchInput = document.getElementById('exploreSearchInput');
+        const noResultsBox = document.getElementById('exploreNoResults');
+        let activeFilter = 'all';
+
+        function passesFilter(card) {
+            const price = Number(card.dataset.price);
+            const disc = Number(card.dataset.disc);
+            switch (activeFilter) {
+                case 'under200': return price > 0 && price <= 200;
+                case 'under500': return price > 0 && price <= 500;
+                case 'free': return card.dataset.type === 'free' || card.dataset.type === 'donate';
+                case 'discount': return disc >= 30;
+                default: return true;
+            }
+        }
+
+        function applyExploreFilters() {
+            const q = exploreSearchInput.value.trim().toLowerCase();
+            let anyVisible = false;
+            document.querySelectorAll('.explore-section').forEach(section => {
+                const cards = section.querySelectorAll('.p-card');
+                let sectionHasMatch = false;
+                cards.forEach(card => {
+                    const matchesText = !q || card.dataset.title.includes(q) || card.dataset.cat.includes(q);
+                    const matchesFilter = passesFilter(card);
+                    const show = matchesText && matchesFilter;
+                    card.style.display = show ? '' : 'none';
+                    if (show) { sectionHasMatch = true; anyVisible = true; }
+                });
+                const emptyBox = section.querySelector('.es-empty');
+                if (emptyBox) {
+                    /* categories with no demo listings: hide entirely once a search/filter is active */
+                    section.style.display = (q || activeFilter !== 'all') ? 'none' : '';
+                } else {
+                    section.style.display = sectionHasMatch ? '' : 'none';
+                }
+            });
+            noResultsBox.style.display = anyVisible ? 'none' : 'block';
+        }
+
+        exploreSearchInput.addEventListener('input', applyExploreFilters);
+        document.getElementById('exploreSearchBtn').addEventListener('click', (e) => { e.preventDefault(); applyExploreFilters(); });
+        exploreSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyExploreFilters(); } });
+
+        quickFilters.addEventListener('click', (e) => {
+            const chip = e.target.closest('.qf-chip');
+            if (!chip) return;
+            quickFilters.querySelectorAll('.qf-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            activeFilter = chip.dataset.filter;
+            applyExploreFilters();
+        });
+
+        /* prefill search from ?q= so links from the header search still work */
+        (function prefillFromURL() {
+            const params = new URLSearchParams(location.search);
+            const q = params.get('q');
+            if (q) { exploreSearchInput.value = q; applyExploreFilters(); }
+        })();
+
+        /* ============================================================
+           QUICK VIEW MODAL (same behaviour as homepage)
+        ============================================================ */
+        const modalOverlay = document.getElementById('modalOverlay');
+        let modalProduct = null;
+        function openModal(id) {
+            const p = PRODUCTS.find(x => String(x.id) === String(id));
+            if (!p) return;
+            modalProduct = p;
+            document.getElementById('modalImg').src = p.img;
+            document.getElementById('modalImg').alt = p.title;
+            document.getElementById('modalCat').textContent = p.cat;
+            document.getElementById('modalTitle').textContent = p.title;
+            document.getElementById('modalPrice').textContent = p.price === 0 ? 'Free' : '₹' + p.price;
+            document.getElementById('modalOrig').textContent = p.orig ? '₹' + p.orig : '';
+            const disc = discountPct(p);
+            document.getElementById('modalDisc').textContent = disc ? disc + '% off' : '';
+            document.getElementById('modalDesc').textContent = p.desc;
+            document.getElementById('modalCond').textContent = p.cond;
+            document.getElementById('modalLoc').textContent = p.loc;
+            document.getElementById('modalSeller').textContent = p.seller;
+            document.getElementById('modalPosted').textContent = p.time;
+            modalOverlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeModal() {
+            modalOverlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        document.getElementById('modalClose').addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+        document.getElementById('modalContactBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!modalProduct) return;
+            closeModal();
+            CirvioContact.open(modalProduct, `Hi CIRVIO, I'm interested in "${modalProduct.title}". Could you connect me with the seller?`);
+        });
+        document.getElementById('modalOfferBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!modalProduct) return;
+            closeModal();
+            CirvioContact.open(modalProduct, `Hi CIRVIO, I'd like to offer ₹___ for "${modalProduct.title}". Please pass this on to the seller.`);
+        });
+
+        /* ============================================================
+           INIT SHARED CHROME
+        ============================================================ */
+        async function loadBackendProducts() {
+            if (!window.CirvioAPI) return;
+            try {
+                const { products } = await CirvioAPI.getProducts();
+                PRODUCTS.splice(0, PRODUCTS.length, ...(products || []));
+                renderExploreSections();
+                observeExploreSections();
+                applyExploreFilters();
+            } catch (err) {
+                console.warn('Could not load explore products:', err.message);
+                PRODUCTS.splice(0, PRODUCTS.length);
+                renderExploreSections();
+                applyExploreFilters();
+            }
+        }
+
+        if (CirvioAuth.requireLogin()) loadBackendProducts();
+        initCirvioChrome('explore');
+    </script>
+</body>
+
+</html>

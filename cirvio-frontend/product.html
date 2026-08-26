@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Details — CIRVIO</title>
+    <meta name="description" content="View full details, seller info and similar listings for this item on CIRVIO.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2E3624">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" href="icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CIRVIO">
+    <meta name="mobile-web-app-capable" content="yes">
+    <style>
+        /* ============================================================
+           PRODUCT DETAIL PAGE — page-specific styles
+        ============================================================ */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: .82rem;
+            color: #8a856f;
+            margin-bottom: 22px;
+        }
+
+        .breadcrumb a {
+            color: #8a856f;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--terracotta-deep);
+        }
+
+        .breadcrumb span.sep {
+            opacity: .5;
+        }
+
+        .breadcrumb span.current {
+            color: var(--olive-deep);
+            font-weight: 600;
+        }
+
+        .product-detail {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+            gap: 52px;
+            align-items: start;
+        }
+
+        /* ---------- gallery ---------- */
+        .gallery-main {
+            position: relative;
+            border-radius: 18px;
+            overflow: hidden;
+            background: #f1efe6;
+            aspect-ratio: 1 / 1;
+        }
+
+        .gallery-main img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gallery-main .p-tag {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+        }
+
+        .gallery-main .gallery-wish {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, .92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+        }
+
+        .gallery-main .gallery-wish svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--olive-deep);
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .gallery-main .gallery-wish.active svg {
+            fill: var(--terracotta-deep);
+            stroke: var(--terracotta-deep);
+        }
+
+        .gallery-thumbs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .gallery-thumbs button {
+            padding: 0;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            aspect-ratio: 1 / 1;
+            background: none;
+        }
+
+        .gallery-thumbs button.active {
+            border-color: var(--terracotta-deep);
+        }
+
+        .gallery-thumbs img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* ---------- info column ---------- */
+        .pd-cat {
+            font-size: .74rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: var(--terracotta-deep);
+            margin-bottom: 10px;
+        }
+
+        .pd-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+            line-height: 1.22;
+            color: var(--olive-deep);
+            margin-bottom: 14px;
+        }
+
+        .pd-price-row {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+
+        .pd-price {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--olive-deep);
+        }
+
+        .pd-orig {
+            font-size: 1.05rem;
+            color: #a8a290;
+            text-decoration: line-through;
+        }
+
+        .pd-disc {
+            font-size: .82rem;
+            font-weight: 700;
+            color: #2e9e5b;
+            background: #e6f6ec;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+
+        .pd-meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 22px;
+            margin: 18px 0 22px;
+            padding: 16px 0;
+            border-top: 1px solid var(--border, #ece7d9);
+            border-bottom: 1px solid var(--border, #ece7d9);
+        }
+
+        .pd-meta-row div {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: .84rem;
+            color: #6f6a58;
+        }
+
+        .pd-meta-row svg {
+            width: 16px;
+            height: 16px;
+            stroke: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .pd-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 26px;
+        }
+
+        .pd-actions .btn {
+            flex: 1 1 auto;
+        }
+
+        .pd-icon-btn {
+            width: 46px;
+            height: 46px;
+            flex: 0 0 auto;
+            border-radius: 12px;
+            border: 1px solid var(--border, #ddd6c4);
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .pd-icon-btn svg {
+            width: 19px;
+            height: 19px;
+            stroke: var(--olive-deep);
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .pd-icon-btn.active svg {
+            fill: var(--terracotta-deep);
+            stroke: var(--terracotta-deep);
+        }
+
+        /* seller card */
+        .seller-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 18px;
+            border-radius: 14px;
+            background: #f7f5ee;
+            margin-bottom: 26px;
+        }
+
+        .seller-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--olive-deep);
+            color: var(--ivory);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+
+        .seller-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .seller-info .s-name {
+            font-weight: 700;
+            color: var(--olive-deep);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .96rem;
+        }
+
+        .seller-info .s-name svg {
+            width: 14px;
+            height: 14px;
+            stroke: #2e9e5b;
+            flex-shrink: 0;
+        }
+
+        .seller-info .s-meta {
+            font-size: .78rem;
+            color: #8a856f;
+            margin-top: 3px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .s-rating {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            color: var(--gold);
+        }
+
+        .s-rating svg {
+            width: 13px;
+            height: 13px;
+            fill: var(--gold);
+            stroke: none;
+        }
+
+        .seller-card > a {
+            font-size: .8rem;
+            font-weight: 700;
+            color: var(--terracotta-deep);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        /* offer panel */
+        .offer-panel {
+            display: none;
+            gap: 10px;
+            margin: -10px 0 24px;
+        }
+
+        .offer-panel.open {
+            display: flex;
+        }
+
+        .offer-panel input {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border, #ddd6c4);
+            font-family: inherit;
+            font-size: .9rem;
+        }
+
+        /* details / description */
+        .pd-section {
+            margin-top: 46px;
+        }
+
+        .pd-section h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            color: var(--olive-deep);
+            margin-bottom: 14px;
+        }
+
+        .pd-desc {
+            color: #55503f;
+            line-height: 1.75;
+            font-size: .96rem;
+            max-width: 720px;
+        }
+
+        .spec-table {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px 40px;
+            max-width: 720px;
+        }
+
+        .spec-row {
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed var(--border, #e3ddcc);
+            font-size: .88rem;
+        }
+
+        .spec-row span:first-child {
+            color: #8a856f;
+        }
+
+        .spec-row span:last-child {
+            color: var(--olive-deep);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .safety-tips {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            max-width: 760px;
+        }
+
+        .safety-tips div {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            font-size: .83rem;
+            color: #55503f;
+            line-height: 1.5;
+        }
+
+        .safety-tips svg {
+            width: 18px;
+            height: 18px;
+            stroke: var(--gold);
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        @media (max-width: 900px) {
+            .product-detail {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .spec-table {
+                grid-template-columns: 1fr;
+            }
+
+            .safety-tips {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .gallery-thumbs {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+            }
+
+            .pd-price {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ============ HEADER (identical on every page) ============ -->
+    <div class="header-wrap">
+        <header class="header" id="siteHeader">
+            <a href="index.html#home" class="logo" aria-label="CIRVIO home">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO — Sell. Donate. Share Knowledge.">
+            </a>
+
+            <nav class="nav-links">
+                <a href="index.html#browse" data-nav="browse">Browse</a>
+                <a href="explore.html" data-nav="explore">Explore</a>
+                <a href="index.html#donate" data-nav="donate">Donate</a>
+                <a href="index.html#how" data-nav="how">How it Works</a>
+                <a href="index.html#about" data-nav="about">About</a>
+            </nav>
+
+            <div class="header-search" style="position:relative;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search books, notes, calculators, ISBN..."
+                    autocomplete="off">
+                <div class="loc">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
+                        <circle cx="12" cy="9" r="2.4" />
+                    </svg>
+                    Mumbai
+                </div>
+                <div class="search-suggest" id="searchSuggest">
+                    <div class="sg-label">Trending searches</div>
+                    <div class="sg-item" data-q="NCERT Class 12"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>NCERT Class 12</div>
+                    <div class="sg-item" data-q="JEE Previous Papers"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>JEE Previous Year Papers</div>
+                    <div class="sg-item" data-q="Casio Calculator"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>Casio FX-991ES Calculator</div>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1.6" />
+                        <circle cx="19" cy="21" r="1.6" />
+                        <path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z" />
+                    </svg>
+                    <span class="badge-count" id="cartCount">0</span>
+                </button>
+                <button class="btn-icon" id="wishBtn" aria-label="Wishlist" title="Wishlist">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    <span class="badge-count" id="wishCount">0</span>
+                </button>
+                <button class="btn-icon" aria-label="Notifications" title="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    <span class="badge-count" id="notifCount">3</span>
+                </button>
+                <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                </a>
+                <div class="header-cta">
+                    <a href="sell.html" class="btn btn-terracotta btn-sm"><span>Sell</span></a>
+                </div>
+                <button class="btn-icon hamburger" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line class="ham-line ham-1" x1="4" y1="7" x2="20" y2="7" />
+                        <line class="ham-line ham-2" x1="4" y1="12" x2="20" y2="12" />
+                        <line class="ham-line ham-3" x1="4" y1="17" x2="20" y2="17" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+    </div>
+
+    <!-- mobile menu (identical on every page) -->
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-panel">
+            <div class="mp-top">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO">
+                <button class="btn-icon close-btn" id="closeMenuBtn" aria-label="Close menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+            <nav>
+                <a href="index.html#browse" data-nav="browse">Browse</a>
+                <a href="explore.html" data-nav="explore">Explore</a>
+                <a href="index.html#donate" data-nav="donate">Donate</a>
+                <a href="index.html#how" data-nav="how">How it Works</a>
+                <a href="index.html#about" data-nav="about">About</a>
+                <a href="index.html#contact">Contact</a>
+            </nav>
+            <div class="mp-quick">
+                <a href="profile.html#saved" class="mp-quick-item" id="mpWishBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    Wishlist
+                    <span class="badge-count" id="mpWishCount">0</span>
+                </a>
+                <a href="profile.html#messages" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.4a8.4 8.4 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5z" />
+                    </svg>
+                    Messages
+                    <span class="badge-count" id="mpMsgCount" style="display:none;">0</span>
+                </a>
+                <a href="#" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    Notifications
+                    <span class="badge-count" id="mpNotifCount">3</span>
+                </a>
+                <a href="profile.html" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                    My Account
+                </a>
+            </div>
+            <div class="mp-cta">
+                <a href="sell.html" class="btn btn-terracotta">Sell an Item</a>
+                <a href="index.html#donate" class="btn btn-outline">Donate</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ PRODUCT DETAIL ============ -->
+    <section style="padding-top:26px;">
+        <div class="container">
+            <div class="breadcrumb reveal show">
+                <a href="index.html">Home</a>
+                <span class="sep">/</span>
+                <a href="index.html#browse">Browse</a>
+                <span class="sep">/</span>
+                <span class="current" id="crumbCat">Item</span>
+            </div>
+
+            <div class="product-detail reveal show">
+                <!-- gallery -->
+                <div class="pd-gallery">
+                    <div class="gallery-main">
+                        <div class="p-tag" id="pdTag" style="display:none;"></div>
+                        <button class="gallery-wish" id="pdWishBtn" aria-label="Save to wishlist">
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                            </svg>
+                        </button>
+                        <img id="galleryMainImg" src="" alt="">
+                    </div>
+                    <div class="gallery-thumbs" id="galleryThumbs"></div>
+                </div>
+
+                <!-- info -->
+                <div class="pd-info">
+                    <div class="pd-cat" id="pdCat">Category</div>
+                    <h1 class="pd-title" id="pdTitle">Loading item…</h1>
+
+                    <div class="pd-price-row">
+                        <span class="pd-price" id="pdPrice">₹0</span>
+                        <span class="pd-orig" id="pdOrig"></span>
+                        <span class="pd-disc" id="pdDisc" style="display:none;"></span>
+                    </div>
+
+                    <div class="pd-meta-row">
+                        <div>
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                                <path d="M20 6L9 17l-5-5" />
+                            </svg>
+                            <span id="pdCond">Condition</span>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                                <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
+                                <circle cx="12" cy="9" r="2.4" />
+                            </svg>
+                            <span id="pdLoc">Location</span>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                                <circle cx="12" cy="12" r="9" />
+                                <path d="M12 7v5l3 3" />
+                            </svg>
+                            <span id="pdTime">Posted —</span>
+                        </div>
+                    </div>
+
+                    <div class="pd-actions">
+                        <button type="button" class="btn btn-terracotta" id="pdAddCartBtn" data-add-cart>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-3px;"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
+                            Add to Cart
+                        </button>
+                        <a href="#" class="btn btn-outline" id="pdContactBtn">Contact Seller</a>
+                        <a href="#" class="btn btn-outline" id="pdOfferBtn">Make an Offer</a>
+                        <button class="pd-icon-btn" id="pdShareBtn" aria-label="Share listing" title="Share">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="18" cy="5" r="3" />
+                                <circle cx="6" cy="12" r="3" />
+                                <circle cx="18" cy="19" r="3" />
+                                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="offer-panel" id="offerPanel">
+                        <input type="number" id="offerAmount" placeholder="Your offer amount (₹)">
+                        <button class="btn btn-terracotta" id="offerSendBtn" style="flex:0 0 auto;">Send</button>
+                    </div>
+
+                    <div class="seller-card">
+                        <div class="seller-avatar" id="sellerAvatar">S</div>
+                        <div class="seller-info">
+                            <div class="s-name">
+                                <span id="sellerName">Seller</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round">
+                                    <path d="M20 6L9 17l-5-5" />
+                                </svg>
+                            </div>
+                            <div class="s-meta">
+                                <span class="s-rating">
+                                    <svg viewBox="0 0 24 24"><path
+                                            d="M12 2l2.9 6.4 7 .7-5.3 4.8 1.6 6.9L12 17.4 5.8 20.8l1.6-6.9L2.1 9.1l7-.7z" /></svg>
+                                    4.7 · 32 reviews
+                                </span>
+                                <span id="sellerSince">Member since 2024</span>
+                            </div>
+                        </div>
+                        <a href="index.html#browse">View Listings</a>
+                    </div>
+
+                    <div class="pd-section" style="margin-top:0;">
+                        <h3>Description</h3>
+                        <p class="pd-desc" id="pdDesc">—</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- item details / specs -->
+            <div class="pd-section reveal">
+                <h3>Item Details</h3>
+                <div class="spec-table" id="specTable"></div>
+            </div>
+
+            <!-- safety tips -->
+            <div class="pd-section reveal">
+                <h3>Buying Safely on CIRVIO</h3>
+                <div class="safety-tips">
+                    <div>
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                            <rect x="4" y="10" width="16" height="10" rx="2" />
+                            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                        </svg>
+                        Keep all chats inside CIRVIO messages — never share OTPs or bank details.
+                    </div>
+                    <div>
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                            <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
+                            <circle cx="12" cy="9" r="2.4" />
+                        </svg>
+                        Meet in a public spot on campus, like a library or common area.
+                    </div>
+                    <div>
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                            <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                        Check the item's condition in person before paying.
+                    </div>
+                </div>
+            </div>
+
+            <!-- similar listings -->
+            <div class="pd-section reveal" style="margin-bottom:60px;">
+                <h3>Similar Listings</h3>
+                <div class="product-grid" id="similarGrid"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- bottom mobile nav (identical on every page) -->
+    <nav class="bottom-nav">
+        <ul>
+            <li><a href="index.html#home" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M3 11l9-8 9 8" />
+                        <path d="M5 10v10h14V10" />
+                    </svg>Home</a></li>
+            <li><a href="explore.html" class="active" data-nav="explore"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4.3-4.3" />
+                    </svg>Explore</a></li>
+            <li><a href="sell.html"><span class="sell-fab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg></span></a></li>
+            <li><a href="status.html" data-nav="status"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>Status</a></li>
+            <li><a href="profile.html" data-nav="profile"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>Profile</a></li>
+        </ul>
+    </nav>
+
+    <!-- toast -->
+    <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M20 6L9 17l-5-5" />
+        </svg><span id="toastMsg">Added to wishlist</span></div>
+
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="common.js"></script>
+    <script>
+        /* ============================================================
+           DEMO CATALOG (same items as the rest of the site)
+        ============================================================ */
+        const PRODUCTS = [
+            { id: 1, title: "Engineering Mathematics by B.S. Grewal", cat: "College Books", price: 280, orig: 650, cond: "Good", loc: "Powai, Mumbai", seller: "Aarav M.", time: "2h ago", type: "sell", img: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=900&q=75", desc: "Widely used engineering maths textbook covering all core topics for first-year engineering students. Minor highlighting in first two chapters, spine intact. All pages present, no torn or missing sheets — great for semester 1 and 2 coursework." },
+            { id: 2, title: "NCERT Class 12 Physics Part 1 & 2", cat: "School Books", price: 150, orig: 340, cond: "Like New", loc: "Andheri, Mumbai", seller: "Priya S.", time: "5h ago", type: "sell", img: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=900&q=75", desc: "Complete set of NCERT Class 12 Physics textbooks, barely used, no markings. Perfect for board exam preparation. Both parts included, cover in excellent shape." },
+            { id: 3, title: "Organic Chemistry — Morrison & Boyd", cat: "Competitive Exams", price: 420, orig: 900, cond: "Excellent", loc: "Kothrud, Pune", seller: "Rohan K.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=900&q=75", desc: "Classic organic chemistry reference used for NEET and JEE preparation. All pages intact, light cover wear. A must-have for anyone tackling organic reaction mechanisms." },
+            { id: 4, title: "JEE Main Previous Year Question Papers", cat: "Question Banks", price: 0, orig: 250, cond: "Good", loc: "Vashi, Navi Mumbai", seller: "Sneha D.", time: "3h ago", type: "donate", img: "https://images.unsplash.com/photo-1509266272358-7701da638078?w=900&q=75", desc: "10-year compilation of JEE Main previous papers with solutions. Donating to help a fellow aspirant — pickup preferred. Spiral bound, easy to flip through during timed practice." },
+            { id: 5, title: "NEET Biology Handwritten Notes", cat: "Notes", price: 180, orig: 400, cond: "Excellent", loc: "Bandra, Mumbai", seller: "Meera J.", time: "6h ago", type: "sell", img: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=900&q=75", desc: "Neatly organized handwritten biology notes covering the full NEET syllabus, colour-coded diagrams included. Written across two notebooks, index page included for quick topic lookup." },
+            { id: 6, title: "Casio FX-991ES Plus Scientific Calculator", cat: "Calculators", price: 650, orig: 1200, cond: "Good", loc: "Baner, Pune", seller: "Karan V.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1587145820098-24e73c66d5a8?w=900&q=75", desc: "Fully functional scientific calculator, ideal for engineering and competitive exams. Comes with original cover and instruction booklet. Battery replaced recently." },
+            { id: 7, title: "Data Structures Handwritten Notes (CS)", cat: "Notes", price: 120, orig: 0, cond: "Good", loc: "Malad, Mumbai", seller: "Ishaan R.", time: "4h ago", type: "free", img: "https://images.unsplash.com/photo-1517842645767-c639042777db?w=900&q=75", desc: "Semester 3 Data Structures notes with solved examples and diagrams. Giving away for free to a junior in need. Covers trees, graphs, sorting and searching in detail." },
+            { id: 8, title: "Indian Polity by M. Laxmikanth", cat: "Competitive Exams", price: 350, orig: 695, cond: "Like New", loc: "Dwarka, Delhi", seller: "Ananya T.", time: "8h ago", type: "sell", img: "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=900&q=75", desc: "Latest edition of the definitive UPSC Indian Polity reference. No markings, used for one attempt only. Comes with a fresh cover, no water damage or torn pages." },
+            { id: 9, title: "Rich Dad Poor Dad — Robert Kiyosaki", cat: "Novels", price: 99, orig: 299, cond: "Good", loc: "Koramangala, Bengaluru", seller: "Vivaan P.", time: "12h ago", type: "sell", img: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=900&q=75", desc: "Popular personal finance book, gently used with a few dog-eared pages. Great condition overall, all pages readable." },
+            { id: 10, title: "The Alchemist — Paulo Coelho", cat: "Novels", price: 0, orig: 250, cond: "Fair", loc: "Salt Lake, Kolkata", seller: "Riya B.", time: "1d ago", type: "donate", img: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=900&q=75", desc: "A well-loved copy ready for its next reader. Donating as part of our campus book drive this month. Cover slightly worn but binding is solid." },
+            { id: 11, title: "B.Com Semester 3 Complete Notes Set", cat: "Study Material", price: 220, orig: 480, cond: "Excellent", loc: "Nungambakkam, Chennai", seller: "Aditya N.", time: "9h ago", type: "sell", img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=900&q=75", desc: "Complete B.Com semester 3 notes including accounting, costing and business law summaries. Typed and printed for easy reading, spiral bound." },
+            { id: 12, title: "Class 10 CBSE Complete Book Set", cat: "School Books", price: 600, orig: 1400, cond: "Good", loc: "Sector 15, Gurugram", seller: "Diya C.", time: "2d ago", type: "sell", img: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=900&q=75", desc: "Full set of Class 10 CBSE textbooks across all subjects. Some highlighting present in Maths and Science, all other books unmarked." },
+        ];
+
+        function discountPct(p) {
+            if (!p.orig || p.price === 0) return null;
+            return Math.round(((p.orig - p.price) / p.orig) * 100);
+        }
+
+        function getParam(name) {
+            return new URLSearchParams(location.search).get(name);
+        }
+
+        /* build 4 gallery crops from the same source photo so there's
+           a real thumbnail strip without misrepresenting the item */
+        function galleryImages(baseUrl) {
+            const crops = ['crop=entropy', 'crop=top', 'crop=bottom', 'crop=left'];
+            return crops.map(c => baseUrl.replace(/&q=\d+/, '') + '&q=75&fit=crop&' + c);
+        }
+
+        function productCardHTML(p) {
+            const disc = discountPct(p);
+            const isWish = CirvioStore.getWishlist().map(String).includes(String(p.id));
+            let tag = '';
+            if (p.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
+            else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
+            return `
+  <a class="p-card" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;display:block;">
+    <div class="p-thumb">
+      ${tag}
+      <button class="p-wish ${isWish ? 'active' : ''}" data-id="${p.id}" aria-label="Save to wishlist" onclick="event.preventDefault()">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+      </button>
+      <img src="${p.img.replace('w=900', 'w=500')}" alt="${p.title}" loading="lazy">
+    </div>
+    <div class="p-body">
+      <div class="p-cat">${p.cat}</div>
+      <div class="p-title">${p.title}</div>
+      <div class="p-price-row">
+        <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
+        ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
+        ${disc ? `<span class="p-disc">${disc}% off</span>` : ''}
+      </div>
+      <div class="p-meta">
+        <span class="cond">${p.cond}</span>
+        <span>${p.loc}</span>
+      </div>
+      <div class="p-foot">
+        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${p.seller}</span>
+        <span>${p.time}</span>
+      </div>
+    </div>
+    <div class="p-card-actions">
+      <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
+        data-id="${p.id}" data-title="${p.title.replace(/"/g, '&quot;')}" data-price="${p.price}" data-img="${p.img}">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
+        Add to Cart
+      </button>
+    </div>
+  </a>`;
+        }
+
+        /* ============================================================
+           RENDER
+        ============================================================ */
+        const id = getParam('id') || '';
+        PRODUCTS.splice(0, PRODUCTS.length);
+        let product = null;
+        let activeThumb = 0;
+
+        function render() {
+            if (!product) {
+                document.querySelector('.product-detail').innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:70px 20px;color:#8a856f;">
+        <p style="font-family:var(--font-display);font-size:1.4rem;color:var(--olive-deep);margin-bottom:8px;">Product not found</p>
+        <p>This listing is unavailable or has not been approved yet.</p>
+        <a href="index.html#browse" class="btn btn-terracotta" style="margin-top:18px;">Browse Listings</a>
+      </div>`;
+                document.getElementById('similarGrid').innerHTML = '';
+                return;
+            }
+            document.title = product.title + ' — CIRVIO';
+            document.getElementById('crumbCat').textContent = product.title;
+            document.getElementById('pdCat').textContent = product.cat;
+            document.getElementById('pdTitle').textContent = product.title;
+            document.getElementById('pdCond').textContent = product.cond;
+            document.getElementById('pdLoc').textContent = product.loc;
+            document.getElementById('pdTime').textContent = 'Posted ' + product.time;
+            document.getElementById('pdDesc').textContent = product.desc;
+            document.getElementById('sellerAvatar').textContent = product.seller.trim().charAt(0).toUpperCase();
+            document.getElementById('sellerName').textContent = product.seller;
+
+            document.getElementById('pdPrice').textContent = product.price === 0
+                ? (product.type === 'donate' ? 'Donation' : 'Free')
+                : '₹' + product.price;
+            if (product.orig && product.type === 'sell') {
+                document.getElementById('pdOrig').textContent = '₹' + product.orig;
+            }
+            const disc = discountPct(product);
+            const tagEl = document.getElementById('pdTag');
+            const discEl = document.getElementById('pdDisc');
+            if (product.type === 'donate') { tagEl.textContent = 'Donation'; tagEl.className = 'p-tag donate'; tagEl.style.display = 'block'; }
+            else if (product.type === 'free') { tagEl.textContent = 'Free'; tagEl.className = 'p-tag free'; tagEl.style.display = 'block'; }
+            else if (disc) { tagEl.textContent = disc + '% OFF'; tagEl.className = 'p-tag'; tagEl.style.display = 'block'; discEl.textContent = disc + '% off'; discEl.style.display = 'inline-block'; }
+
+            /* gallery */
+            const imgs = galleryImages(product.img);
+            document.getElementById('galleryMainImg').src = imgs[0];
+            document.getElementById('galleryMainImg').alt = product.title;
+            document.getElementById('galleryThumbs').innerHTML = imgs.map((src, i) => `
+        <button class="${i === 0 ? 'active' : ''}" data-i="${i}"><img src="${src}" alt="${product.title} view ${i + 1}"></button>
+      `).join('');
+
+            /* specs */
+            document.getElementById('specTable').innerHTML = `
+        <div class="spec-row"><span>Category</span><span>${product.cat}</span></div>
+        <div class="spec-row"><span>Condition</span><span>${product.cond}</span></div>
+        <div class="spec-row"><span>Listing type</span><span>${product.type === 'sell' ? 'For Sale' : (product.type === 'donate' ? 'Donation' : 'Free')}</span></div>
+        <div class="spec-row"><span>Pickup location</span><span>${product.loc}</span></div>
+        <div class="spec-row"><span>Posted</span><span>${product.time}</span></div>
+        <div class="spec-row"><span>Seller</span><span>${product.seller}</span></div>
+      `;
+
+            /* add-to-cart button needs this item's data */
+            const addCartBtn = document.getElementById('pdAddCartBtn');
+            addCartBtn.dataset.id = product.id;
+            addCartBtn.dataset.title = product.title;
+            addCartBtn.dataset.price = product.price;
+            addCartBtn.dataset.img = product.img;
+
+            /* wishlist state */
+            updateWishState();
+
+            /* similar listings */
+            const similar = PRODUCTS.filter(p => p.cat === product.cat && String(p.id) !== String(product.id)).slice(0, 4);
+            const fallback = similar.length ? similar : PRODUCTS.filter(p => String(p.id) !== String(product.id)).slice(0, 4);
+            document.getElementById('similarGrid').innerHTML = fallback.map(productCardHTML).join('');
+        }
+
+        function updateWishState() {
+            const isWish = CirvioStore.getWishlist().map(String).includes(String(product.id));
+            document.getElementById('pdWishBtn').classList.toggle('active', isWish);
+        }
+
+        document.getElementById('galleryThumbs').addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const i = Number(btn.dataset.i);
+            activeThumb = i;
+            document.getElementById('galleryMainImg').src = galleryImages(product.img)[i];
+            document.querySelectorAll('.gallery-thumbs button').forEach(b => b.classList.toggle('active', Number(b.dataset.i) === i));
+        });
+
+        document.getElementById('pdWishBtn').addEventListener('click', () => {
+            const list = CirvioStore.getWishlist();
+            if (list.map(String).includes(String(product.id))) {
+                CirvioStore.setWishlist(list.filter(x => String(x) !== String(product.id)));
+                showToast('Removed from wishlist');
+            } else {
+                list.push(product.id);
+                CirvioStore.setWishlist(list);
+                showToast('Added to wishlist');
+            }
+            refreshWishBadge();
+            updateWishState();
+        });
+
+        document.getElementById('similarGrid').addEventListener('click', (e) => {
+            const wishBtn = e.target.closest('.p-wish');
+            if (!wishBtn) return;
+            const pid = wishBtn.dataset.id;
+            const list = CirvioStore.getWishlist();
+            if (list.includes(pid)) { CirvioStore.setWishlist(list.filter(x => x !== pid)); showToast('Removed from wishlist'); }
+            else { list.push(pid); CirvioStore.setWishlist(list); showToast('Added to wishlist'); }
+            refreshWishBadge();
+            document.getElementById('similarGrid').innerHTML = PRODUCTS
+                .filter(p => p.cat === product.cat && String(p.id) !== String(product.id)).slice(0, 4)
+                .map(productCardHTML).join('');
+        });
+
+        document.getElementById('pdContactBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            CirvioContact.open(product, `Hi CIRVIO, I'm interested in "${product.title}". Could you connect me with the seller?`);
+        });
+
+        document.getElementById('pdOfferBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('offerPanel').classList.toggle('open');
+        });
+
+        document.getElementById('offerSendBtn').addEventListener('click', () => {
+            const amt = document.getElementById('offerAmount').value;
+            if (!amt) { showToast('Enter an offer amount'); return; }
+            const thread = CirvioStore.getMessages();
+            const now = Date.now();
+            thread.push({ id: now, productId: product.id, productTitle: product.title, productImg: product.img, text: `I'd like to offer ₹${amt} for "${product.title}".`, from: 'user', read: true, time: 'Just now' });
+            thread.push({ id: now + 1, productId: product.id, productTitle: product.title, productImg: product.img, text: `Thanks! We've sent your ₹${amt} offer to ${product.seller} and will let you know here once they respond.`, from: 'cirvio', read: false, time: 'Just now' });
+            CirvioStore.setMessages(thread);
+            refreshMsgBadge();
+            showToast('Offer of ₹' + amt + ' sent via CIRVIO');
+            document.getElementById('offerPanel').classList.remove('open');
+            document.getElementById('offerAmount').value = '';
+        });
+
+        document.getElementById('pdShareBtn').addEventListener('click', () => {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(location.href).then(() => showToast('Link copied to clipboard'));
+            } else {
+                showToast('Copy this page\'s URL to share');
+            }
+        });
+
+        async function loadBackendProduct() {
+            if (!window.CirvioAPI || !id) return;
+            try {
+                const { product: apiProduct } = await CirvioAPI.getProduct(id);
+                if (apiProduct) {
+                    product = apiProduct;
+                    render();
+                }
+            } catch (err) {
+                console.warn('Could not load product:', err.message);
+                product = null;
+                render();
+            }
+        }
+
+        if (CirvioAuth.requireLogin()) loadBackendProduct();
+
+        /* ============================================================
+           INIT SHARED CHROME
+        ============================================================ */
+        initCirvioChrome('explore');
+    </script>
+</body>
+
+</html>

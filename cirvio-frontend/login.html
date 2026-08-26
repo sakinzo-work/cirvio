@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login or Sign Up - CIRVIO</title>
+    <meta name="description" content="Login or create a CIRVIO account to buy, sell and donate study material safely.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            min-height: 100vh;
+            background: var(--ivory);
+        }
+
+        .auth-page {
+            position: relative;
+            min-height: calc(100vh - 84px);
+            padding: 58px 0 82px;
+            overflow: hidden;
+            background:
+                linear-gradient(180deg, rgba(255, 249, 239, .94), rgba(249, 242, 226, .98)),
+                url("cirvio-hero-desk.jpeg") center/cover;
+        }
+
+        .auth-page::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(255, 249, 239, .96) 0%, rgba(255, 249, 239, .91) 48%, rgba(255, 249, 239, .73) 100%);
+            pointer-events: none;
+        }
+
+        .auth-layout {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: minmax(0, .95fr) minmax(420px, 500px);
+            gap: clamp(34px, 6vw, 82px);
+            align-items: center;
+        }
+
+        .auth-copy {
+            max-width: 620px;
+            animation: authRise .55s ease both;
+        }
+
+        .auth-copy .eyebrow {
+            color: var(--terracotta);
+            margin-bottom: 16px;
+        }
+
+        .auth-copy h1 {
+            font-family: var(--font-display);
+            font-size: clamp(3.3rem, 7vw, 6.8rem);
+            line-height: .86;
+            color: var(--olive-deep);
+            letter-spacing: 0;
+            margin-bottom: 22px;
+        }
+
+        .auth-copy h1 em {
+            color: var(--terracotta);
+            font-style: italic;
+        }
+
+        .auth-copy p {
+            max-width: 520px;
+            color: #77715c;
+            line-height: 1.75;
+            font-size: 1rem;
+        }
+
+        .auth-points {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 30px;
+            max-width: 610px;
+        }
+
+        .auth-point {
+            min-height: 112px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 252, 246, .78);
+            box-shadow: 0 18px 42px -34px rgba(46, 54, 36, .45);
+        }
+
+        .auth-point svg {
+            width: 22px;
+            height: 22px;
+            stroke: var(--terracotta);
+            margin-bottom: 13px;
+        }
+
+        .auth-point strong {
+            display: block;
+            color: var(--olive-deep);
+            font-size: .88rem;
+            line-height: 1.35;
+        }
+
+        .auth-panel {
+            background: rgba(255, 252, 246, .92);
+            border: 1px solid rgba(222, 213, 194, .9);
+            border-radius: 8px;
+            box-shadow: var(--shadow-pop);
+            padding: 28px;
+            backdrop-filter: blur(18px);
+            animation: authCard .55s .08s ease both;
+        }
+
+        .auth-panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 22px;
+        }
+
+        .auth-panel h2 {
+            margin: 0 0 7px;
+            font-family: var(--font-display);
+            font-size: 2.15rem;
+            line-height: 1;
+            color: var(--olive-deep);
+        }
+
+        .auth-panel p {
+            margin: 0;
+            color: #817b66;
+            font-size: .9rem;
+            line-height: 1.55;
+        }
+
+        .auth-chip {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 34px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: #F4ECDD;
+            color: var(--olive-deep);
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        .auth-chip span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #42a35f;
+        }
+
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            padding: 5px;
+            background: #F1E7D6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .auth-tab {
+            border: 0;
+            min-height: 40px;
+            border-radius: 6px;
+            background: transparent;
+            color: #7d7662;
+            font: 800 .84rem var(--font-body);
+            cursor: pointer;
+        }
+
+        .auth-tab.active {
+            background: #fff;
+            color: var(--olive-deep);
+            box-shadow: 0 8px 18px rgba(46, 54, 36, .08);
+        }
+
+        .auth-mode {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .mode-btn {
+            min-height: 44px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .62);
+            color: var(--olive-deep);
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .mode-btn.active {
+            border-color: var(--terracotta);
+            background: rgba(200, 117, 79, .11);
+            color: var(--terracotta-deep);
+        }
+
+        .auth-form-panel {
+            display: none;
+            animation: panelIn .24s ease both;
+        }
+
+        .auth-form-panel.active {
+            display: block;
+        }
+
+        .field-group {
+            margin-bottom: 14px;
+        }
+
+        .field-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--olive-deep);
+            font-size: .78rem;
+            font-weight: 800;
+        }
+
+        .auth-input {
+            width: 100%;
+            height: 50px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--olive-deep);
+            padding: 0 14px;
+            font: 500 .92rem var(--font-body);
+            outline: none;
+            transition: border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .auth-input:focus {
+            border-color: rgba(200, 117, 79, .72);
+            box-shadow: 0 0 0 4px rgba(200, 117, 79, .12);
+        }
+
+        .auth-actions {
+            display: grid;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .auth-actions .btn {
+            width: 100%;
+            min-height: 50px;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0 14px;
+            color: #8a856f;
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .google-btn {
+            width: 100%;
+            min-height: 50px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--olive-deep);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .google-btn:hover {
+            transform: translateY(-1px);
+            border-color: var(--sage);
+            box-shadow: 0 12px 26px -22px rgba(46, 54, 36, .7);
+        }
+
+        .google-btn svg {
+            width: 19px;
+            height: 19px;
+        }
+
+        .auth-note {
+            min-height: 22px;
+            margin-top: 14px;
+            color: #817b66;
+            font-size: .84rem;
+            line-height: 1.45;
+        }
+
+        .auth-note.error {
+            color: #a94a36;
+        }
+
+        .auth-note.ok {
+            color: #2f7b4b;
+        }
+
+        .auth-fineprint {
+            margin-top: 18px;
+            color: #928b76;
+            font-size: .76rem;
+            line-height: 1.55;
+        }
+
+        .auth-fineprint a {
+            color: var(--terracotta-deep);
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .site-footer-mini {
+            position: relative;
+            z-index: 1;
+            padding-top: 28px;
+            color: #8a856f;
+            font-size: .82rem;
+        }
+
+        @keyframes authRise {
+            from {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes authCard {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes panelIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 980px) {
+            .auth-page {
+                padding-top: 38px;
+            }
+
+            .auth-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-copy {
+                max-width: 760px;
+            }
+
+            .auth-copy h1 {
+                max-width: 620px;
+            }
+
+            .auth-panel {
+                max-width: 560px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .auth-page {
+                min-height: auto;
+                padding: 28px 0 96px;
+            }
+
+            .auth-copy h1 {
+                font-size: 3.1rem;
+            }
+
+            .auth-copy p {
+                font-size: .92rem;
+            }
+
+            .auth-points {
+                grid-template-columns: 1fr;
+                gap: 9px;
+            }
+
+            .auth-point {
+                min-height: auto;
+            }
+
+            .auth-panel {
+                padding: 22px;
+            }
+
+            .auth-panel-head {
+                display: block;
+            }
+
+            .auth-chip {
+                margin-top: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header-wrap">
+        <header class="header" id="siteHeader">
+            <a href="index.html#home" class="logo" aria-label="CIRVIO home">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO - Sell. Donate. Share Knowledge.">
+            </a>
+
+            <nav class="nav-links">
+                <a href="index.html#home" data-nav="home">Home</a>
+                <a href="index.html#browse" data-nav="browse">Browse</a>
+                <a href="explore.html" data-nav="explore">Explore</a>
+                <a href="sell.html" data-nav="sell">Sell</a>
+            </nav>
+
+            <div class="header-actions">
+                <a href="index.html#browse" class="btn btn-outline btn-sm">Browse Listings</a>
+            </div>
+        </header>
+    </div>
+
+    <main class="auth-page">
+        <div class="container auth-layout">
+            <section class="auth-copy">
+                <span class="eyebrow">Welcome to CIRVIO</span>
+                <h1>Sign in to your <em>student marketplace</em>.</h1>
+                <p>Use one account to list books, track approval status, save items, and place orders with buyer-seller details safely handled through CIRVIO.</p>
+
+                <div class="auth-points" aria-label="CIRVIO account benefits">
+                    <div class="auth-point">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                        <strong>Verified student profiles</strong>
+                    </div>
+                    <div class="auth-point">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        <strong>Orders linked to buyers and sellers</strong>
+                    </div>
+                    <div class="auth-point">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5V5a2 2 0 0 1 2-2h11" />
+                            <path d="M8 7h11v14H8a4 4 0 0 1 0-8h11" />
+                        </svg>
+                        <strong>Listings reviewed before going live</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="auth-panel" aria-labelledby="authTitle">
+                <div class="auth-panel-head">
+                    <div>
+                        <h2 id="authTitle">Login</h2>
+                        <p id="authSub">Continue with your CIRVIO account.</p>
+                    </div>
+                    <div class="auth-chip"><span></span> Secure</div>
+                </div>
+
+                <div class="auth-tabs" role="tablist" aria-label="Login method">
+                    <button class="auth-tab active" type="button" data-panel="emailPanel">Email</button>
+                    <button class="auth-tab" type="button" data-panel="phonePanel">Phone OTP</button>
+                </div>
+
+                <div class="auth-form-panel active" id="emailPanel">
+                    <div class="auth-mode" aria-label="Account mode">
+                        <button class="mode-btn active" type="button" data-mode="login">Login</button>
+                        <button class="mode-btn" type="button" data-mode="signup">Sign up</button>
+                    </div>
+
+                    <form id="emailForm" novalidate>
+                        <div class="field-group" id="nameWrap" style="display:none;">
+                            <label for="name">Full name</label>
+                            <input class="auth-input" id="name" autocomplete="name" placeholder="Your name">
+                        </div>
+
+                        <div class="field-group">
+                            <label for="email">Email address</label>
+                            <input class="auth-input" id="email" type="email" autocomplete="email" placeholder="you@college.edu" required>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="password">Password</label>
+                            <input class="auth-input" id="password" type="password" autocomplete="current-password" placeholder="Minimum 6 characters" required>
+                        </div>
+
+                        <div class="auth-actions">
+                            <button class="btn btn-terracotta" type="submit" id="emailSubmit">Login</button>
+                        </div>
+                    </form>
+
+                    <div class="auth-divider">or</div>
+
+                    <button class="google-btn" type="button" id="googleBtn">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="#4285F4" d="M22 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.6c-.2 1.3-1 2.4-2.1 3.1v2.6h3.4c2-1.8 3.1-4.5 3.1-7.7z" />
+                            <path fill="#34A853" d="M12 22c2.8 0 5.2-.9 6.9-2.5l-3.4-2.6c-.9.6-2.1 1-3.5 1-2.7 0-5-1.8-5.8-4.3H2.7v2.7C4.4 19.7 7.9 22 12 22z" />
+                            <path fill="#FBBC05" d="M6.2 13.6c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9V7.1H2.7C2 8.5 1.6 10.1 1.6 11.7s.4 3.2 1.1 4.6l3.5-2.7z" />
+                            <path fill="#EA4335" d="M12 5.5c1.5 0 2.9.5 3.9 1.6l2.9-2.9C17.1 2.6 14.8 1.7 12 1.7 7.9 1.7 4.4 4 2.7 7.1l3.5 2.7C7 7.3 9.3 5.5 12 5.5z" />
+                        </svg>
+                        Continue with Google
+                    </button>
+                </div>
+
+                <div class="auth-form-panel" id="phonePanel">
+                    <form id="phoneForm" novalidate>
+                        <div class="field-group">
+                            <label for="phone">Mobile number</label>
+                            <input class="auth-input" id="phone" type="tel" autocomplete="tel" placeholder="+91 98765 43210" required>
+                        </div>
+
+                        <div class="field-group" id="otpWrap" style="display:none;">
+                            <label for="otp">One-time code</label>
+                            <input class="auth-input" id="otp" inputmode="numeric" autocomplete="one-time-code" placeholder="6 digit OTP">
+                        </div>
+
+                        <div class="auth-actions">
+                            <button class="btn btn-terracotta" type="submit" id="phoneSubmit">Send OTP</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="auth-note" id="statusText"></div>
+                <p class="auth-fineprint">By continuing, you agree to CIRVIO account safety checks. Google and phone login require production credentials before deployment.</p>
+            </section>
+        </div>
+    </main>
+
+    <div class="toast" id="toast">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M20 6L9 17l-5-5" />
+        </svg>
+        <span id="toastMsg">Welcome to CIRVIO</span>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="common.js"></script>
+    <script>
+        const GOOGLE_CLIENT_ID = window.CIRVIO_GOOGLE_CLIENT_ID || localStorage.getItem('cirvio_google_client_id') || '';
+        const params = new URLSearchParams(location.search);
+        const nextUrl = params.get('next') || 'index.html';
+        let signupMode = false;
+        let otpSent = false;
+
+        const statusText = document.getElementById('statusText');
+        const authTitle = document.getElementById('authTitle');
+        const authSub = document.getElementById('authSub');
+        const nameWrap = document.getElementById('nameWrap');
+        const emailSubmit = document.getElementById('emailSubmit');
+
+        function setStatus(message, type = '') {
+            statusText.textContent = message || '';
+            statusText.className = 'auth-note ' + type;
+        }
+
+        function finishLogin(user) {
+            setStatus(`Welcome, ${user.name || 'student'}. Redirecting...`, 'ok');
+            setTimeout(() => { window.location.assign(nextUrl); }, 650);
+        }
+
+        function setMode(mode) {
+            signupMode = mode === 'signup';
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+            nameWrap.style.display = signupMode ? '' : 'none';
+            authTitle.textContent = signupMode ? 'Create account' : 'Login';
+            authSub.textContent = signupMode ? 'Start buying and listing on CIRVIO.' : 'Continue with your CIRVIO account.';
+            emailSubmit.textContent = signupMode ? 'Create account' : 'Login';
+            setStatus('');
+        }
+
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.auth-form-panel').forEach(panel => panel.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.panel).classList.add('active');
+                authTitle.textContent = tab.dataset.panel === 'phonePanel' ? 'Phone login' : (signupMode ? 'Create account' : 'Login');
+                authSub.textContent = tab.dataset.panel === 'phonePanel' ? 'Use an OTP to access your account.' : (signupMode ? 'Start buying and listing on CIRVIO.' : 'Continue with your CIRVIO account.');
+                setStatus('');
+            });
+        });
+
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => setMode(btn.dataset.mode));
+        });
+
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value
+            };
+            if (!payload.email || !payload.password || (signupMode && !payload.name)) {
+                setStatus(signupMode ? 'Name, email and password are required.' : 'Email and password are required.', 'error');
+                return;
+            }
+            if (payload.password.length < 6) {
+                setStatus('Password must be at least 6 characters.', 'error');
+                return;
+            }
+            try {
+                emailSubmit.disabled = true;
+                emailSubmit.textContent = signupMode ? 'Creating...' : 'Logging in...';
+                const data = signupMode ? await CirvioAPI.register(payload) : await CirvioAPI.login(payload);
+                finishLogin(data.user);
+            } catch (err) {
+                setStatus(err.message, 'error');
+            } finally {
+                emailSubmit.disabled = false;
+                emailSubmit.textContent = signupMode ? 'Create account' : 'Login';
+            }
+        });
+
+        document.getElementById('googleBtn').addEventListener('click', () => {
+            if (!GOOGLE_CLIENT_ID || !window.google) {
+                setStatus('Google login needs GOOGLE_CLIENT_ID in config.js and backend .env.', 'error');
+                return;
+            }
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: async (response) => {
+                    try {
+                        const data = await CirvioAPI.googleLogin(response.credential);
+                        finishLogin(data.user);
+                    } catch (err) {
+                        setStatus(err.message, 'error');
+                    }
+                }
+            });
+            google.accounts.id.prompt();
+        });
+
+        document.getElementById('phoneForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phone = document.getElementById('phone').value.trim();
+            const otp = document.getElementById('otp').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const btn = document.getElementById('phoneSubmit');
+            try {
+                btn.disabled = true;
+                if (!otpSent) {
+                    btn.textContent = 'Sending...';
+                    await CirvioAPI.startPhoneOtp(phone);
+                    otpSent = true;
+                    document.getElementById('otpWrap').style.display = '';
+                    btn.textContent = 'Verify OTP';
+                    setStatus('OTP sent. Enter the code to continue.', 'ok');
+                } else {
+                    if (!otp) {
+                        setStatus('Enter the OTP code first.', 'error');
+                        return;
+                    }
+                    btn.textContent = 'Verifying...';
+                    const data = await CirvioAPI.verifyPhoneOtp(phone, otp, name);
+                    finishLogin(data.user);
+                }
+            } catch (err) {
+                setStatus(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                if (otpSent) btn.textContent = 'Verify OTP';
+            }
+        });
+
+        initCirvioChrome('profile');
+    </script>
+</body>
+
+</html>

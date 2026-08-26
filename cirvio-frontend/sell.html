@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sell or Donate a Book — CIRVIO</title>
+    <meta name="description" content="List a book, note, calculator or study material to sell or donate on CIRVIO.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2E3624">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" href="icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CIRVIO">
+    <meta name="mobile-web-app-capable" content="yes">
+</head>
+
+<body>
+
+    <!-- ============ HEADER (identical on every page) ============ -->
+    <div class="header-wrap">
+        <header class="header" id="siteHeader">
+            <a href="index.html#home" class="logo" aria-label="CIRVIO home">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO — Sell. Donate. Share Knowledge.">
+            </a>
+
+            <nav class="nav-links">
+                <a href="index.html#browse" data-nav="browse">Browse</a>
+                <a href="explore.html" data-nav="explore">Explore</a>
+                <a href="index.html#donate" data-nav="donate">Donate</a>
+                <a href="index.html#how" data-nav="how">How it Works</a>
+                <a href="index.html#about" data-nav="about">About</a>
+            </nav>
+
+            <div class="header-search" style="position:relative;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search books, notes, calculators, ISBN..."
+                    autocomplete="off">
+                <div class="loc">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
+                        <circle cx="12" cy="9" r="2.4" />
+                    </svg>
+                    Mumbai
+                </div>
+                <div class="search-suggest" id="searchSuggest">
+                    <div class="sg-label">Trending searches</div>
+                    <div class="sg-item" data-q="NCERT Class 12"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>NCERT Class 12</div>
+                    <div class="sg-item" data-q="JEE Previous Papers"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>JEE Previous Year Papers</div>
+                    <div class="sg-item" data-q="Casio Calculator"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>Casio FX-991ES Calculator</div>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1.6" />
+                        <circle cx="19" cy="21" r="1.6" />
+                        <path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z" />
+                    </svg>
+                    <span class="badge-count" id="cartCount">0</span>
+                </button>
+                <button class="btn-icon" id="wishBtn" aria-label="Wishlist" title="Wishlist">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    <span class="badge-count" id="wishCount">0</span>
+                </button>
+                <button class="btn-icon" aria-label="Notifications" title="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    <span class="badge-count" id="notifCount">3</span>
+                </button>
+                <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                </a>
+                <div class="header-cta">
+                    <a href="sell.html" class="btn btn-terracotta btn-sm"><span>Sell</span></a>
+                </div>
+                <button class="btn-icon hamburger" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line class="ham-line ham-1" x1="4" y1="7" x2="20" y2="7" />
+                        <line class="ham-line ham-2" x1="4" y1="12" x2="20" y2="12" />
+                        <line class="ham-line ham-3" x1="4" y1="17" x2="20" y2="17" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+    </div>
+
+    <!-- mobile menu (identical on every page) -->
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-panel">
+            <div class="mp-top">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO">
+                <button class="btn-icon close-btn" id="closeMenuBtn" aria-label="Close menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+            <nav>
+                <a href="index.html#browse" data-nav="browse">Browse</a>
+                <a href="explore.html" data-nav="explore">Explore</a>
+                <a href="index.html#donate" data-nav="donate">Donate</a>
+                <a href="index.html#how" data-nav="how">How it Works</a>
+                <a href="index.html#about" data-nav="about">About</a>
+                <a href="index.html#contact">Contact</a>
+            </nav>
+            <div class="mp-quick">
+                <a href="profile.html#saved" class="mp-quick-item" id="mpWishBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    Wishlist
+                    <span class="badge-count" id="mpWishCount">0</span>
+                </a>
+                <a href="profile.html#messages" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.4a8.4 8.4 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5z" />
+                    </svg>
+                    Messages
+                    <span class="badge-count" id="mpMsgCount" style="display:none;">0</span>
+                </a>
+                <a href="#" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    Notifications
+                    <span class="badge-count" id="mpNotifCount">3</span>
+                </a>
+                <a href="profile.html" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                    My Account
+                </a>
+            </div>
+            <div class="mp-cta">
+                <a href="sell.html" class="btn btn-terracotta">Sell an Item</a>
+                <a href="index.html#donate" class="btn btn-outline">Donate</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ PAGE CONTENT ============ -->
+    <section class="page-hero">
+        <div class="container">
+            <a href="index.html" class="back-home reveal show">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Back to Home
+            </a>
+            <h1 id="pageTitle">List a Book, Note or Study Item</h1>
+            <p>Fill in the details below — it takes about two minutes. Choose to sell at a price or give it away as a
+                donation.</p>
+        </div>
+    </section>
+
+    <section style="padding-top:0;">
+        <div class="container">
+
+            <!-- ---- FORM VIEW ---- -->
+            <div class="form-shell" id="formView">
+                <div class="form-card reveal show">
+                    <h3>Item Details</h3>
+                    <p class="form-sub">Verified students will see this listing on your campus feed within minutes.</p>
+
+                    <form id="sellForm" novalidate>
+
+                        <div class="field-group">
+                            <label>Listing type</label>
+                            <div class="pill-group" id="typePills">
+                                <button type="button" class="pill-choice active" data-type="sell">Sell for a
+                                    price</button>
+                                <button type="button" class="pill-choice" data-type="donate">Donate</button>
+                                <button type="button" class="pill-choice" data-type="free">Give away free</button>
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="itemTitle">Title</label>
+                            <input type="text" id="itemTitle" placeholder="e.g. NCERT Class 12 Physics Part 1 & 2"
+                                required>
+                            <div class="field-error">Please enter a title for your listing.</div>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label for="itemCategory">Category</label>
+                                <select id="itemCategory" required>
+                                    <option value="">Select category</option>
+                                    <option>School Books</option>
+                                    <option>College Books</option>
+                                    <option>Competitive Exams</option>
+                                    <option>Novels</option>
+                                    <option>Notes</option>
+                                    <option>Study Material</option>
+                                    <option>Calculators</option>
+                                    <option>Guides & Reference</option>
+                                    <option>Question Banks</option>
+                                    <option>Practical Files</option>
+                                    <option>Stationery Bundles</option>
+                                </select>
+                                <div class="field-error">Please choose a category.</div>
+                            </div>
+                            <div class="field-group">
+                                <label for="itemCondition">Condition</label>
+                                <select id="itemCondition" required>
+                                    <option value="">Select condition</option>
+                                    <option>Like New</option>
+                                    <option>Excellent</option>
+                                    <option>Good</option>
+                                    <option>Fair</option>
+                                </select>
+                                <div class="field-error">Please choose a condition.</div>
+                            </div>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field-group" id="priceGroup">
+                                <label for="itemPrice">Your price</label>
+                                <div class="price-field">
+                                    <span class="cur">₹</span>
+                                    <input type="number" id="itemPrice" min="0" placeholder="0">
+                                </div>
+                                <div class="hint" id="priceHint">Set a fair price — most books sell for 30–60% of MRP.
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <label for="itemOrig">Original / MRP <span
+                                        style="font-weight:500;color:#8a856f;">(optional)</span></label>
+                                <div class="price-field">
+                                    <span class="cur">₹</span>
+                                    <input type="number" id="itemOrig" min="0" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="itemDesc">Description</label>
+                            <textarea id="itemDesc"
+                                placeholder="Mention edition, markings/highlighting, missing pages, or why you're donating it..."
+                                required></textarea>
+                            <div class="field-error">A short description helps buyers trust your listing.</div>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label for="itemLoc">Pickup location</label>
+                                <input type="text" id="itemLoc" placeholder="e.g. Powai, Mumbai" required>
+                                <div class="field-error">Let buyers know roughly where to collect it.</div>
+                            </div>
+                            <div class="field-group">
+                                <label for="itemCollege">College / campus <span
+                                        style="font-weight:500;color:#8a856f;">(optional)</span></label>
+                                <input type="text" id="itemCollege" placeholder="e.g. VJTI Mumbai">
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label>Photos</label>
+                            <div class="dropzone" id="dropzone">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <rect x="3" y="5" width="18" height="15" rx="2" />
+                                    <path d="M3 16l5-5 4 4 3-3 6 6" />
+                                    <circle cx="8.5" cy="9" r="1.5" />
+                                </svg>
+                                <p>Click to add photos, or drag them here</p>
+                                <small>Up to 4 photos · JPG or PNG · clear, well-lit shots sell faster</small>
+                                <input type="file" id="fileInput" accept="image/*" multiple hidden>
+                            </div>
+                            <div class="img-preview-grid" id="imgPreviewGrid"></div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-terracotta" id="submitBtn">Publish Listing</button>
+                            <button type="button" class="btn btn-ghost" id="saveDraftBtn">Save as Draft</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="preview-sticky reveal show">
+                    <div class="preview-label">Live preview — how buyers will see it</div>
+                    <div class="product-grid" style="grid-template-columns:1fr;">
+                        <div class="p-card" id="previewCard"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ---- SUCCESS VIEW ---- -->
+            <div class="success-panel" id="successView" style="display:none;">
+                <div class="sp-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                </div>
+                <h3 id="successTitle">Listing published!</h3>
+                <p id="successSub">Your item is now live on the CIRVIO marketplace for students near you.</p>
+                <div class="form-actions">
+                    <a href="status.html" class="btn btn-terracotta">Track Approval Status</a>
+                    <a href="profile.html#listings" class="btn btn-outline">View My Listings</a>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- bottom mobile nav (identical on every page) -->
+    <nav class="bottom-nav">
+        <ul>
+            <li><a href="index.html#home" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M3 11l9-8 9 8" />
+                        <path d="M5 10v10h14V10" />
+                    </svg>Home</a></li>
+            <li><a href="explore.html" data-nav="explore"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4.3-4.3" />
+                    </svg>Explore</a></li>
+            <li><a href="sell.html" class="active"><span class="sell-fab"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg></span></a></li>
+            <li><a href="status.html" data-nav="status"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>Status</a></li>
+            <li><a href="profile.html" data-nav="profile"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>Profile</a></li>
+        </ul>
+    </nav>
+
+    <!-- toast -->
+    <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M20 6L9 17l-5-5" />
+        </svg><span id="toastMsg">Added to wishlist</span></div>
+
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="common.js"></script>
+    <script>
+        /* ============================================================
+            STATE
+        ============================================================ */
+        let listingType = 'sell'; // sell | donate | free
+        let photos = []; // array of dataURLs
+
+        const params = new URLSearchParams(location.search);
+        if (params.get('type') === 'donate') listingType = 'donate';
+
+        /* ---------- listing type pills ---------- */
+        const typePills = document.getElementById('typePills');
+        function setType(t) {
+            listingType = t;
+            typePills.querySelectorAll('.pill-choice').forEach(p => p.classList.toggle('active', p.dataset.type === t));
+            const priceGroup = document.getElementById('priceGroup');
+            const priceInput = document.getElementById('itemPrice');
+            const priceHint = document.getElementById('priceHint');
+            const priceField = priceGroup.querySelector('.price-field');
+            const pageTitle = document.getElementById('pageTitle');
+            if (t === 'sell') {
+                priceField.classList.remove('disabled');
+                priceInput.disabled = false;
+                priceHint.textContent = 'Set a fair price — most books sell for 30–60% of MRP.';
+                pageTitle.textContent = 'List a Book, Note or Study Item';
+            } else {
+                priceField.classList.add('disabled');
+                priceInput.disabled = true;
+                priceInput.value = '0';
+                priceHint.textContent = t === 'donate' ? 'Donations are listed at ₹0 with a "Donation" tag.' : 'Free items are listed at ₹0 with a "Free" tag.';
+                pageTitle.textContent = t === 'donate' ? 'Donate a Book or Study Item' : 'Give Away an Item for Free';
+            }
+            updatePreview();
+        }
+        typePills.addEventListener('click', (e) => {
+            const btn = e.target.closest('.pill-choice');
+            if (btn) setType(btn.dataset.type);
+        });
+        setType(listingType);
+
+        /* ---------- image dropzone ---------- */
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const imgPreviewGrid = document.getElementById('imgPreviewGrid');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleFiles(fileList) {
+            const remaining = 4 - photos.length;
+            if (remaining <= 0) { showToast('You can add up to 4 photos'); return; }
+            [...fileList].slice(0, remaining).forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => { photos.push(ev.target.result); renderPreviewImages(); updatePreview(); };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderPreviewImages() {
+            imgPreviewGrid.innerHTML = photos.map((src, i) => `
+        <div class="img-preview">
+          ${i === 0 ? '<span class="cover-tag">Cover</span>' : ''}
+          <img src="${src}" alt="Listing photo ${i + 1}">
+          <button type="button" class="rm" data-i="${i}" aria-label="Remove photo">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>`).join('');
+        }
+        imgPreviewGrid.addEventListener('click', (e) => {
+            const rm = e.target.closest('.rm');
+            if (!rm) return;
+            photos.splice(Number(rm.dataset.i), 1);
+            renderPreviewImages();
+            updatePreview();
+        });
+
+        /* ---------- live preview card ---------- */
+        const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70";
+        function updatePreview() {
+            const title = document.getElementById('itemTitle').value.trim() || 'Your listing title will appear here';
+            const cat = document.getElementById('itemCategory').value || 'Category';
+            const cond = document.getElementById('itemCondition').value || 'Condition';
+            const loc = document.getElementById('itemLoc').value.trim() || 'Pickup location';
+            const price = Number(document.getElementById('itemPrice').value) || 0;
+            const orig = Number(document.getElementById('itemOrig').value) || 0;
+            const disc = (orig && listingType === 'sell' && price) ? Math.round(((orig - price) / orig) * 100) : null;
+
+            let tag = '';
+            if (listingType === 'donate') tag = '<div class="p-tag donate">Donation</div>';
+            else if (listingType === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (disc && disc > 0) tag = `<div class="p-tag">${disc}% OFF</div>`;
+
+            document.getElementById('previewCard').innerHTML = `
+        <div class="p-thumb">
+          ${tag}
+          <img src="${photos[0] || PLACEHOLDER_IMG}" alt="Preview">
+        </div>
+        <div class="p-body">
+          <div class="p-cat">${cat}</div>
+          <div class="p-title">${title}</div>
+          <div class="p-price-row">
+            <span class="p-price">${(listingType === 'sell' && price) ? '₹' + price : (listingType === 'sell' ? '₹0' : (listingType === 'donate' ? 'Donation' : 'Free'))}</span>
+            ${orig && listingType === 'sell' ? `<span class="p-orig">₹${orig}</span>` : ''}
+            ${disc && disc > 0 ? `<span class="p-disc">${disc}% off</span>` : ''}
+          </div>
+          <div class="p-meta">
+            <span class="cond">${cond}</span>
+            <span>${loc}</span>
+          </div>
+          <div class="p-foot">
+            <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${CirvioStore.getProfile().name}</span>
+            <span>Just now</span>
+          </div>
+        </div>`;
+        }
+        ['itemTitle', 'itemCategory', 'itemCondition', 'itemPrice', 'itemOrig', 'itemLoc'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updatePreview);
+            document.getElementById(id).addEventListener('change', updatePreview);
+        });
+        updatePreview();
+
+        /* ---------- validation + submit ---------- */
+        function validateField(id, isValid) {
+            const group = document.getElementById(id).closest('.field-group');
+            group.classList.toggle('invalid', !isValid);
+            return isValid;
+        }
+
+        function saveListing(status) {
+            // A "submit" (status passed in as 'live') now goes to CIRVIO for
+            // review first — it isn't actually live until approved.
+            const isSubmit = status === 'live';
+            const now = Date.now();
+            const listing = {
+                id: now,
+                title: document.getElementById('itemTitle').value.trim(),
+                cat: document.getElementById('itemCategory').value,
+                cond: document.getElementById('itemCondition').value,
+                price: listingType === 'sell' ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
+                orig: Number(document.getElementById('itemOrig').value) || 0,
+                desc: document.getElementById('itemDesc').value.trim(),
+                loc: document.getElementById('itemLoc').value.trim(),
+                college: document.getElementById('itemCollege').value.trim(),
+                type: listingType,
+                img: photos[0] || PLACEHOLDER_IMG,
+                seller: CirvioStore.getProfile().name,
+                time: 'Just now',
+                status: isSubmit ? 'pending' : 'draft',
+                submittedAt: isSubmit ? now : null
+            };
+            if (!isSubmit) {
+                const listings = CirvioStore.getListings();
+                listings.unshift(listing);
+                CirvioStore.setListings(listings);
+            }
+            return listing;
+        }
+
+        async function submitListingToBackend(listing) {
+            if (!window.CirvioAPI) return null;
+            return CirvioAPI.createProduct({
+                title: listing.title,
+                category: listing.cat,
+                condition: listing.cond,
+                type: listing.type === 'sell' ? 'sell' : 'donate',
+                price: listing.price,
+                originalPrice: listing.orig,
+                description: listing.desc,
+                location: listing.loc,
+                college: listing.college,
+                images: photos.length ? photos : [listing.img]
+            });
+        }
+
+        document.getElementById('saveDraftBtn').addEventListener('click', () => {
+            if (!document.getElementById('itemTitle').value.trim()) {
+                showToast('Add at least a title before saving a draft');
+                return;
+            }
+            saveListing('draft');
+            showToast('Saved to drafts');
+        });
+
+        document.getElementById('sellForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!CirvioAuth.requireLogin()) return;
+            let ok = true;
+            ok = validateField('itemTitle', document.getElementById('itemTitle').value.trim().length > 0) && ok;
+            ok = validateField('itemCategory', document.getElementById('itemCategory').value.length > 0) && ok;
+            ok = validateField('itemCondition', document.getElementById('itemCondition').value.length > 0) && ok;
+            ok = validateField('itemDesc', document.getElementById('itemDesc').value.trim().length > 0) && ok;
+            ok = validateField('itemLoc', document.getElementById('itemLoc').value.trim().length > 0) && ok;
+
+            if (!ok) {
+                document.querySelector('.field-group.invalid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showToast('Please fill in the highlighted fields');
+                return;
+            }
+
+            const listing = saveListing('live');
+            try {
+                const result = await submitListingToBackend(listing);
+                if (result && result.product) {
+                    listing.backendId = result.product._id;
+                }
+            } catch (err) {
+                showToast(err.message || 'Backend listing failed');
+                return;
+            }
+            document.getElementById('formView').style.display = 'none';
+            const successView = document.getElementById('successView');
+            document.getElementById('successTitle').textContent = 'Submitted for review!';
+            document.getElementById('successSub').textContent =
+                `"${listing.title}" has been sent to the CIRVIO team for approval. We'll let you know as soon as it's live — you can track the status any time.`;
+            successView.style.display = 'block';
+            successView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        /* ============================================================
+           INIT SHARED CHROME
+        ============================================================ */
+        CirvioAuth.requireLogin();
+        initCirvioChrome('sell');
+    </script>
+</body>
+
+</html>

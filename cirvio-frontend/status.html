@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listing Status — CIRVIO</title>
+    <meta name="description" content="Track whether your CIRVIO listings have been approved, are still under review, or need changes.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2E3624">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" href="icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CIRVIO">
+    <meta name="mobile-web-app-capable" content="yes">
+</head>
+
+<body>
+
+    <!-- ============ HEADER (identical on every page) ============ -->
+    <div class="header-wrap">
+        <header class="header" id="siteHeader">
+            <a aria-label='CIRVIO home' class='logo' href='index.html#home'>
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO — Sell. Donate. Share Knowledge.">
+            </a>
+
+            <nav class="nav-links">
+                <a data-nav='browse' href='index.html#browse'>Browse</a>
+                <a data-nav='explore' href='explore.html'>Explore</a>
+                <a data-nav='donate' href='index.html#donate'>Donate</a>
+                <a data-nav='how' href='index.html#how'>How it Works</a>
+                <a data-nav='about' href='index.html#about'>About</a>
+            </nav>
+
+            <div class="header-search" style="position:relative;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search books, notes, calculators, ISBN..."
+                    autocomplete="off">
+                <div class="loc">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
+                        <circle cx="12" cy="9" r="2.4" />
+                    </svg>
+                    Mumbai
+                </div>
+                <div class="search-suggest" id="searchSuggest">
+                    <div class="sg-label">Trending searches</div>
+                    <div class="sg-item" data-q="NCERT Class 12"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>NCERT Class 12</div>
+                    <div class="sg-item" data-q="JEE Previous Papers"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>JEE Previous Year Papers</div>
+                    <div class="sg-item" data-q="Casio Calculator"><svg viewBox="0 0 24 24" fill="none"
+                            stroke-width="2">
+                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
+                        </svg>Casio FX-991ES Calculator</div>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1.6" />
+                        <circle cx="19" cy="21" r="1.6" />
+                        <path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z" />
+                    </svg>
+                    <span class="badge-count" id="cartCount">0</span>
+                </button>
+                <button class="btn-icon" id="wishBtn" aria-label="Wishlist" title="Wishlist">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    <span class="badge-count" id="wishCount">0</span>
+                </button>
+                <button class="btn-icon" aria-label="Notifications" title="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    <span class="badge-count" id="notifCount">3</span>
+                </button>
+                <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                </a>
+                <div class="header-cta">
+                    <a href="sell.html" class="btn btn-terracotta btn-sm"><span>Sell</span></a>
+                </div>
+                <button class="btn-icon hamburger" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line class="ham-line ham-1" x1="4" y1="7" x2="20" y2="7" />
+                        <line class="ham-line ham-2" x1="4" y1="12" x2="20" y2="12" />
+                        <line class="ham-line ham-3" x1="4" y1="17" x2="20" y2="17" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+    </div>
+
+    <!-- mobile menu (identical on every page) -->
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-panel">
+            <div class="mp-top">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO">
+                <button class="btn-icon close-btn" id="closeMenuBtn" aria-label="Close menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+            <nav>
+                <a data-nav='browse' href='index.html#browse'>Browse</a>
+                <a data-nav='explore' href='explore.html'>Explore</a>
+                <a data-nav='donate' href='index.html#donate'>Donate</a>
+                <a data-nav='how' href='index.html#how'>How it Works</a>
+                <a data-nav='about' href='index.html#about'>About</a>
+                <a href='index.html#contact'>Contact</a>
+            </nav>
+            <div class="mp-quick">
+                <a class='mp-quick-item' href='profile.html#saved' id='mpWishBtn'>
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path
+                            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                    Wishlist
+                    <span class="badge-count" id="mpWishCount">0</span>
+                </a>
+                <a href="status.html" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                    Listing Status
+                </a>
+                <a href="#" class="mp-quick-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                    </svg>
+                    Notifications
+                    <span class="badge-count" id="mpNotifCount">3</span>
+                </a>
+                <a class='mp-quick-item' href='profile.html'>
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>
+                    My Account
+                </a>
+            </div>
+            <div class="mp-cta">
+                <a class='btn btn-terracotta' href='sell.html'>Sell an Item</a>
+                <a class='btn btn-outline' href='index.html#donate'>Donate</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ PAGE CONTENT ============ -->
+    <section class="page-hero" style="padding-bottom:0;">
+        <div class="container">
+            <a class='back-home reveal show' href='profile.html'>
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Back to Profile
+            </a>
+        </div>
+    </section>
+
+    <section style="padding-top:14px;">
+        <div class="container">
+
+            <div class="reveal show">
+                <h1 style="font-family:var(--font-display); font-size:1.9rem; color:var(--olive-deep); margin-bottom:4px;">
+                    Listing Status</h1>
+                <p style="color:#8a856f; font-size:.92rem; max-width:520px;">
+                    Every item goes through a quick CIRVIO review before it goes live. Track approvals here — this
+                    page refreshes automatically.
+                </p>
+            </div>
+
+            <!-- SUMMARY -->
+            <div class="status-summary reveal show">
+                <div class="status-summary-card">
+                    <strong id="sumTotal">0</strong>
+                    <span>Submitted</span>
+                </div>
+                <div class="status-summary-card pending">
+                    <strong id="sumPending">0</strong>
+                    <span>Pending Review</span>
+                </div>
+                <div class="status-summary-card approved">
+                    <strong id="sumApproved">0</strong>
+                    <span>Approved</span>
+                </div>
+                <div class="status-summary-card rejected">
+                    <strong id="sumRejected">0</strong>
+                    <span>Rejected</span>
+                </div>
+            </div>
+
+            <!-- LIST -->
+            <div class="approval-list" id="approvalList"></div>
+
+            <div class="empty-state" id="statusEmpty" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 11l3 3L22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+                <p>No submitted listings yet</p>
+                <span>List an item and submit it for review to see its approval status here.</span>
+                <a class='btn btn-terracotta' href='sell.html'>List an Item</a>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- bottom mobile nav (identical on every page) -->
+    <nav class="bottom-nav">
+        <ul>
+            <li><a data-nav='home' href='index.html#home'><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M3 11l9-8 9 8" />
+                        <path d="M5 10v10h14V10" />
+                    </svg>Home</a></li>
+            <li><a data-nav='explore' href='explore.html'><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4.3-4.3" />
+                    </svg>Explore</a></li>
+            <li><a href='sell.html'><span class="sell-fab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg></span></a></li>
+            <li><a href="status.html" class="active" data-nav="status"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>Status</a></li>
+            <li><a data-nav='profile' href='profile.html'><svg viewBox="0 0 24 24" fill="none"
+                        stroke-width="2">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+                    </svg>Profile</a></li>
+        </ul>
+    </nav>
+
+    <!-- toast -->
+    <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M20 6L9 17l-5-5" />
+        </svg><span id="toastMsg">Saved changes</span></div>
+
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="common.js"></script>
+    <script>
+        const PLACEHOLDER_IMG = 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=400&q=70';
+
+        function fmtDate(ts) {
+            if (!ts) return '—';
+            const d = new Date(ts);
+            return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' · ' +
+                d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function timeLeft(ts) {
+            const ms = ts - Date.now();
+            if (ms <= 0) return 'Any moment now';
+            const s = Math.ceil(ms / 1000);
+            if (s < 60) return `~${s}s left`;
+            return `~${Math.ceil(s / 60)} min left`;
+        }
+
+        /* ---------- status badge ---------- */
+        function statusBadge(l) {
+            if (l.status === 'pending') {
+                return `<span class="status-badge pending"><span class="pulse-dot"></span>Pending Review</span>`;
+            }
+            if (l.status === 'approved') {
+                return `<span class="status-badge approved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>Approved</span>`;
+            }
+            return `<span class="status-badge rejected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>Rejected</span>`;
+        }
+
+        /* ---------- 3-step tracker ---------- */
+        function tracker(l) {
+            const step2Done = l.status === 'approved' || l.status === 'rejected';
+            const step2Active = l.status === 'pending';
+            const step3Class = l.status === 'approved' ? 'done' : (l.status === 'rejected' ? 'rejected' : '');
+            const step3Icon = l.status === 'rejected'
+                ? '<path d="M18 6L6 18M6 6l12 12"/>'
+                : '<path d="M20 6L9 17l-5-5"/>';
+            return `
+      <div class="tracker">
+        <div class="tracker-step done">
+          <div class="tracker-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <div class="tracker-line"></div>
+          <div class="tracker-label">Submitted</div>
+        </div>
+        <div class="tracker-step ${step2Done ? 'done' : (step2Active ? 'active' : '')}">
+          <div class="tracker-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="3">${step2Done ? '<path d="M20 6L9 17l-5-5"/>' : ''}</svg></div>
+          <div class="tracker-line"></div>
+          <div class="tracker-label">CIRVIO Review</div>
+        </div>
+        <div class="tracker-step ${step3Class}">
+          <div class="tracker-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="3">${step3Class ? step3Icon : ''}</svg></div>
+          <div class="tracker-label">${l.status === 'rejected' ? 'Rejected' : 'Live on CIRVIO'}</div>
+        </div>
+      </div>`;
+        }
+
+        /* ---------- note under tracker ---------- */
+        function note(l) {
+            if (l.status === 'pending') {
+                return `<div class="approval-note">CIRVIO is reviewing your photos, price and description. This
+          usually takes just a few minutes — ${timeLeft(l.reviewDue)}.</div>`;
+            }
+            if (l.status === 'approved') {
+                return `<div class="approval-note approved-note">Approved! Your listing is live and visible to
+          students on CIRVIO.</div>`;
+            }
+            return `<div class="approval-note rejected-note"><strong>Not approved:</strong> ${l.rejectReason || 'This listing didn\u2019t meet CIRVIO\u2019s marketplace guidelines.'}</div>`;
+        }
+
+        function approvalCard(l) {
+            return `
+      <div class="approval-card reveal show" data-id="${l.id}">
+        <div class="approval-thumb"><img src="${l.img || PLACEHOLDER_IMG}" alt="${l.title}" loading="lazy"></div>
+        <div class="approval-body">
+          <div class="approval-top">
+            <div class="approval-title-wrap">
+              <div class="approval-title">${l.title || 'Untitled listing'}</div>
+              <div class="approval-meta">${l.cat || 'Uncategorised'} · Submitted ${fmtDate(l.submittedAt)}</div>
+            </div>
+            ${statusBadge(l)}
+          </div>
+          ${tracker(l)}
+          ${note(l)}
+          <div class="approval-actions">
+            ${l.status === 'approved' ? `<a href="product.html?id=${l.id}" class="btn btn-terracotta btn-sm">View Listing</a>` : ''}
+            ${l.status === 'rejected' ? `<a href="sell.html" class="btn btn-terracotta btn-sm">Edit &amp; Resubmit</a>` : ''}
+            <button type="button" class="btn btn-outline btn-sm rm-listing" data-id="${l.id}">Remove</button>
+          </div>
+        </div>
+      </div>`;
+        }
+
+        function renderStatus() {
+            CirvioStore.processApprovals();
+            const listings = CirvioStore.getListings().filter(l => l.status !== 'draft');
+
+            document.getElementById('sumTotal').textContent = listings.length;
+            document.getElementById('sumPending').textContent = listings.filter(l => l.status === 'pending').length;
+            document.getElementById('sumApproved').textContent = listings.filter(l => l.status === 'approved').length;
+            document.getElementById('sumRejected').textContent = listings.filter(l => l.status === 'rejected').length;
+
+            const list = document.getElementById('approvalList');
+            const empty = document.getElementById('statusEmpty');
+            if (!listings.length) {
+                list.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                // pending first, then rejected, then approved — most actionable on top
+                const order = { pending: 0, rejected: 1, approved: 2 };
+                listings.sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3) || (b.submittedAt || 0) - (a.submittedAt || 0));
+                list.innerHTML = listings.map(approvalCard).join('');
+            }
+        }
+
+        document.getElementById('approvalList').addEventListener('click', (e) => {
+            const rm = e.target.closest('.rm-listing');
+            if (!rm) return;
+            const id = rm.dataset.id;
+            CirvioStore.setListings(CirvioStore.getListings().filter(l => String(l.id) !== String(id)));
+            renderStatus();
+            showToast('Listing removed');
+        });
+
+        renderStatus();
+        async function loadBackendStatus() {
+            if (!window.CirvioAPI || !window.cirvioProductToListing) return;
+            try {
+                const { products } = await CirvioAPI.myListings();
+                const backendListings = (products || []).map(cirvioProductToListing);
+                const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
+                CirvioStore.setListings([...backendListings, ...localDrafts]);
+                renderStatus();
+            } catch (err) {
+                console.warn('Could not load backend status:', err.message);
+            }
+        }
+        if (CirvioAuth.requireLogin()) loadBackendStatus();
+
+        initCirvioChrome('status');
+    </script>
+</body>
+
+</html>

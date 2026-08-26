@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');
-const AppSetting = require('./models/AppSetting');
 
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
@@ -11,52 +10,15 @@ const orderRoutes = require('./routes/orders');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
-function splitOrigins(value = '') {
-    return String(value)
-        .split(',')
-        .map(origin => origin.trim().replace(/\/$/, ''))
-        .filter(Boolean);
-}
-
-const envAllowedOrigins = splitOrigins(process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN || '*');
-let cachedAdminOrigins = [];
-let cachedAdminOriginsAt = 0;
-
-async function getAdminOrigins() {
-    if (Date.now() - cachedAdminOriginsAt < 1000) return cachedAdminOrigins;
-    const setting = await AppSetting.findOne({ key: 'allowedOrigins' }).lean().catch(() => null);
-    cachedAdminOrigins = Array.isArray(setting?.value?.origins) ? setting.value.origins : [];
-    cachedAdminOriginsAt = Date.now();
-    return cachedAdminOrigins;
-}
-
-function isLocalDevOrigin(origin) {
-    try {
-        const { hostname } = new URL(origin);
-        return ['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname);
-    } catch (e) {
-        return false;
-    }
-}
 
 connectDB();
 
 app.use(cors({
-    async origin(origin, callback) {
-        try {
-            if (!origin) return callback(null, true);
-            const cleanOrigin = origin.replace(/\/$/, '');
-            const adminOrigins = await getAdminOrigins();
-            const allowedOrigins = [...envAllowedOrigins, ...adminOrigins];
-            if (allowedOrigins.includes('*') || allowedOrigins.includes(cleanOrigin) || isLocalDevOrigin(cleanOrigin)) {
-                return callback(null, true);
-            }
-            return callback(new Error(`Origin ${cleanOrigin} is not allowed by CORS`));
-        } catch (err) {
-            return callback(err);
-        }
-    }
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+app.options('*', cors());
 app.use(express.json({ limit: '5mb' }));
 
 // API routes

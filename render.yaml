@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: cirvio
+    env: node
+    rootDir: cirvio-backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLIENT_ORIGIN
+        value: "*"

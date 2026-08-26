@@ -114,6 +114,13 @@ const CirvioAPI = {
         window.location.href = `login.html?next=${next}`;
         throw new Error('Please login first');
     },
+    async changePassword(currentPassword, newPassword) {
+        await this.ensureSession();
+        return this.request('/api/auth/password', {
+            method: 'PUT',
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+    },
     async getProducts(query = '') {
         const data = await this.request('/api/products' + query);
         return { ...data, products: (data.products || []).map(normalizeProduct) };

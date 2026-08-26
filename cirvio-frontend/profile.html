@@ -317,6 +317,30 @@
                     </form>
 
                     <div style="margin-top:30px;padding-top:24px;border-top:1px solid var(--border);">
+                        <h3 style="font-size:1.1rem;">Change Password</h3>
+                        <p class="form-sub">Update your login password for this CIRVIO account.</p>
+                        <form id="passwordForm">
+                            <div class="field-row">
+                                <div class="field-group">
+                                    <label for="currentPassword">Current password</label>
+                                    <input type="password" id="currentPassword" autocomplete="current-password" required>
+                                </div>
+                                <div class="field-group">
+                                    <label for="newPassword">New password</label>
+                                    <input type="password" id="newPassword" autocomplete="new-password" minlength="6" required>
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <label for="confirmPassword">Confirm new password</label>
+                                <input type="password" id="confirmPassword" autocomplete="new-password" minlength="6" required>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-outline" id="passwordSubmit">Update Password</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div style="margin-top:30px;padding-top:24px;border-top:1px solid var(--border);">
                         <h3 style="font-size:1.1rem;">Notification Preferences</h3>
                         <div class="toggle-row">
                             <div><strong>New messages</strong><br><span>Get notified when someone messages you</span>
@@ -536,6 +560,40 @@
             CirvioStore.setProfile(p);
             loadProfileHeader();
             showToast('Profile updated');
+        });
+
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const btn = document.getElementById('passwordSubmit');
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showToast('Fill all password fields');
+                return;
+            }
+            if (newPassword.length < 6) {
+                showToast('New password must be at least 6 characters');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showToast('New passwords do not match');
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Updating...';
+                await CirvioAPI.changePassword(currentPassword, newPassword);
+                e.target.reset();
+                showToast('Password updated successfully');
+            } catch (err) {
+                showToast(err.message || 'Could not update password');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Update Password';
+            }
         });
 
         document.querySelectorAll('.switch').forEach(sw => {

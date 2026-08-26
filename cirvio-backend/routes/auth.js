@@ -216,4 +216,32 @@ router.get('/me', protect, async (req, res) => {
     res.json({ user: sendUser(req.user) });
 });
 
+// PUT /api/auth/password
+router.put('/password', protect, async (req, res) => {
+    try {
+        const currentPassword = String(req.body.currentPassword || '');
+        const newPassword = String(req.body.newPassword || '');
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'Current password and new password are required' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'New password must be at least 6 characters' });
+        }
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ message: 'New password must be different from current password' });
+        }
+
+        const user = await User.findById(req.user._id).select('+password');
+        if (!user || !(await user.matchPassword(currentPassword))) {
+            return res.status(401).json({ message: 'Current password is incorrect' });
+        }
+
+        user.password = newPassword;
+        await user.save();
+        return res.json({ message: 'Password updated successfully' });
+    } catch (err) {
+        return res.status(500).json({ message: 'Password update failed', error: err.message });
+    }
+});
+
 module.exports = router;

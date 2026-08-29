@@ -1,8 +1,36 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
+const uploadDir = path.join(__dirname, '..', 'uploads', 'products');
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+        cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    }
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024, files: 4 },
+    fileFilter: (req, file, cb) => {
+        if (!/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) {
+            return cb(new Error('Only JPG, PNG, WEBP or GIF images are allowed'));
+        }
+        cb(null, true);
+    }
+});
+
+function absoluteUrl(req, relativePath) {
+    return `${req.protocol}://${req.get('host')}${relativePath}`;
+}
 
 // GET /api/products  — logged-in browse grid (only approved items)
 router.get('/', protect, async (req, res) => {
@@ -31,6 +59,21 @@ router.get('/', protect, async (req, res) => {
 router.get('/mine', protect, async (req, res) => {
     const products = await Product.find({ seller: req.user._id }).sort({ createdAt: -1 });
     res.json({ count: products.length, products });
+});
+
+// POST /api/products/uploads — upload listing photos before creating a product
+router.post('/uploads', protect, (req, res) => {
+    upload.array('images', 4)(req, res, (err) => {
+        if (err) {
+            return res.status(400).json({ message: err.message || 'Image upload failed' });
+        }
+        const files = req.files || [];
+        if (!files.length) {
+            return res.status(400).json({ message: 'Please select at least one image' });
+        }
+        const images = files.map((file) => absoluteUrl(req, `/uploads/products/${file.filename}`));
+        res.status(201).json({ images });
+    });
 });
 
 // GET /api/products/:id

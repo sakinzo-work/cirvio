@@ -49,11 +49,12 @@ const CirvioAPI = {
     },
     async request(path, options = {}) {
         let res;
+        const isFormData = options.body instanceof FormData;
         try {
             res = await fetch(API_BASE + path, {
                 ...options,
                 headers: {
-                    'Content-Type': 'application/json',
+                    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
                     ...(this.token() ? { Authorization: `Bearer ${this.token()}` } : {}),
                     ...(options.headers || {})
                 }
@@ -134,6 +135,15 @@ const CirvioAPI = {
         return this.request('/api/products', {
             method: 'POST',
             body: JSON.stringify(payload)
+        });
+    },
+    async uploadProductImages(files) {
+        await this.ensureSession();
+        const formData = new FormData();
+        [...files].forEach(file => formData.append('images', file));
+        return this.request('/api/products/uploads', {
+            method: 'POST',
+            body: formData
         });
     },
     async myListings() {

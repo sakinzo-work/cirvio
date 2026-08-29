@@ -13,6 +13,8 @@ const app = express();
 
 connectDB();
 
+app.set('trust proxy', 1);
+
 app.use(cors({
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -20,6 +22,7 @@ app.use(cors({
 }));
 app.options('*', cors());
 app.use(express.json({ limit: '5mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API routes
 app.use('/api/auth', authRoutes);

@@ -386,6 +386,7 @@
         ============================================================ */
         let listingType = 'sell'; // sell | donate | free
         let photos = []; // array of dataURLs
+        let photoFiles = [];
 
         const params = new URLSearchParams(location.search);
         if (params.get('type') === 'donate') listingType = 'donate';
@@ -439,11 +440,24 @@
             const remaining = 4 - photos.length;
             if (remaining <= 0) { showToast('You can add up to 4 photos'); return; }
             [...fileList].slice(0, remaining).forEach(file => {
-                if (!file.type.startsWith('image/')) return;
+                if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
+                    showToast('Please upload JPG, PNG, WEBP or GIF images');
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    showToast('Each photo must be under 5 MB');
+                    return;
+                }
                 const reader = new FileReader();
-                reader.onload = (ev) => { photos.push(ev.target.result); renderPreviewImages(); updatePreview(); };
+                reader.onload = (ev) => {
+                    photos.push(ev.target.result);
+                    photoFiles.push(file);
+                    renderPreviewImages();
+                    updatePreview();
+                };
                 reader.readAsDataURL(file);
             });
+            fileInput.value = '';
         }
 
         function renderPreviewImages() {
@@ -459,7 +473,9 @@
         imgPreviewGrid.addEventListener('click', (e) => {
             const rm = e.target.closest('.rm');
             if (!rm) return;
-            photos.splice(Number(rm.dataset.i), 1);
+            const index = Number(rm.dataset.i);
+            photos.splice(index, 1);
+            photoFiles.splice(index, 1);
             renderPreviewImages();
             updatePreview();
         });
@@ -548,6 +564,11 @@
 
         async function submitListingToBackend(listing) {
             if (!window.CirvioAPI) return null;
+            let imageUrls = [];
+            if (photoFiles.length) {
+                const uploadResult = await CirvioAPI.uploadProductImages(photoFiles);
+                imageUrls = uploadResult.images || [];
+            }
             return CirvioAPI.createProduct({
                 title: listing.title,
                 category: listing.cat,
@@ -558,7 +579,7 @@
                 description: listing.desc,
                 location: listing.loc,
                 college: listing.college,
-                images: photos.length ? photos : [listing.img]
+                images: imageUrls.length ? imageUrls : []
             });
         }
 
@@ -587,6 +608,9 @@
                 return;
             }
 
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
             const listing = saveListing('live');
             try {
                 const result = await submitListingToBackend(listing);
@@ -595,6 +619,8 @@
                 }
             } catch (err) {
                 showToast(err.message || 'Backend listing failed');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Publish Listing';
                 return;
             }
             document.getElementById('formView').style.display = 'none';

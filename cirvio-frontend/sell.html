@@ -317,6 +317,7 @@
                             <button type="submit" class="btn btn-terracotta" id="submitBtn">Publish Listing</button>
                             <button type="button" class="btn btn-ghost" id="saveDraftBtn">Save as Draft</button>
                         </div>
+                        <div class="publish-status" id="publishStatus" role="status" aria-live="polite"></div>
                     </form>
                 </div>
 
@@ -534,6 +535,12 @@
             return isValid;
         }
 
+        function setPublishStatus(message, type = '') {
+            const status = document.getElementById('publishStatus');
+            status.textContent = message || '';
+            status.className = 'publish-status ' + type;
+        }
+
         function saveListing(status) {
             // A "submit" (status passed in as 'live') now goes to CIRVIO for
             // review first — it isn't actually live until approved.
@@ -568,9 +575,16 @@
             if (!window.CirvioAPI) return null;
             let imageUrls = [];
             if (photoFiles.length) {
-                const uploadResult = await CirvioAPI.uploadProductImages(photoFiles);
-                imageUrls = uploadResult.images || [];
+                setPublishStatus('Uploading photos...', 'working');
+                try {
+                    const uploadResult = await CirvioAPI.uploadProductImages(photoFiles);
+                    imageUrls = uploadResult.images || [];
+                } catch (err) {
+                    console.warn('Photo upload failed, creating listing without uploaded photos:', err.message);
+                    setPublishStatus('Photo upload failed, publishing listing without photos...', 'warning');
+                }
             }
+            setPublishStatus('Publishing listing...', 'working');
             return CirvioAPI.createProduct({
                 title: listing.title,
                 category: listing.cat,
@@ -603,9 +617,13 @@
             ok = validateField('itemCondition', document.getElementById('itemCondition').value.length > 0) && ok;
             ok = validateField('itemDesc', document.getElementById('itemDesc').value.trim().length > 0) && ok;
             ok = validateField('itemLoc', document.getElementById('itemLoc').value.trim().length > 0) && ok;
+            if (listingType === 'sell') {
+                ok = validateField('itemPrice', Number(document.getElementById('itemPrice').value) > 0) && ok;
+            }
 
             if (!ok) {
                 document.querySelector('.field-group.invalid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setPublishStatus('Please complete the highlighted fields. Sale listings need a price greater than 0.', 'error');
                 showToast('Please fill in the highlighted fields');
                 return;
             }
@@ -613,18 +631,25 @@
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Uploading...';
+            setPublishStatus('Starting upload...', 'working');
             const listing = saveListing('live');
             try {
                 const result = await submitListingToBackend(listing);
                 if (result && result.product) {
                     listing.backendId = result.product._id;
+                    const savedListing = cirvioProductToListing(result.product);
+                    const listings = CirvioStore.getListings().filter(l => String(l.id) !== String(savedListing.id));
+                    listings.unshift(savedListing);
+                    CirvioStore.setListings(listings);
                 }
             } catch (err) {
+                setPublishStatus(err.message || 'Backend listing failed', 'error');
                 showToast(err.message || 'Backend listing failed');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Publish Listing';
                 return;
             }
+            setPublishStatus('Listing published successfully.', 'ok');
             document.getElementById('formView').style.display = 'none';
             const successView = document.getElementById('successView');
             document.getElementById('successTitle').textContent = 'Listing is live!';

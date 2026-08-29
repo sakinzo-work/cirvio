@@ -1723,6 +1723,30 @@ section {
     flex-wrap: wrap;
 }
 
+.publish-status {
+    min-height: 20px;
+    margin-top: 12px;
+    color: #7a7461;
+    font-size: .82rem;
+    line-height: 1.45;
+}
+
+.publish-status.working {
+    color: var(--olive-deep);
+}
+
+.publish-status.ok {
+    color: #2f7b4b;
+}
+
+.publish-status.warning {
+    color: #9a6735;
+}
+
+.publish-status.error {
+    color: #a94a36;
+}
+
 .field-error {
     font-size: .74rem;
     color: var(--error);

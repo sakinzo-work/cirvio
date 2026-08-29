@@ -277,7 +277,7 @@
 
             <!-- SETTINGS -->
             <div class="profile-panel" id="panel-settings">
-                <div class="form-card" style="max-width:640px;">
+                <div class="form-card settings-card">
                     <h3>Profile Settings</h3>
                     <p class="form-sub">This information is shown to other students on your listings.</p>
                     <form id="settingsForm">
@@ -316,9 +316,14 @@
                         </div>
                     </form>
 
-                    <div style="margin-top:30px;padding-top:24px;border-top:1px solid var(--border);">
-                        <h3 style="font-size:1.1rem;">Change Password</h3>
-                        <p class="form-sub">Update your login password for this CIRVIO account.</p>
+                    <div class="settings-section security-section">
+                        <div class="settings-section-head">
+                            <div>
+                                <h3>Change Password</h3>
+                                <p class="form-sub">Keep your CIRVIO account safe with a fresh password.</p>
+                            </div>
+                            <span class="security-chip">Secure</span>
+                        </div>
                         <form id="passwordForm">
                             <div class="field-row">
                                 <div class="field-group">
@@ -330,18 +335,25 @@
                                     <input type="password" id="newPassword" autocomplete="new-password" minlength="6" required>
                                 </div>
                             </div>
-                            <div class="field-group">
-                                <label for="confirmPassword">Confirm new password</label>
-                                <input type="password" id="confirmPassword" autocomplete="new-password" minlength="6" required>
+                            <div class="field-row password-confirm-row">
+                                <div class="field-group">
+                                    <label for="confirmPassword">Confirm new password</label>
+                                    <input type="password" id="confirmPassword" autocomplete="new-password" minlength="6" required>
+                                    <span class="hint">Use at least 6 characters.</span>
+                                </div>
+                                <div class="password-note">
+                                    <strong>Password tips</strong>
+                                    <span>Use a password you do not use on other sites.</span>
+                                </div>
                             </div>
-                            <div class="form-actions">
+                            <div class="form-actions settings-actions">
                                 <button type="submit" class="btn btn-outline" id="passwordSubmit">Update Password</button>
                             </div>
                         </form>
                     </div>
 
-                    <div style="margin-top:30px;padding-top:24px;border-top:1px solid var(--border);">
-                        <h3 style="font-size:1.1rem;">Notification Preferences</h3>
+                    <div class="settings-section">
+                        <h3>Notification Preferences</h3>
                         <div class="toggle-row">
                             <div><strong>New messages</strong><br><span>Get notified when someone messages you</span>
                             </div>
@@ -357,6 +369,32 @@
                                     you</span></div>
                             <div class="switch" data-pref="news"></div>
                         </div>
+                    </div>
+
+                    <div class="settings-section account-section">
+                        <div class="settings-section-head">
+                            <div>
+                                <h3>Account</h3>
+                                <p class="form-sub">Manage your login session or permanently remove your account.</p>
+                            </div>
+                        </div>
+                        <div class="account-action-row">
+                            <div>
+                                <strong>Logout from this device</strong>
+                                <span>Clears your saved login session on this browser.</span>
+                            </div>
+                            <button type="button" class="btn btn-outline" id="logoutBtn">Logout</button>
+                        </div>
+                        <form id="deleteAccountForm" class="danger-zone">
+                            <div>
+                                <strong>Delete account</strong>
+                                <span>This removes your account and your active listings permanently.</span>
+                            </div>
+                            <div class="danger-controls">
+                                <input type="password" id="deletePassword" autocomplete="current-password" placeholder="Enter password" required>
+                                <button type="submit" class="btn btn-danger" id="deleteAccountBtn">Delete</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -593,6 +631,44 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Update Password';
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            CirvioAPI.logout();
+            CirvioStore.setCart([]);
+            CirvioStore.setWishlist([]);
+            showToast('Logged out');
+            setTimeout(() => {
+                window.location.href = 'login.html?next=profile.html';
+            }, 500);
+        });
+
+        document.getElementById('deleteAccountForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('deletePassword').value;
+            const btn = document.getElementById('deleteAccountBtn');
+            if (!password) {
+                showToast('Enter your password to delete account');
+                return;
+            }
+            if (!confirm('Delete your CIRVIO account and all your listings permanently?')) return;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Deleting...';
+                await CirvioAPI.deleteAccount(password);
+                CirvioAPI.logout();
+                CirvioStore.setListings([]);
+                CirvioStore.setMessages([]);
+                showToast('Account deleted');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 700);
+            } catch (err) {
+                showToast(err.message || 'Could not delete account');
+                btn.disabled = false;
+                btn.textContent = 'Delete';
             }
         });
 

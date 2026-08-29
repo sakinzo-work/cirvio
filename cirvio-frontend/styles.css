@@ -1404,6 +1404,7 @@ section {
 .field-group input[type="number"],
 .field-group input[type="email"],
 .field-group input[type="tel"],
+.field-group input[type="password"],
 .field-group select,
 .field-group textarea {
     width: 100%;
@@ -1414,6 +1415,118 @@ section {
     font-size: .89rem;
     color: var(--charcoal);
     transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.settings-card {
+    max-width: 860px;
+}
+
+.settings-section {
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.settings-section h3 {
+    font-size: 1.1rem;
+}
+
+.settings-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.security-chip {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #eef3e6;
+    color: var(--olive-deep);
+    font-size: .72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.password-note {
+    min-height: 78px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: #7a7461;
+}
+
+.password-note strong,
+.account-action-row strong,
+.danger-zone strong {
+    display: block;
+    color: var(--olive-deep);
+    font-size: .86rem;
+    margin-bottom: 5px;
+}
+
+.password-note span,
+.account-action-row span,
+.danger-zone span {
+    display: block;
+    color: #7a7461;
+    font-size: .78rem;
+    line-height: 1.5;
+}
+
+.settings-actions {
+    justify-content: flex-start;
+}
+
+.account-action-row,
+.danger-zone {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px;
+    align-items: center;
+    padding: 18px 0;
+}
+
+.account-action-row {
+    border-bottom: 1px solid var(--border);
+}
+
+.danger-zone {
+    margin: 0;
+}
+
+.danger-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.danger-controls input {
+    width: min(230px, 42vw);
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(169, 74, 54, .32);
+    background: #fff;
+    color: var(--charcoal);
+}
+
+.danger-controls input:focus {
+    outline: none;
+    border-color: #a94a36;
+    box-shadow: 0 0 0 3px rgba(169, 74, 54, .12);
+}
+
+.btn-danger {
+    background: #a94a36;
+    border-color: #a94a36;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #8f3829;
+    border-color: #8f3829;
 }
 
 .field-group input:focus,
@@ -2795,6 +2908,33 @@ footer {
 
     .field-row {
         grid-template-columns: 1fr;
+    }
+
+    .settings-section-head,
+    .account-action-row,
+    .danger-zone,
+    .danger-controls {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .settings-section-head {
+        display: block;
+    }
+
+    .security-chip {
+        display: inline-flex;
+        margin-bottom: 14px;
+    }
+
+    .danger-controls {
+        display: grid;
+    }
+
+    .danger-controls input,
+    .danger-controls .btn,
+    .account-action-row .btn {
+        width: 100%;
     }
 
     .profile-header {

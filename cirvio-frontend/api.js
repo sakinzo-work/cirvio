@@ -47,6 +47,11 @@ const CirvioAPI = {
         localStorage.removeItem('cirvio_token');
         localStorage.removeItem('cirvio_profile');
     },
+    logout() {
+        this.clearSession();
+        localStorage.removeItem('cirvio_cart');
+        localStorage.removeItem('cirvio_wishlist');
+    },
     async request(path, options = {}) {
         let res;
         const isFormData = options.body instanceof FormData;
@@ -120,6 +125,13 @@ const CirvioAPI = {
         return this.request('/api/auth/password', {
             method: 'PUT',
             body: JSON.stringify({ currentPassword, newPassword })
+        });
+    },
+    async deleteAccount(password) {
+        await this.ensureSession();
+        return this.request('/api/auth/me', {
+            method: 'DELETE',
+            body: JSON.stringify({ password })
         });
     },
     async getProducts(query = '') {

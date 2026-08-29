@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const https = require('https');
 const User = require('../models/User');
+const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -241,6 +242,27 @@ router.put('/password', protect, async (req, res) => {
         return res.json({ message: 'Password updated successfully' });
     } catch (err) {
         return res.status(500).json({ message: 'Password update failed', error: err.message });
+    }
+});
+
+// DELETE /api/auth/me
+router.delete('/me', protect, async (req, res) => {
+    try {
+        const password = String(req.body.password || '');
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required to delete your account' });
+        }
+
+        const user = await User.findById(req.user._id).select('+password');
+        if (!user || !(await user.matchPassword(password))) {
+            return res.status(401).json({ message: 'Password is incorrect' });
+        }
+
+        await Product.deleteMany({ seller: user._id });
+        await user.deleteOne();
+        return res.json({ message: 'Account deleted successfully' });
+    } catch (err) {
+        return res.status(500).json({ message: 'Account deletion failed', error: err.message });
     }
 });
 

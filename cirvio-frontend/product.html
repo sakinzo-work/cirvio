@@ -815,7 +815,9 @@
 
         /* build 4 gallery crops from the same source photo so there's
            a real thumbnail strip without misrepresenting the item */
-        function galleryImages(baseUrl) {
+        function galleryImages(product) {
+            if (product.images && product.images.length) return product.images;
+            const baseUrl = product.img;
             const crops = ['crop=entropy', 'crop=top', 'crop=bottom', 'crop=left'];
             return crops.map(c => baseUrl.replace(/&q=\d+/, '') + '&q=75&fit=crop&' + c);
         }
@@ -907,7 +909,7 @@
             else if (disc) { tagEl.textContent = disc + '% OFF'; tagEl.className = 'p-tag'; tagEl.style.display = 'block'; discEl.textContent = disc + '% off'; discEl.style.display = 'inline-block'; }
 
             /* gallery */
-            const imgs = galleryImages(product.img);
+            const imgs = galleryImages(product);
             document.getElementById('galleryMainImg').src = imgs[0];
             document.getElementById('galleryMainImg').alt = product.title;
             document.getElementById('galleryThumbs').innerHTML = imgs.map((src, i) => `
@@ -950,7 +952,7 @@
             if (!btn) return;
             const i = Number(btn.dataset.i);
             activeThumb = i;
-            document.getElementById('galleryMainImg').src = galleryImages(product.img)[i];
+            document.getElementById('galleryMainImg').src = galleryImages(product)[i];
             document.querySelectorAll('.gallery-thumbs button').forEach(b => b.classList.toggle('active', Number(b.dataset.i) === i));
         });
 
@@ -1028,7 +1030,7 @@
             }
         }
 
-        if (CirvioAuth.requireLogin()) loadBackendProduct();
+        loadBackendProduct();
 
         /* ============================================================
            INIT SHARED CHROME

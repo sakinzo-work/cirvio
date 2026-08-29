@@ -32,8 +32,16 @@ function absoluteUrl(req, relativePath) {
     return `${req.protocol}://${req.get('host')}${relativePath}`;
 }
 
+function normalizeListingType(type) {
+    return ['sell', 'donate', 'free'].includes(type) ? type : 'sell';
+}
+
+function listingStatusOnCreate() {
+    return process.env.AUTO_APPROVE_LISTINGS === 'false' ? 'pending' : 'approved';
+}
+
 // GET /api/products  — logged-in browse grid (only approved items)
-router.get('/', protect, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const { q, category, type, minPrice, maxPrice, city } = req.query;
         const filter = { status: 'approved' };
@@ -77,9 +85,12 @@ router.post('/uploads', protect, (req, res) => {
 });
 
 // GET /api/products/:id
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id).populate('seller', 'name college city phone verified');
+        const product = await Product.findOne({
+            _id: req.params.id,
+            status: { $in: ['approved', 'sold'] }
+        }).populate('seller', 'name college city phone verified');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         product.views += 1;
         await product.save();
@@ -96,20 +107,26 @@ router.post('/', protect, async (req, res) => {
         if (!title || !category || !condition || !location) {
             return res.status(400).json({ message: 'title, category, condition and location are required' });
         }
+        const listingType = normalizeListingType(type);
+        const listingPrice = listingType === 'sell' ? Number(price) || 0 : 0;
+        if (listingType === 'sell' && listingPrice <= 0) {
+            return res.status(400).json({ message: 'Price must be greater than 0 for sale listings' });
+        }
         const product = await Product.create({
-            title,
+            title: String(title).trim(),
             category,
             condition,
-            type: type === 'donate' ? 'donate' : 'sell',
-            price: type === 'donate' ? 0 : Number(price) || 0,
+            type: listingType,
+            price: listingPrice,
             originalPrice: Number(originalPrice) || 0,
-            description,
-            location,
-            college,
+            description: String(description || '').trim(),
+            location: String(location).trim(),
+            college: String(college || '').trim(),
             images: Array.isArray(images) ? images : [],
             seller: req.user._id,
-            status: 'pending'
+            status: listingStatusOnCreate()
         });
+        await product.populate('seller', 'name college city verified');
         res.status(201).json({ product });
     } catch (err) {
         res.status(500).json({ message: 'Failed to create listing', error: err.message });

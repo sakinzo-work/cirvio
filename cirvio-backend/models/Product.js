@@ -5,7 +5,7 @@ const productSchema = new mongoose.Schema(
         title: { type: String, required: true, trim: true },
         category: { type: String, required: true }, // books / notes / calculators / stationery ...
         condition: { type: String, required: true }, // new / like-new / good / fair
-        type: { type: String, enum: ['sell', 'donate'], default: 'sell' },
+        type: { type: String, enum: ['sell', 'donate', 'free'], default: 'sell' },
         price: { type: Number, default: 0, min: 0 },
         originalPrice: { type: Number, default: 0, min: 0 },
         description: { type: String, default: '' },

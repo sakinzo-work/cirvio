@@ -338,7 +338,7 @@
                 <h3 id="successTitle">Listing published!</h3>
                 <p id="successSub">Your item is now live on the CIRVIO marketplace for students near you.</p>
                 <div class="form-actions">
-                    <a href="status.html" class="btn btn-terracotta">Track Approval Status</a>
+                    <a href="index.html#browse" class="btn btn-terracotta">Browse Listings</a>
                     <a href="profile.html#listings" class="btn btn-outline">View My Listings</a>
                 </div>
             </div>
@@ -553,7 +553,7 @@
                 img: photos[0] || PLACEHOLDER_IMG,
                 seller: CirvioStore.getProfile().name,
                 time: 'Just now',
-                status: isSubmit ? 'pending' : 'draft',
+                status: isSubmit ? 'approved' : 'draft',
                 submittedAt: isSubmit ? now : null
             };
             if (!isSubmit) {
@@ -575,7 +575,7 @@
                 title: listing.title,
                 category: listing.cat,
                 condition: listing.cond,
-                type: listing.type === 'sell' ? 'sell' : 'donate',
+                type: listing.type,
                 price: listing.price,
                 originalPrice: listing.orig,
                 description: listing.desc,
@@ -627,9 +627,9 @@
             }
             document.getElementById('formView').style.display = 'none';
             const successView = document.getElementById('successView');
-            document.getElementById('successTitle').textContent = 'Submitted for review!';
+            document.getElementById('successTitle').textContent = 'Listing is live!';
             document.getElementById('successSub').textContent =
-                `"${listing.title}" has been sent to the CIRVIO team for approval. We'll let you know as soon as it's live — you can track the status any time.`;
+                `"${listing.title}" is now visible to buyers on CIRVIO. You can track it from your profile any time.`;
             successView.style.display = 'block';
             successView.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
@@ -643,3 +643,4 @@
 </body>
 
 </html>
+

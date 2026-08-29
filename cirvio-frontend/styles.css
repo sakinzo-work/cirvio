@@ -1489,6 +1489,7 @@ section {
 
 /* image dropzone */
 .dropzone {
+    position: relative;
     border: 1.5px dashed var(--sage);
     border-radius: var(--radius-md);
     background: #fff;
@@ -1496,6 +1497,15 @@ section {
     text-align: center;
     cursor: pointer;
     transition: all .18s ease;
+}
+
+.dropzone-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
 }
 
 .dropzone:hover,

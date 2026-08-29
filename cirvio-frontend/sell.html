@@ -308,7 +308,7 @@
                                 </svg>
                                 <p>Click to add photos, or drag them here</p>
                                 <small>Up to 4 photos · JPG or PNG · clear, well-lit shots sell faster</small>
-                                <input type="file" id="fileInput" accept="image/*" multiple hidden>
+                                <input class="dropzone-input" type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple aria-label="Upload listing photos">
                             </div>
                             <div class="img-preview-grid" id="imgPreviewGrid"></div>
                         </div>
@@ -426,7 +426,9 @@
         const fileInput = document.getElementById('fileInput');
         const imgPreviewGrid = document.getElementById('imgPreviewGrid');
 
-        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('click', (e) => {
+            if (e.target !== fileInput) fileInput.click();
+        });
         dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
         dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
         dropzone.addEventListener('drop', (e) => {

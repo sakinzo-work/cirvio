@@ -15,6 +15,9 @@ const User = require('../models/User');
     let user = await User.findOne({ email });
     if (user) {
         user.role = 'admin';
+        user.password = password;
+        user.verified = true;
+        user.status = 'active';
         await user.save();
         console.log(`✅ Existing user ${email} promoted to admin`);
     } else {

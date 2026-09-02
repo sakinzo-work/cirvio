@@ -1,5 +1,12 @@
-/* Admin is served by the backend at /admin, so API calls stay on the same Render host. */
-let API_BASE = window.CIRVIO_API_BASE || '';
+const RENDER_API_BASE = 'https://cirvio.onrender.com';
+
+function getAdminApiBase() {
+    if (window.CIRVIO_API_BASE) return window.CIRVIO_API_BASE.replace(/\/$/, '');
+    if (location.hostname.includes('cirvio-panel.netlify.app')) return RENDER_API_BASE;
+    return '';
+}
+
+let API_BASE = getAdminApiBase();
 
 let TOKEN = localStorage.getItem('cirvio_admin_token') || '';
 let CURRENT_USER = null;

@@ -641,6 +641,7 @@
                     const listings = CirvioStore.getListings().filter(l => String(l.id) !== String(savedListing.id));
                     listings.unshift(savedListing);
                     CirvioStore.setListings(listings);
+                    setPublishStatus(`Backend saved: ${result.product.status || 'pending'} (${result.product._id})`, 'ok');
                 }
             } catch (err) {
                 setPublishStatus(err.message || 'Backend listing failed', 'error');
@@ -654,7 +655,7 @@
             const successView = document.getElementById('successView');
             document.getElementById('successTitle').textContent = 'Listing sent for approval!';
             document.getElementById('successSub').textContent =
-                `"${listing.title}" is now waiting in the CIRVIO admin panel. It will go live after approval.`;
+                `"${listing.title}" is now waiting in the CIRVIO admin panel. It will go live after approval. Backend ID: ${listing.backendId || 'saved'}.`;
             successView.style.display = 'block';
             successView.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });

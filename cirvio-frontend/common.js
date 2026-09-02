@@ -515,7 +515,9 @@ function hideInstallButton() {
 function registerCirvioSW() {
     if (!('serviceWorker' in navigator)) return;
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => { /* ignore in unsupported/dev contexts */ });
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+            .then((registration) => registration.update())
+            .catch(() => { /* ignore in unsupported/dev contexts */ });
     });
 }
 

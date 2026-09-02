@@ -37,7 +37,7 @@ function normalizeListingType(type) {
 }
 
 function listingStatusOnCreate() {
-    return process.env.AUTO_APPROVE_LISTINGS === 'false' ? 'pending' : 'approved';
+    return process.env.AUTO_APPROVE_LISTINGS === 'true' ? 'approved' : 'pending';
 }
 
 // GET /api/products  — logged-in browse grid (only approved items)

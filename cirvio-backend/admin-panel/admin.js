@@ -1,5 +1,5 @@
-/* When hosted separately, set the backend URL once in the panel. */
-let API_BASE = window.CIRVIO_API_BASE || localStorage.getItem('cirvio_admin_api_base') || '';
+/* Admin is served by the backend at /admin, so API calls stay on the same Render host. */
+let API_BASE = window.CIRVIO_API_BASE || '';
 
 let TOKEN = localStorage.getItem('cirvio_admin_token') || '';
 let CURRENT_USER = null;
@@ -63,7 +63,6 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
 async function showApp() {
     loginScreen.classList.add('hidden');
     adminApp.classList.remove('hidden');
-    ensureApiBasePanel();
     ensurePasswordEye();
     ensureSettingsPanel();
     ensureEmployeePanel();
@@ -87,38 +86,44 @@ async function showApp() {
 const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 const isAdmin = () => CURRENT_USER && CURRENT_USER.role === 'admin';
+const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : inr(p.price));
+const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
 
-function ensureApiBasePanel() {
-    if (document.getElementById('apiBasePanel')) return;
+function listingActions(p) {
+    return `
+      ${p.status !== 'approved' ? `<button class="row-btn btn-approve" onclick="approveProduct('${p._id}')">Approve</button>` : ''}
+      ${p.status !== 'rejected' && p.status !== 'sold' ? `<button class="row-btn btn-reject" onclick="rejectProduct('${p._id}')">Reject</button>` : ''}
+      <button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>
+    `;
+}
+
+function listingBookCell(p) {
+    const thumb = listingThumb(p);
+    return `
+      <div class="listing-book">
+        ${thumb ? `<img src="${thumb}" alt="">` : `<span class="listing-thumb-empty">No image</span>`}
+        <div>
+          <strong>${p.title}</strong>
+          <span class="sub">${p.category || 'Book'}</span>
+        </div>
+      </div>
+    `;
+}
+
+function ensureEnhancementStyle() {
     if (!document.getElementById('adminEnhancementStyle')) {
         const style = document.createElement('style');
         style.id = 'adminEnhancementStyle';
         style.textContent = `
-.api-base-panel{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0;padding:12px;border:1px solid var(--border,#e6e0d4);border-radius:8px;background:var(--panel,#fff)}
-.api-base-panel input{min-width:280px;flex:1;border:1px solid var(--border,#e6e0d4);border-radius:8px;padding:10px;font:inherit}
 .password-eye{margin-top:8px;border:1px solid var(--border,#e6e0d4);border-radius:8px;background:#fff;padding:8px 11px;cursor:pointer}
 .employee-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px}
 .employee-form input{border:1px solid var(--border,#e6e0d4);border-radius:8px;padding:10px;font:inherit}`;
         document.head.appendChild(style);
     }
-    const panel = document.createElement('div');
-    panel.id = 'apiBasePanel';
-    panel.className = 'api-base-panel';
-    panel.innerHTML = `
-      <input id="apiBaseInput" type="url" placeholder="Backend API URL, e.g. https://your-backend.onrender.com" value="${API_BASE}">
-      <button id="saveApiBaseBtn" class="row-btn btn-approve">Save API URL</button>
-      <span id="apiBaseStatus" class="sub"></span>`;
-    const host = TOKEN && !adminApp.classList.contains('hidden') ? adminApp : loginScreen;
-    host.insertBefore(panel, host.firstElementChild);
-    document.getElementById('saveApiBaseBtn').addEventListener('click', () => {
-        const value = document.getElementById('apiBaseInput').value.trim().replace(/\/$/, '');
-        API_BASE = value;
-        localStorage.setItem('cirvio_admin_api_base', value);
-        document.getElementById('apiBaseStatus').textContent = 'Saved';
-    });
 }
 
 function ensurePasswordEye() {
+    ensureEnhancementStyle();
     const password = document.getElementById('loginPassword');
     if (!password || document.getElementById('toggleLoginPassword')) return;
     const btn = document.createElement('button');
@@ -142,7 +147,6 @@ function applyRolePermissions() {
     });
 }
 
-ensureApiBasePanel();
 ensurePasswordEye();
 
 /* ---------- dashboard ---------- */
@@ -240,6 +244,18 @@ async function loadListings() {
             <button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>
           </td>
         </tr>`).join('');
+    const latestBody = document.querySelector('#latestListingsTable tbody');
+    if (latestBody) {
+        latestBody.innerHTML = products.slice(0, 8).map((p) => `
+        <tr>
+          <td>${listingBookCell(p)}</td>
+          <td>${listingPrice(p)}</td>
+          <td class="pair-cell">${p.seller ? p.seller.name : '—'}<span class="sub">${p.seller ? p.seller.email : ''}</span></td>
+          <td><span class="badge badge-${p.status}">${p.status}</span></td>
+          <td>${fmtDate(p.createdAt)}</td>
+          <td>${listingActions(p)}</td>
+        </tr>`).join('');
+    }
 }
 
 async function approveProduct(id) {

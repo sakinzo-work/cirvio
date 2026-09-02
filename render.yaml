@@ -11,3 +11,7 @@ services:
         value: 7d
       - key: CLIENT_ORIGIN
         value: "*"
+      - key: AUTO_APPROVE_LISTINGS
+        value: "false"
+      - key: ADMIN_EMAIL
+        value: alishafaq782@gmail.com

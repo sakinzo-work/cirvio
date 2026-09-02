@@ -1,13 +1,15 @@
 /* Run once: node scripts/createAdmin.js
    Creates (or promotes) the admin account defined in your .env */
+const path = require('path');
 require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env'), override: true });
 const mongoose = require('mongoose');
 const User = require('../models/User');
 
 (async () => {
     await mongoose.connect(process.env.MONGO_URI);
 
-    const email = (process.env.ADMIN_EMAIL || 'admin@cirvio.com').toLowerCase();
+    const email = (process.env.ADMIN_EMAIL || 'alishafaq782@gmail.com').toLowerCase();
     const password = process.env.ADMIN_PASSWORD || 'changeme123';
 
     let user = await User.findOne({ email });

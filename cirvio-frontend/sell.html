@@ -560,7 +560,7 @@
                 img: photos[0] || PLACEHOLDER_IMG,
                 seller: CirvioStore.getProfile().name,
                 time: 'Just now',
-                status: isSubmit ? 'approved' : 'draft',
+                status: isSubmit ? 'pending' : 'draft',
                 submittedAt: isSubmit ? now : null
             };
             if (!isSubmit) {
@@ -649,12 +649,12 @@
                 submitBtn.textContent = 'Publish Listing';
                 return;
             }
-            setPublishStatus('Listing published successfully.', 'ok');
+            setPublishStatus('Listing submitted for admin approval.', 'ok');
             document.getElementById('formView').style.display = 'none';
             const successView = document.getElementById('successView');
-            document.getElementById('successTitle').textContent = 'Listing is live!';
+            document.getElementById('successTitle').textContent = 'Listing sent for approval!';
             document.getElementById('successSub').textContent =
-                `"${listing.title}" is now visible to buyers on CIRVIO. You can track it from your profile any time.`;
+                `"${listing.title}" is now waiting in the CIRVIO admin panel. It will go live after approval.`;
             successView.style.display = 'block';
             successView.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });

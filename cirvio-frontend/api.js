@@ -7,7 +7,7 @@ function getCirvioApiBase() {
         return cleanQueryApi;
     }
 
-    const configured = window.CIRVIO_API_BASE || localStorage.getItem('cirvio_api_base') || '';
+    const configured = localStorage.getItem('cirvio_api_base') || window.CIRVIO_API_BASE || '';
     if (configured) return configured.replace(/\/$/, '');
 
     return 'http://localhost:5000';

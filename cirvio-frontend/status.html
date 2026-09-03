@@ -413,6 +413,7 @@
             }
         }
         if (CirvioAuth.requireLogin()) loadBackendStatus();
+        window.addEventListener('cirvio:listings-synced', renderStatus);
 
         initCirvioChrome('status');
     </script>

@@ -311,6 +311,7 @@
                                 <input class="dropzone-input" type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple aria-label="Upload listing photos">
                             </div>
                             <div class="img-preview-grid" id="imgPreviewGrid"></div>
+                            <div class="selected-file-list" id="selectedFileList" aria-live="polite"></div>
                         </div>
 
                         <div class="form-actions">
@@ -378,6 +379,32 @@
             <path d="M20 6L9 17l-5-5" />
         </svg><span id="toastMsg">Added to wishlist</span></div>
 
+    <div class="modal-overlay publish-confirm-overlay" id="publishConfirmOverlay" role="dialog" aria-modal="true"
+        aria-labelledby="publishConfirmTitle">
+        <div class="modal-box publish-confirm-box">
+            <div class="modal-info">
+                <button class="btn-icon modal-close" id="publishConfirmClose" aria-label="Close confirmation">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+                <div class="p-cat" id="publishConfirmApi"></div>
+                <h3 id="publishConfirmTitle">Confirm Listing Upload</h3>
+                <p class="modal-desc" id="publishConfirmDesc"></p>
+                <div class="modal-facts">
+                    <div><strong id="confirmBookName"></strong>Book / item name</div>
+                    <div><strong id="confirmBookPrice"></strong>Price</div>
+                    <div><strong id="confirmBookPhotos"></strong>Photos selected</div>
+                    <div><strong id="confirmBookStatus"></strong>Admin status</div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-terracotta" id="publishConfirmBtn">Confirm & Upload</button>
+                    <button type="button" class="btn btn-outline" id="publishCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="config.js"></script>
     <script src="api.js"></script>
     <script src="common.js"></script>
@@ -426,6 +453,7 @@
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
         const imgPreviewGrid = document.getElementById('imgPreviewGrid');
+        const selectedFileList = document.getElementById('selectedFileList');
 
         dropzone.addEventListener('click', (e) => {
             if (e.target !== fileInput) fileInput.click();
@@ -472,6 +500,14 @@
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>`).join('');
+            selectedFileList.innerHTML = photoFiles.length
+                ? `<strong>Selected files</strong>${photoFiles.map((file, i) => `
+                    <div class="selected-file-row">
+                        <span>${i + 1}. ${file.name}</span>
+                        <small>${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+                    </div>
+                `).join('')}`
+                : '<span>No photos selected yet.</span>';
         }
         imgPreviewGrid.addEventListener('click', (e) => {
             const rm = e.target.closest('.rm');
@@ -482,6 +518,7 @@
             renderPreviewImages();
             updatePreview();
         });
+        renderPreviewImages();
 
         /* ---------- live preview card ---------- */
         const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70";
@@ -541,6 +578,66 @@
             status.className = 'publish-status ' + type;
         }
 
+        function getDraftListing() {
+            return {
+                title: document.getElementById('itemTitle').value.trim(),
+                cat: document.getElementById('itemCategory').value,
+                cond: document.getElementById('itemCondition').value,
+                price: listingType === 'sell' ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
+                orig: Number(document.getElementById('itemOrig').value) || 0,
+                desc: document.getElementById('itemDesc').value.trim(),
+                loc: document.getElementById('itemLoc').value.trim(),
+                college: document.getElementById('itemCollege').value.trim(),
+                type: listingType,
+                img: photos[0] || PLACEHOLDER_IMG,
+                seller: CirvioStore.getProfile().name
+            };
+        }
+
+        function openPublishConfirm(listing) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('publishConfirmOverlay');
+                const apiBase = window.CIRVIO_API_BASE_ACTIVE || window.CIRVIO_API_BASE || 'backend';
+                document.getElementById('publishConfirmApi').textContent = `Backend: ${apiBase}`;
+                document.getElementById('publishConfirmDesc').textContent =
+                    'Confirm karte hi photos upload hongi aur listing backend/admin review queue me pending status ke saath save hogi.';
+                document.getElementById('confirmBookName').textContent = listing.title || 'Untitled';
+                document.getElementById('confirmBookPrice').textContent =
+                    listing.type === 'sell' ? `Rs ${listing.price}` : (listing.type === 'donate' ? 'Donation' : 'Free');
+                document.getElementById('confirmBookPhotos').textContent = `${photoFiles.length} file${photoFiles.length === 1 ? '' : 's'}`;
+                document.getElementById('confirmBookStatus').textContent = 'Pending approval';
+
+                function close(result) {
+                    overlay.classList.remove('open');
+                    document.body.style.overflow = '';
+                    cleanup();
+                    resolve(result);
+                }
+                function onKey(e) {
+                    if (e.key === 'Escape') close(false);
+                }
+                function onOverlayClick(e) {
+                    if (e.target === overlay) close(false);
+                }
+                function cleanup() {
+                    document.getElementById('publishConfirmBtn').removeEventListener('click', onConfirm);
+                    document.getElementById('publishCancelBtn').removeEventListener('click', onCancel);
+                    document.getElementById('publishConfirmClose').removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlayClick);
+                    document.removeEventListener('keydown', onKey);
+                }
+                const onConfirm = () => close(true);
+                const onCancel = () => close(false);
+                document.getElementById('publishConfirmBtn').addEventListener('click', onConfirm);
+                document.getElementById('publishCancelBtn').addEventListener('click', onCancel);
+                document.getElementById('publishConfirmClose').addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlayClick);
+                document.addEventListener('keydown', onKey);
+                overlay.classList.add('open');
+                document.body.style.overflow = 'hidden';
+            });
+        }
+
         function saveListing(status) {
             // A "submit" (status passed in as 'live') now goes to CIRVIO for
             // review first — it isn't actually live until approved.
@@ -575,16 +672,17 @@
             if (!window.CirvioAPI) return null;
             let imageUrls = [];
             if (photoFiles.length) {
-                setPublishStatus('Uploading photos...', 'working');
+                setPublishStatus(`Uploading ${photoFiles.length} photo(s) to ${window.CIRVIO_API_BASE_ACTIVE || 'backend'}...`, 'working');
                 try {
                     const uploadResult = await CirvioAPI.uploadProductImages(photoFiles);
                     imageUrls = uploadResult.images || [];
+                    setPublishStatus(`Photos uploaded: ${imageUrls.length}. Creating listing...`, 'working');
                 } catch (err) {
                     console.warn('Photo upload failed, creating listing without uploaded photos:', err.message);
                     setPublishStatus('Photo upload failed, publishing listing without photos...', 'warning');
                 }
             }
-            setPublishStatus('Publishing listing...', 'working');
+            setPublishStatus(`Publishing listing to ${window.CIRVIO_API_BASE_ACTIVE || 'backend'}...`, 'working');
             return CirvioAPI.createProduct({
                 title: listing.title,
                 category: listing.cat,
@@ -629,9 +727,16 @@
             }
 
             const submitBtn = document.getElementById('submitBtn');
+            const draftListing = getDraftListing();
+            const confirmed = await openPublishConfirm(draftListing);
+            if (!confirmed) {
+                setPublishStatus('Upload cancelled. Listing was not sent to backend.', 'warning');
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.textContent = 'Uploading...';
-            setPublishStatus('Starting upload...', 'working');
+            setPublishStatus(`Starting upload to ${window.CIRVIO_API_BASE_ACTIVE || 'backend'}...`, 'working');
             const listing = saveListing('live');
             try {
                 const result = await submitListingToBackend(listing);
@@ -641,7 +746,7 @@
                     const listings = CirvioStore.getListings().filter(l => String(l.id) !== String(savedListing.id));
                     listings.unshift(savedListing);
                     CirvioStore.setListings(listings);
-                    setPublishStatus(`Backend saved: ${result.product.status || 'pending'} (${result.product._id})`, 'ok');
+                    setPublishStatus(`Backend saved: ${result.product.title} | ID ${result.product._id} | status ${result.product.status || 'pending'}`, 'ok');
                 }
             } catch (err) {
                 setPublishStatus(err.message || 'Backend listing failed', 'error');
@@ -655,7 +760,7 @@
             const successView = document.getElementById('successView');
             document.getElementById('successTitle').textContent = 'Listing sent for approval!';
             document.getElementById('successSub').textContent =
-                `"${listing.title}" is now waiting in the CIRVIO admin panel. It will go live after approval. Backend ID: ${listing.backendId || 'saved'}.`;
+                `"${listing.title}" is now waiting in the CIRVIO admin panel. Status: pending approval. Backend ID: ${listing.backendId || 'saved'}.`;
             successView.style.display = 'block';
             successView.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });

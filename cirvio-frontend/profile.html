@@ -263,7 +263,8 @@
 
             <!-- MESSAGES -->
             <div class="profile-panel" id="panel-messages">
-                <div class="empty-state">
+                <div class="message-list" id="messagesList"></div>
+                <div class="empty-state" id="messagesEmpty">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path
@@ -576,6 +577,29 @@
             showToast('Removed from wishlist');
         });
 
+        function renderMessages() {
+            const messages = CirvioStore.getMessages().slice().reverse();
+            const list = document.getElementById('messagesList');
+            const empty = document.getElementById('messagesEmpty');
+            if (!messages.length) {
+                list.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+            list.innerHTML = messages.map((m) => `
+                <div class="message-card ${m.from === 'cirvio' ? 'from-cirvio' : 'from-user'}">
+                    ${m.productImg ? `<img src="${m.productImg}" alt="">` : '<div class="message-icon">C</div>'}
+                    <div>
+                        <strong>${m.from === 'cirvio' ? 'CIRVIO' : 'You'}</strong>
+                        ${m.productTitle ? `<span>${m.productTitle}</span>` : ''}
+                        <p>${m.text}</p>
+                        <small>${m.time || 'Just now'}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         /* ---------- tabs ---------- */
         const tabButtons = document.querySelectorAll('.profile-tab');
         function setActiveTab(tab) {
@@ -679,12 +703,18 @@
             });
         });
 
+        window.addEventListener('cirvio:listings-synced', () => {
+            renderListings();
+            renderMessages();
+        });
+
         /* ============================================================
            INIT
         ============================================================ */
         loadProfileHeader();
         renderListings();
         renderSaved();
+        renderMessages();
         async function loadBackendListings() {
             if (!window.CirvioAPI || !window.cirvioProductToListing) return;
             try {
@@ -693,6 +723,7 @@
                 const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
                 CirvioStore.setListings([...backendListings, ...localDrafts]);
                 renderListings();
+                renderMessages();
             } catch (err) {
                 console.warn('Could not load backend listings:', err.message);
             }

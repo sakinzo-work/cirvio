@@ -8,9 +8,13 @@ function getCirvioApiBase() {
     }
 
     const host = window.location.hostname;
-    const isLocalFrontend = !host || host === 'localhost' || host === '127.0.0.1';
+    const isLocalFrontend = !host
+        || host === 'localhost'
+        || host === '127.0.0.1'
+        || /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)
+        || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
     const storedApi = localStorage.getItem('cirvio_api_base') || '';
-    const storedApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(storedApi);
+    const storedApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?/i.test(storedApi);
     const storedApiIsRemote = /^https?:\/\//i.test(storedApi) && !storedApiIsLocal;
 
     if (storedApi && ((isLocalFrontend && storedApiIsLocal) || (!isLocalFrontend && storedApiIsRemote))) {
@@ -28,6 +32,7 @@ function getCirvioApiBase() {
 }
 
 const API_BASE = getCirvioApiBase();
+window.CIRVIO_API_BASE_ACTIVE = API_BASE;
 
 function normalizeProduct(product) {
     const seller = product.seller || {};

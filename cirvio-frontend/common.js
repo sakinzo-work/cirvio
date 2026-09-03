@@ -45,6 +45,8 @@ const CirvioStore = {
        get each other's contact details directly, CIRVIO relays it */
     getMessages() { return this._read('cirvio_messages', []); },
     setMessages(arr) { this._write('cirvio_messages', arr); },
+    getNotifications() { return this._read('cirvio_notifications', []); },
+    setNotifications(arr) { this._write('cirvio_notifications', arr); },
     /* ---------- cart (persists across pages) ---------- */
     getCart() { return this._read('cirvio_cart', []); },
     setCart(arr) { this._write('cirvio_cart', arr); }
@@ -141,6 +143,99 @@ function refreshMsgBadge() {
         el.textContent = count;
         el.style.display = count > 0 ? '' : 'none';
     });
+}
+
+function refreshNotificationBadge() {
+    const count = CirvioStore.getNotifications().filter(n => !n.read).length;
+    ['notifCount', 'mpNotifCount'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = count;
+        el.style.display = count > 0 ? '' : 'none';
+    });
+}
+
+function initNotificationLinks() {
+    document.querySelectorAll('.header-actions button[aria-label="Notifications"], .mp-quick-item[href="#"]').forEach((el) => {
+        const label = (el.textContent || el.getAttribute('aria-label') || '').toLowerCase();
+        if (!label.includes('notification')) return;
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            CirvioStore.setNotifications(CirvioStore.getNotifications().map(n => ({ ...n, read: true })));
+            refreshNotificationBadge();
+            window.location.href = 'status.html';
+        });
+    });
+}
+
+function addListingNotification(listing, status) {
+    const notifications = CirvioStore.getNotifications();
+    const exists = notifications.some(n => String(n.productId) === String(listing.id) && n.status === status);
+    if (exists) return;
+
+    const approved = status === 'approved';
+    const text = approved
+        ? `"${listing.title}" approved. It is now live for buyers.`
+        : `"${listing.title}" needs changes before it can go live.`;
+
+    notifications.unshift({
+        id: Date.now() + Math.random(),
+        productId: listing.id,
+        title: listing.title,
+        status,
+        text,
+        read: false,
+        createdAt: Date.now()
+    });
+    CirvioStore.setNotifications(notifications);
+
+    const messages = CirvioStore.getMessages();
+    messages.push({
+        id: Date.now() + Math.random(),
+        productId: listing.id,
+        productTitle: listing.title,
+        productImg: listing.img || '',
+        text,
+        from: 'cirvio',
+        read: false,
+        time: 'Just now'
+    });
+    CirvioStore.setMessages(messages);
+}
+
+let listingNotificationPollStarted = false;
+async function syncListingStatusNotifications({ silent = true } = {}) {
+    if (!window.CirvioAPI || !window.cirvioProductToListing || !localStorage.getItem('cirvio_token')) return;
+    try {
+        const before = CirvioStore.getListings().filter(l => l.status !== 'draft');
+        const beforeById = Object.fromEntries(before.map(l => [String(l.id || l.backendId), l]));
+        const { products } = await CirvioAPI.myListings();
+        const backendListings = (products || []).map(cirvioProductToListing);
+        const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
+
+        backendListings.forEach((listing) => {
+            const previous = beforeById[String(listing.id)];
+            if (!previous || previous.status === listing.status) return;
+            if (['approved', 'rejected'].includes(listing.status)) {
+                addListingNotification(listing, listing.status);
+                if (!silent) showToast(listing.status === 'approved' ? 'Listing approved and now live' : 'Listing review update');
+            }
+        });
+
+        CirvioStore.setListings([...backendListings, ...localDrafts]);
+        refreshNotificationBadge();
+        refreshMsgBadge();
+        window.dispatchEvent(new CustomEvent('cirvio:listings-synced', { detail: { listings: backendListings } }));
+    } catch (err) {
+        console.warn('Could not sync listing notifications:', err.message);
+    }
+}
+
+function startListingNotificationPoll() {
+    if (listingNotificationPollStarted || !localStorage.getItem('cirvio_token')) return;
+    listingNotificationPollStarted = true;
+    syncListingStatusNotifications();
+    setInterval(() => syncListingStatusNotifications({ silent: false }), 45000);
 }
 
 /* ============================================================
@@ -588,12 +683,15 @@ function initCirvioChrome(pageKey) {
     initAuthLinks();
     initWishHeaderLink();
     initCartHeaderLink();
+    initNotificationLinks();
     refreshWishBadge();
     refreshMsgBadge();
+    refreshNotificationBadge();
     refreshCartBadge();
     initReveal();
     initInstallPrompt();
     registerCirvioSW();
+    startListingNotificationPoll();
     if (pageKey) markActiveNav(pageKey);
 }
 

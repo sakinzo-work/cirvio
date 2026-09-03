@@ -1655,6 +1655,45 @@ section {
     margin-top: 14px;
 }
 
+.selected-file-list {
+    margin-top: 12px;
+    display: grid;
+    gap: 7px;
+    color: #7a7461;
+    font-size: .8rem;
+}
+
+.selected-file-list strong {
+    color: var(--olive-deep);
+    font-size: .78rem;
+}
+
+.selected-file-row {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .72);
+    padding: 8px 10px;
+}
+
+.selected-file-row span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--olive-deep);
+    font-weight: 700;
+}
+
+.selected-file-row small {
+    flex: 0 0 auto;
+    color: #8a856f;
+}
+
 .img-preview {
     position: relative;
     aspect-ratio: 1;
@@ -2190,6 +2229,64 @@ footer {
     display: grid;
     grid-template-columns: 1fr 1fr;
     max-height: 88vh;
+}
+
+.publish-confirm-box {
+    display: block;
+    max-width: 520px;
+}
+
+.message-list {
+    display: grid;
+    gap: 12px;
+}
+
+.message-card {
+    display: grid;
+    grid-template-columns: 54px 1fr;
+    gap: 14px;
+    align-items: start;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 252, 246, .9);
+    padding: 14px;
+}
+
+.message-card img,
+.message-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 8px;
+    background: var(--cream);
+    object-fit: cover;
+}
+
+.message-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--terracotta);
+    font: 800 1rem var(--font-body);
+}
+
+.message-card strong {
+    display: block;
+    color: var(--olive-deep);
+    font-size: .88rem;
+}
+
+.message-card span,
+.message-card small {
+    display: block;
+    color: #8a856f;
+    font-size: .76rem;
+}
+
+.message-card p {
+    margin: 7px 0 5px;
+    color: #5c6350;
+    line-height: 1.55;
+    font-size: .88rem;
 }
 
 .modal-img {

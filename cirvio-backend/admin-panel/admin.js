@@ -1,9 +1,28 @@
 const RENDER_API_BASE = 'https://cirvio.onrender.com';
 
 function getAdminApiBase() {
+    const queryApi = new URLSearchParams(location.search).get('api');
+    if (queryApi) {
+        const cleanQueryApi = queryApi.replace(/\/$/, '');
+        localStorage.setItem('cirvio_admin_api_base', cleanQueryApi);
+        return cleanQueryApi;
+    }
+    const host = location.hostname;
+    const isLocalAdmin = !host
+        || host === 'localhost'
+        || host === '127.0.0.1'
+        || /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)
+        || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+    const storedApi = localStorage.getItem('cirvio_admin_api_base') || '';
+    const storedApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?/i.test(storedApi);
+    const storedApiIsRemote = /^https?:\/\//i.test(storedApi) && !storedApiIsLocal;
+
+    if (storedApi && ((isLocalAdmin && storedApiIsLocal) || (!isLocalAdmin && storedApiIsRemote))) {
+        return storedApi.replace(/\/$/, '');
+    }
+    if (storedApi) localStorage.removeItem('cirvio_admin_api_base');
     if (window.CIRVIO_API_BASE) return window.CIRVIO_API_BASE.replace(/\/$/, '');
-    if (location.hostname.includes('cirvio-panel.netlify.app')) return RENDER_API_BASE;
-    return '';
+    return isLocalAdmin ? 'http://localhost:5000' : RENDER_API_BASE;
 }
 
 let API_BASE = getAdminApiBase();

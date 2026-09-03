@@ -1118,10 +1118,13 @@ section {
     display: flex;
     gap: 8px;
     padding: 0 16px 16px;
+    flex-wrap: wrap;
 }
 
 .p-card-actions .btn {
-    flex: 1;
+    flex: 1 1 116px;
+    justify-content: center;
+    min-width: 0;
 }
 
 .btn-sm {

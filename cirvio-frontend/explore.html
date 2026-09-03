@@ -209,6 +209,11 @@
             padding: 34px 0 20px;
         }
 
+        .explore-main .reveal {
+            opacity: 1;
+            transform: none;
+        }
+
         .explore-section {
             padding: 26px 0;
             scroll-margin-top: 150px;
@@ -907,7 +912,7 @@
                      <a href="sell.html" class="btn btn-terracotta btn-sm">List an Item</a>
                    </div>`;
             return `
-  <section class="explore-section reveal" id="cat-${slug}" data-cat="${c.name}">
+  <section class="explore-section reveal show" id="cat-${slug}" data-cat="${c.name}">
     <div class="es-head">
       <div class="es-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg></div>
       <div class="es-head-text">
@@ -1022,7 +1027,7 @@
                 });
                 const emptyBox = section.querySelector('.es-empty');
                 if (emptyBox) {
-                    /* categories with no demo listings: hide entirely once a search/filter is active */
+                    if (!q && activeFilter === 'all') anyVisible = true;
                     section.style.display = (q || activeFilter !== 'all') ? 'none' : '';
                 } else {
                     section.style.display = sectionHasMatch ? '' : 'none';
@@ -1105,17 +1110,19 @@
                 const { products } = await CirvioAPI.getProducts();
                 PRODUCTS.splice(0, PRODUCTS.length, ...(products || []));
                 renderExploreSections();
+                document.querySelectorAll('.explore-section').forEach(s => s.classList.add('show'));
                 observeExploreSections();
                 applyExploreFilters();
             } catch (err) {
                 console.warn('Could not load explore products:', err.message);
                 PRODUCTS.splice(0, PRODUCTS.length);
                 renderExploreSections();
+                document.querySelectorAll('.explore-section').forEach(s => s.classList.add('show'));
                 applyExploreFilters();
             }
         }
 
-        if (CirvioAuth.requireLogin()) loadBackendProducts();
+        loadBackendProducts();
         initCirvioChrome('explore');
     </script>
 </body>

@@ -182,11 +182,23 @@ function initNotificationLinks() {
     document.querySelectorAll('.header-actions button[aria-label="Notifications"], .mp-quick-item[href="#"]').forEach((el) => {
         const label = (el.textContent || el.getAttribute('aria-label') || '').toLowerCase();
         if (!label.includes('notification')) return;
+        el.dataset.notificationTrigger = 'true';
         el.addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             toggleNotificationPanel();
         });
     });
+    if (!notificationClickListenerStarted) {
+        notificationClickListenerStarted = true;
+        document.addEventListener('click', (e) => {
+            const trigger = e.target.closest('[data-notification-trigger], button[aria-label="Notifications"]');
+            if (!trigger) return;
+            e.preventDefault();
+            e.stopPropagation();
+            toggleNotificationPanel();
+        });
+    }
 }
 
 function ensureNotificationPanel() {
@@ -212,7 +224,7 @@ function ensureNotificationPanel() {
     });
     document.addEventListener('click', (e) => {
         if (!panel.classList.contains('open')) return;
-        if (e.target.closest('#notificationPanel') || e.target.closest('[aria-label="Notifications"]')) return;
+        if (e.target.closest('#notificationPanel') || e.target.closest('[data-notification-trigger], button[aria-label="Notifications"]')) return;
         panel.classList.remove('open');
     });
     document.addEventListener('keydown', (e) => {
@@ -277,6 +289,7 @@ function addListingNotification(listing, status) {
 }
 
 let listingNotificationPollStarted = false;
+let notificationClickListenerStarted = false;
 
 function syncLocalListingsWithBackend(backendListings, { silent = true } = {}) {
     const before = CirvioStore.getListings().filter(l => l.status !== 'draft');

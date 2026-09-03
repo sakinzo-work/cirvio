@@ -118,7 +118,7 @@ async function showApp() {
     }
 })();
 
-const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const inr = (n) => 'Rs ' + Number(n || 0).toLocaleString('en-IN');
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 const isAdmin = () => CURRENT_USER && CURRENT_USER.role === 'admin';
 const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : inr(p.price));
@@ -128,11 +128,13 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '
 function listingActions(p) {
     const viewed = !!p.reviewViewedAt;
     return `
+    <div class="action-stack">
       <button class="row-btn btn-view" onclick="viewListingImages('${p._id}')">View Images</button>
       ${p.status !== 'approved' ? `<button class="row-btn btn-approve" ${viewed ? '' : 'disabled title="View images/details first"'} onclick="approveProduct('${p._id}')">Approve</button>` : ''}
       ${p.status !== 'rejected' && p.status !== 'sold' ? `<button class="row-btn btn-reject" onclick="rejectProduct('${p._id}')">Reject</button>` : ''}
       <button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>
-      <span class="${viewed ? 'review-seen' : 'review-needed'}">${viewed ? 'Viewed by staff' : 'View before approval'}</span>
+      <span class="review-state ${viewed ? 'review-seen' : 'review-needed'}">${viewed ? 'Viewed by staff' : 'View before approval'}</span>
+    </div>
     `;
 }
 
@@ -140,7 +142,7 @@ function listingBookCell(p) {
     const thumb = listingThumb(p);
     return `
       <div class="listing-book">
-        ${thumb ? `<img src="${esc(thumb)}" alt="">` : `<span class="listing-thumb-empty">No image</span>`}
+        <div class="listing-cover-stack">${thumb ? `<img src="${esc(thumb)}" alt="">` : `<span class="listing-thumb-empty">No image</span>`}</div>
         <div>
           <strong>${esc(p.title)}</strong>
           <span class="sub">${esc(p.category || 'Book')}</span>
@@ -150,10 +152,15 @@ function listingBookCell(p) {
 }
 
 function listingImagesCell(p) {
-    const count = Array.isArray(p.images) ? p.images.length : 0;
+    const images = Array.isArray(p.images) ? p.images : [];
+    const count = images.length;
+    const strip = images.slice(0, 3).map(src => `<img src="${esc(src)}" alt="">`).join('');
     return `
-      <span class="image-count">${count} photo${count === 1 ? '' : 's'}</span>
-      <button class="row-btn btn-view" onclick="viewListingImages('${p._id}')">View</button>
+      <div class="image-cell">
+        <div class="image-strip">${strip || '<span class="listing-thumb-empty">No image</span>'}</div>
+        <span class="image-count">${count} photo${count === 1 ? '' : 's'}</span>
+        <button class="row-btn btn-view" onclick="viewListingImages('${p._id}')">View</button>
+      </div>
     `;
 }
 
@@ -161,10 +168,7 @@ function ensureEnhancementStyle() {
     if (!document.getElementById('adminEnhancementStyle')) {
         const style = document.createElement('style');
         style.id = 'adminEnhancementStyle';
-        style.textContent = `
-.password-eye{margin-top:8px;border:1px solid var(--border,#e6e0d4);border-radius:8px;background:#fff;padding:8px 11px;cursor:pointer}
-.employee-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px}
-.employee-form input{border:1px solid var(--border,#e6e0d4);border-radius:8px;padding:10px;font:inherit}`;
+        style.textContent = '';
         document.head.appendChild(style);
     }
 }
@@ -178,7 +182,7 @@ function ensurePasswordEye() {
     btn.type = 'button';
     btn.className = 'password-eye';
     btn.setAttribute('aria-label', 'Show password');
-    btn.textContent = '👁';
+    btn.textContent = 'Show';
     password.insertAdjacentElement('afterend', btn);
     btn.addEventListener('click', () => {
         const show = password.type === 'password';
@@ -214,10 +218,10 @@ async function loadUsers() {
     const tbody = document.querySelector('#usersTable tbody');
     tbody.innerHTML = users.map((u) => `
         <tr>
-          <td>${u.name}</td>
-          <td>${u.email}<span class="sub">${u.role}</span></td>
-          <td>${u.college || '—'}</td>
-          <td>${u.city || '—'}</td>
+          <td>${esc(u.name)}</td>
+          <td>${esc(u.email)}<span class="sub">${esc(u.role)}</span></td>
+          <td>${esc(u.college || '-')}</td>
+          <td>${esc(u.city || '-')}</td>
           <td>${u.listingsCount}</td>
           <td>${u.ordersCount}</td>
           <td><span class="badge badge-${u.status}">${u.status}</span></td>
@@ -235,8 +239,8 @@ async function loadUsers() {
         const employees = users.filter((u) => u.role === 'employee');
         empBody.innerHTML = employees.length ? employees.map((u) => `
           <tr>
-            <td>${u.name}</td>
-            <td>${u.email}</td>
+          <td>${esc(u.name)}</td>
+          <td>${esc(u.email)}</td>
             <td><span class="badge badge-${u.status}">${u.status}</span></td>
             <td>${fmtDate(u.createdAt)}</td>
             <td>
@@ -283,7 +287,7 @@ async function loadListings() {
           <td>${listingImagesCell(p)}</td>
           <td>${esc(p.category)}</td>
           <td>${p.type === 'donate' ? 'Donate' : inr(p.price)}</td>
-          <td class="pair-cell">${p.seller ? esc(p.seller.name) : '—'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
+          <td class="pair-cell">${p.seller ? esc(p.seller.name) : '-'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
           <td>${listingActions(p)}</td>
@@ -295,7 +299,7 @@ async function loadListings() {
           <td>${listingBookCell(p)}</td>
           <td>${listingImagesCell(p)}</td>
           <td>${listingPrice(p)}</td>
-          <td class="pair-cell">${p.seller ? esc(p.seller.name) : '—'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
+          <td class="pair-cell">${p.seller ? esc(p.seller.name) : '-'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
           <td>${listingActions(p)}</td>
@@ -346,14 +350,31 @@ function ensureImageModal() {
           </div>
           <button class="row-btn btn-delete" id="closeImageModal">Close</button>
         </div>
-        <div id="imageModalGrid" class="image-grid"></div>
-        <div id="imageModalDetail" class="image-detail"></div>
+        <div class="image-dialog-body">
+          <div class="image-main">
+            <div id="imageModalMain"></div>
+            <div id="imageModalGrid" class="image-grid"></div>
+          </div>
+          <aside class="image-side">
+            <h4>Review details</h4>
+            <div id="imageModalDetail" class="image-detail"></div>
+          </aside>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);
     document.getElementById('closeImageModal').addEventListener('click', closeListingImages);
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeListingImages();
+    });
+    document.getElementById('imageModalGrid').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-img]');
+        const mainImg = document.getElementById('imageModalMainImg');
+        if (!btn || !mainImg) return;
+        mainImg.src = btn.dataset.img;
+        document.querySelectorAll('#imageModalGrid button').forEach((item) => {
+            item.classList.toggle('active', item === btn);
+        });
     });
 }
 
@@ -364,12 +385,22 @@ async function viewListingImages(id) {
     const images = Array.isArray(product.images) ? product.images : [];
     document.getElementById('imageModalTitle').textContent = product.title || 'Listing images';
     document.getElementById('imageModalMeta').textContent = `${product.category || 'Listing'} | ${listingPrice(product)} | ${product.seller ? product.seller.name : 'No seller'}`;
-    document.getElementById('imageModalGrid').innerHTML = images.length
-        ? images.map((src, i) => `<a href="${esc(src)}" target="_blank" rel="noopener"><img src="${esc(src)}" alt="Listing image ${i + 1}"></a>`).join('')
+    document.getElementById('imageModalMain').innerHTML = images.length
+        ? `<img id="imageModalMainImg" src="${esc(images[0])}" alt="${esc(product.title || 'Listing image')}">`
         : '<div class="image-empty">No uploaded images for this listing.</div>';
+    document.getElementById('imageModalGrid').innerHTML = images.length
+        ? images.map((src, i) => `<button type="button" class="${i === 0 ? 'active' : ''}" data-img="${esc(src)}"><img src="${esc(src)}" alt="Listing image ${i + 1}"></button>`).join('')
+        : '';
     document.getElementById('imageModalDetail').innerHTML = `
-      <strong>Description</strong><br>${esc(product.description || 'No description provided.')}<br><br>
-      <strong>Location</strong><br>${esc(product.location || '—')}
+      <dl>
+        <div><dt>Title</dt><dd>${esc(product.title || 'Untitled listing')}</dd></div>
+        <div><dt>Seller</dt><dd>${esc(product.seller ? `${product.seller.name} (${product.seller.email || 'no email'})` : 'No seller')}</dd></div>
+        <div><dt>Category</dt><dd>${esc(product.category || 'Uncategorised')}</dd></div>
+        <div><dt>Condition</dt><dd>${esc(product.condition || 'Not provided')}</dd></div>
+        <div><dt>Price</dt><dd>${esc(listingPrice(product))}</dd></div>
+        <div><dt>Location</dt><dd>${esc(product.location || '-')}</dd></div>
+        <div><dt>Description</dt><dd>${esc(product.description || 'No description provided.')}</dd></div>
+      </dl>
     `;
     document.getElementById('listingImageModal').classList.add('open');
     try {
@@ -396,9 +427,9 @@ async function loadPurchases() {
     const rowHtml = (row) => `
         <tr>
           <td>${fmtDate(row.date)}</td>
-          <td class="pair-cell">${row.buyer ? row.buyer.name : '—'}<span class="sub">${row.buyer ? row.buyer.email : ''}</span></td>
-          <td class="pair-cell">${row.title}<span class="sub">${row.product ? row.product.category : ''}</span></td>
-          <td class="pair-cell">${row.seller ? row.seller.name : '—'}<span class="sub">${row.seller ? row.seller.email : ''}</span></td>
+          <td class="pair-cell">${row.buyer ? esc(row.buyer.name) : '-'}<span class="sub">${row.buyer ? esc(row.buyer.email) : ''}</span></td>
+          <td class="pair-cell">${esc(row.title)}<span class="sub">${row.product ? esc(row.product.category) : ''}</span></td>
+          <td class="pair-cell">${row.seller ? esc(row.seller.name) : '-'}<span class="sub">${row.seller ? esc(row.seller.email) : ''}</span></td>
           <td>${row.qty}</td>
           <td>${inr(row.price * row.qty)}</td>
           <td><span class="badge badge-approved">${row.orderStatus}</span></td>
@@ -408,9 +439,9 @@ async function loadPurchases() {
     document.querySelector('#recentPurchasesTable tbody').innerHTML = purchases.slice(0, 6).map((row) => `
         <tr>
           <td>${fmtDate(row.date)}</td>
-          <td>${row.buyer ? row.buyer.name : '—'}</td>
-          <td>${row.title}</td>
-          <td>${row.seller ? row.seller.name : '—'}</td>
+          <td>${row.buyer ? esc(row.buyer.name) : '-'}</td>
+          <td>${esc(row.title)}</td>
+          <td>${row.seller ? esc(row.seller.name) : '-'}</td>
           <td>${inr(row.price * row.qty)}</td>
         </tr>`).join('');
 }

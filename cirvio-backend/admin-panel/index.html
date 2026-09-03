@@ -3,16 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CIRVIO — Admin Panel</title>
+<title>CIRVIO Admin Panel</title>
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
-<!-- ---------- LOGIN SCREEN ---------- -->
 <div id="loginScreen" class="login-screen">
   <form id="loginForm" class="login-card">
     <h1>CIRVIO Admin</h1>
-    <p class="sub">Sign in with your admin account</p>
+    <p class="sub">Sign in with your staff account</p>
     <input type="email" id="loginEmail" placeholder="Admin email" required>
     <input type="password" id="loginPassword" placeholder="Password" required>
     <button type="submit" class="btn-primary">Login</button>
@@ -20,32 +19,35 @@
   </form>
 </div>
 
-<!-- ---------- ADMIN APP ---------- -->
 <div id="adminApp" class="admin-app hidden">
   <aside class="sidebar">
-    <div class="brand">CIRVIO <span>Admin</span></div>
-    <nav>
-      <button class="nav-btn active" data-tab="dashboard">📊 Dashboard</button>
-      <button class="nav-btn" data-tab="users">👤 Users</button>
-      <button class="nav-btn" data-tab="listings">📦 Listings</button>
-      <button class="nav-btn" data-tab="purchases">🛒 Purchases</button>
+    <div class="brand">CIRVIO <span>Operations</span></div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="nav-btn" data-tab="users">Users</button>
+      <button class="nav-btn" data-tab="listings">Listings</button>
+      <button class="nav-btn" data-tab="purchases">Purchases</button>
     </nav>
     <button id="logoutBtn" class="logout-btn">Logout</button>
   </aside>
 
   <main class="main">
-
-    <!-- DASHBOARD -->
     <section id="tab-dashboard" class="tab-panel active">
-      <h2>Dashboard</h2>
+      <div class="panel-head">
+        <div>
+          <h2>Dashboard</h2>
+          <p>Review marketplace activity, listing approvals and recent orders.</p>
+        </div>
+      </div>
+
       <div class="stat-grid" id="statGrid">
-        <div class="stat-card"><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">–</span></div>
-        <div class="stat-card"><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">–</span></div>
-        <div class="stat-card"><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">–</span></div>
-        <div class="stat-card"><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">–</span></div>
-        <div class="stat-card"><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">–</span></div>
-        <div class="stat-card"><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">–</span></div>
-        <div class="stat-card wide"><span class="stat-label">Total Revenue</span><span class="stat-value" id="statRevenue">–</span></div>
+        <div class="stat-card"><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">-</span></div>
+        <div class="stat-card"><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">-</span></div>
+        <div class="stat-card"><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">-</span></div>
+        <div class="stat-card"><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">-</span></div>
+        <div class="stat-card"><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">-</span></div>
+        <div class="stat-card"><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">-</span></div>
+        <div class="stat-card wide"><span class="stat-label">Total Revenue</span><span class="stat-value" id="statRevenue">-</span></div>
       </div>
 
       <h3 class="section-title">Recent Purchases</h3>
@@ -56,18 +58,22 @@
         </table>
       </div>
 
-      <h3 class="section-title">Latest Book Listings</h3>
+      <h3 class="section-title">Latest Listings</h3>
       <div class="table-wrap">
         <table id="latestListingsTable">
-          <thead><tr><th>Book</th><th>Images</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Listing</th><th>Images</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </section>
 
-    <!-- USERS -->
     <section id="tab-users" class="tab-panel">
-      <h2>Users</h2>
+      <div class="panel-head">
+        <div>
+          <h2>Users</h2>
+          <p>Manage student accounts, staff roles and account status.</p>
+        </div>
+      </div>
       <div class="table-wrap">
         <table id="usersTable">
           <thead><tr><th>Name</th><th>Email</th><th>College</th><th>City</th><th>Listings</th><th>Orders</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
@@ -76,9 +82,13 @@
       </div>
     </section>
 
-    <!-- LISTINGS -->
     <section id="tab-listings" class="tab-panel">
-      <h2>Listings</h2>
+      <div class="panel-head">
+        <div>
+          <h2>Listings</h2>
+          <p>Inspect uploaded photos before approving items for the public marketplace.</p>
+        </div>
+      </div>
       <div class="filter-row">
         <button class="filter-btn active" data-status="">All</button>
         <button class="filter-btn" data-status="pending">Pending</button>
@@ -88,15 +98,19 @@
       </div>
       <div class="table-wrap">
         <table id="listingsTable">
-          <thead><tr><th>Book</th><th>Images</th><th>Category</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Listing</th><th>Images</th><th>Category</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </section>
 
-    <!-- PURCHASES -->
     <section id="tab-purchases" class="tab-panel">
-      <h2>Purchases — Buyer / Product / Seller</h2>
+      <div class="panel-head">
+        <div>
+          <h2>Purchases</h2>
+          <p>Track buyer, product and seller pairings for placed orders.</p>
+        </div>
+      </div>
       <div class="table-wrap">
         <table id="purchasesTable">
           <thead><tr><th>Date</th><th>Buyer</th><th>Product</th><th>Seller</th><th>Qty</th><th>Price</th><th>Order Status</th></tr></thead>
@@ -104,7 +118,6 @@
         </table>
       </div>
     </section>
-
   </main>
 </div>
 

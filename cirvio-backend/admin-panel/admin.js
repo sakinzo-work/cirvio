@@ -305,7 +305,11 @@ async function loadListings() {
 
 async function approveProduct(id) {
     const product = ADMIN_PRODUCTS.get(String(id));
-    if (product && !product.reviewViewedAt) {
+    if (!product) {
+        alert('Listing data is still loading. Please refresh and try again.');
+        return;
+    }
+    if (!product.reviewViewedAt) {
         alert('Please click View Images and inspect this listing before approving it.');
         return;
     }
@@ -374,7 +378,9 @@ async function viewListingImages(id) {
         product.reviewViewedAt = updated.reviewViewedAt;
         loadListings();
     } catch (err) {
-        alert(err.message);
+        alert(err.message === 'Route not found'
+            ? 'Backend needs restart/redeploy for the new review-viewed route. Images can be viewed, but approval will stay locked until the backend is updated.'
+            : err.message);
     }
 }
 

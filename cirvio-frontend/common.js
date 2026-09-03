@@ -244,10 +244,12 @@ function addListingNotification(listing, status) {
     const exists = notifications.some(n => String(n.productId) === String(listing.id) && n.status === status);
     if (exists) return;
 
-    const approved = status === 'approved';
-    const text = approved
-        ? `"${listing.title}" approved. It is now live for buyers.`
-        : `"${listing.title}" needs changes before it can go live.`;
+    let text = `"${listing.title}" needs changes before it can go live.`;
+    if (status === 'approved') {
+        text = `"${listing.title}" approved. It is now live for buyers.`;
+    } else if (status === 'viewed') {
+        text = `CIRVIO has viewed the photos/details for "${listing.title}". It is still pending final approval.`;
+    }
 
     notifications.unshift({
         id: Date.now() + Math.random(),
@@ -286,6 +288,10 @@ function syncLocalListingsWithBackend(backendListings, { silent = true } = {}) {
 
     backendListings.forEach((listing) => {
         const previous = beforeById[String(listing.id)] || beforeById[String(listing.backendId)];
+        if (listing.status === 'pending' && listing.reviewViewedAt && (!previous || !previous.reviewViewedAt)) {
+            addListingNotification(listing, 'viewed');
+            if (!silent) showToast('CIRVIO viewed your listing');
+        }
         const finalStatus = ['approved', 'rejected'].includes(listing.status);
         if (!finalStatus) return;
         if (previous && previous.status === listing.status) return;

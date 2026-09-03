@@ -7,7 +7,21 @@ function getCirvioApiBase() {
         return cleanQueryApi;
     }
 
-    const configured = localStorage.getItem('cirvio_api_base') || window.CIRVIO_API_BASE || '';
+    const host = window.location.hostname;
+    const isLocalFrontend = !host || host === 'localhost' || host === '127.0.0.1';
+    const storedApi = localStorage.getItem('cirvio_api_base') || '';
+    const storedApiIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(storedApi);
+    const storedApiIsRemote = /^https?:\/\//i.test(storedApi) && !storedApiIsLocal;
+
+    if (storedApi && ((isLocalFrontend && storedApiIsLocal) || (!isLocalFrontend && storedApiIsRemote))) {
+        return storedApi.replace(/\/$/, '');
+    }
+
+    if (storedApi) {
+        localStorage.removeItem('cirvio_api_base');
+    }
+
+    const configured = window.CIRVIO_API_BASE || '';
     if (configured) return configured.replace(/\/$/, '');
 
     return 'http://localhost:5000';

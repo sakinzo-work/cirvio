@@ -415,6 +415,11 @@
         let listingType = 'sell'; // sell | donate | free
         let photos = []; // array of dataURLs
         let photoFiles = [];
+        const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70";
+
+        function getSellerName() {
+            return CirvioStore.getProfile().name || CirvioStore.getProfile().email || 'CIRVIO Student';
+        }
 
         const params = new URLSearchParams(location.search);
         if (params.get('type') === 'donate') listingType = 'donate';
@@ -527,11 +532,6 @@
         renderPreviewImages();
 
         /* ---------- live preview card ---------- */
-        const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70";
-        function getSellerName() {
-            return CirvioStore.getProfile().name || CirvioStore.getProfile().email || 'CIRVIO Student';
-        }
-
         function updatePreview() {
             const title = document.getElementById('itemTitle').value.trim() || 'Your listing title will appear here';
             const cat = document.getElementById('itemCategory').value || 'Category';

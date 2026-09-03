@@ -286,6 +286,7 @@
         }
 
         function timeLeft(ts) {
+            if (!ts) return 'waiting for admin review';
             const ms = ts - Date.now();
             if (ms <= 0) return 'Any moment now';
             const s = Math.ceil(ms / 1000);

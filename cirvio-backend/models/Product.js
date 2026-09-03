@@ -22,6 +22,8 @@ const productSchema = new mongoose.Schema(
         },
         rejectReason: { type: String, default: '' },
         decidedAt: { type: Date },
+        reviewViewedAt: { type: Date },
+        reviewViewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
         views: { type: Number, default: 0 }
     },

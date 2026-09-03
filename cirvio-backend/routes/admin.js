@@ -162,14 +162,28 @@ router.get('/products', async (req, res) => {
     res.json({ count: products.length, products });
 });
 
-// PUT /api/admin/products/:id/approve
-router.put('/products/:id/approve', async (req, res) => {
+// PUT /api/admin/products/:id/review-viewed — mark photos/details as seen by staff
+router.put('/products/:id/review-viewed', async (req, res) => {
     const product = await Product.findByIdAndUpdate(
         req.params.id,
-        { status: 'approved', decidedAt: new Date(), rejectReason: '' },
+        { reviewViewedAt: new Date(), reviewViewedBy: req.user._id },
         { new: true }
-    );
+    ).populate('seller', 'name email college city');
     if (!product) return res.status(404).json({ message: 'Product not found' });
+    res.json({ product });
+});
+
+// PUT /api/admin/products/:id/approve
+router.put('/products/:id/approve', async (req, res) => {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (!product.reviewViewedAt) {
+        return res.status(400).json({ message: 'View listing images/details before approving this product' });
+    }
+    product.status = 'approved';
+    product.decidedAt = new Date();
+    product.rejectReason = '';
+    await product.save();
     res.json({ product });
 });
 

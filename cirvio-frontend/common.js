@@ -52,6 +52,28 @@ const CirvioStore = {
     setCart(arr) { this._write('cirvio_cart', arr); }
 };
 
+function wishlistIds() {
+    return CirvioStore.getWishlist().map(String);
+}
+
+function isWishlisted(id) {
+    return wishlistIds().includes(String(id));
+}
+
+function toggleWishlist(id) {
+    const list = CirvioStore.getWishlist();
+    if (isWishlisted(id)) {
+        CirvioStore.setWishlist(list.filter(x => String(x) !== String(id)));
+        refreshWishBadge();
+        return false;
+    }
+    CirvioStore.setWishlist([...list, id]);
+    refreshWishBadge();
+    return true;
+}
+
+window.CirvioWishlist = { ids: wishlistIds, has: isWishlisted, toggle: toggleWishlist };
+
 /* ---------- header scroll shrink ---------- */
 function initHeaderScroll() {
     const header = document.getElementById('siteHeader');
@@ -156,16 +178,65 @@ function refreshNotificationBadge() {
 }
 
 function initNotificationLinks() {
+    ensureNotificationPanel();
     document.querySelectorAll('.header-actions button[aria-label="Notifications"], .mp-quick-item[href="#"]').forEach((el) => {
         const label = (el.textContent || el.getAttribute('aria-label') || '').toLowerCase();
         if (!label.includes('notification')) return;
         el.addEventListener('click', (e) => {
             e.preventDefault();
-            CirvioStore.setNotifications(CirvioStore.getNotifications().map(n => ({ ...n, read: true })));
-            refreshNotificationBadge();
-            window.location.href = 'status.html';
+            toggleNotificationPanel();
         });
     });
+}
+
+function ensureNotificationPanel() {
+    if (document.getElementById('notificationPanel')) return;
+    const panel = document.createElement('div');
+    panel.id = 'notificationPanel';
+    panel.className = 'notification-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Notifications');
+    panel.innerHTML = `
+        <div class="np-head">
+            <strong>Notifications</strong>
+            <button type="button" id="npMarkRead">Mark read</button>
+        </div>
+        <div class="np-list" id="npList"></div>
+        <a class="np-status-link" href="status.html">View listing status</a>
+    `;
+    document.body.appendChild(panel);
+    document.getElementById('npMarkRead').addEventListener('click', () => {
+        CirvioStore.setNotifications(CirvioStore.getNotifications().map(n => ({ ...n, read: true })));
+        refreshNotificationBadge();
+        renderNotificationPanel();
+    });
+    document.addEventListener('click', (e) => {
+        if (!panel.classList.contains('open')) return;
+        if (e.target.closest('#notificationPanel') || e.target.closest('[aria-label="Notifications"]')) return;
+        panel.classList.remove('open');
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') panel.classList.remove('open');
+    });
+}
+
+function renderNotificationPanel() {
+    const list = document.getElementById('npList');
+    if (!list) return;
+    const notifications = CirvioStore.getNotifications();
+    list.innerHTML = notifications.length ? notifications.map(n => `
+        <a class="np-item ${n.read ? '' : 'unread'}" href="status.html">
+            <span>${n.title || 'CIRVIO update'}</span>
+            <p>${n.text || 'Your listing status has changed.'}</p>
+            <small>${n.createdAt ? new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Just now'}</small>
+        </a>
+    `).join('') : '<div class="np-empty">No notifications yet.</div>';
+}
+
+function toggleNotificationPanel() {
+    ensureNotificationPanel();
+    renderNotificationPanel();
+    document.getElementById('notificationPanel').classList.toggle('open');
 }
 
 function addListingNotification(listing, status) {

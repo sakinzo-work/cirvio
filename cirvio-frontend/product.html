@@ -975,7 +975,7 @@
             if (!wishBtn) return;
             const pid = wishBtn.dataset.id;
             const list = CirvioStore.getWishlist();
-            if (list.includes(pid)) { CirvioStore.setWishlist(list.filter(x => x !== pid)); showToast('Removed from wishlist'); }
+            if (list.map(String).includes(String(pid))) { CirvioStore.setWishlist(list.filter(x => String(x) !== String(pid))); showToast('Removed from wishlist'); }
             else { list.push(pid); CirvioStore.setWishlist(list); showToast('Added to wishlist'); }
             refreshWishBadge();
             document.getElementById('similarGrid').innerHTML = PRODUCTS
@@ -1018,9 +1018,16 @@
         async function loadBackendProduct() {
             if (!window.CirvioAPI || !id) return;
             try {
-                const { product: apiProduct } = await CirvioAPI.getProduct(id);
+                const [{ product: apiProduct }, productList] = await Promise.all([
+                    CirvioAPI.getProduct(id),
+                    CirvioAPI.getProducts().catch(() => ({ products: [] }))
+                ]);
+                PRODUCTS.splice(0, PRODUCTS.length, ...(productList.products || []));
                 if (apiProduct) {
                     product = apiProduct;
+                    if (!PRODUCTS.some(p => String(p.id) === String(apiProduct.id))) {
+                        PRODUCTS.unshift(apiProduct);
+                    }
                     render();
                 }
             } catch (err) {

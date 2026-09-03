@@ -533,7 +533,7 @@
             else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
-      <div class="p-card">
+      <a class="p-card" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
         <div class="p-thumb">
           ${tag}
           <button class="p-wish active" data-id="${p.id}" aria-label="Remove from wishlist">
@@ -551,13 +551,13 @@
           <div class="p-meta"><span class="cond">${p.cond}</span><span>${p.loc}</span></div>
           <div class="p-foot"><span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${p.seller}</span><span>${p.time}</span></div>
         </div>
-      </div>`;
+      </a>`;
         }
 
         function renderSaved() {
-            const ids = CirvioStore.getWishlist();
+            const ids = CirvioStore.getWishlist().map(String);
             document.getElementById('statSaved').textContent = ids.length;
-            const items = PRODUCTS.filter(p => ids.includes(p.id));
+            const items = PRODUCTS.filter(p => ids.includes(String(p.id)));
             const grid = document.getElementById('savedGrid');
             const empty = document.getElementById('savedEmpty');
             if (!items.length) {
@@ -570,8 +570,9 @@
         document.getElementById('savedGrid').addEventListener('click', (e) => {
             const wishBtn = e.target.closest('.p-wish');
             if (!wishBtn) return;
-            const id = Number(wishBtn.dataset.id);
-            CirvioStore.setWishlist(CirvioStore.getWishlist().filter(x => x !== id));
+            e.preventDefault();
+            const id = wishBtn.dataset.id;
+            CirvioStore.setWishlist(CirvioStore.getWishlist().filter(x => String(x) !== String(id)));
             refreshWishBadge();
             renderSaved();
             showToast('Removed from wishlist');
@@ -715,6 +716,16 @@
         renderListings();
         renderSaved();
         renderMessages();
+        async function loadBackendSavedProducts() {
+            if (!window.CirvioAPI) return;
+            try {
+                const { products } = await CirvioAPI.getProducts();
+                PRODUCTS.splice(0, PRODUCTS.length, ...(products || []));
+                renderSaved();
+            } catch (err) {
+                console.warn('Could not load saved products:', err.message);
+            }
+        }
         async function loadBackendListings() {
             if (!window.CirvioAPI || !window.cirvioProductToListing) return;
             try {
@@ -732,7 +743,10 @@
                 console.warn('Could not load backend listings:', err.message);
             }
         }
-        if (CirvioAuth.requireLogin()) loadBackendListings();
+        if (CirvioAuth.requireLogin()) {
+            loadBackendSavedProducts();
+            loadBackendListings();
+        }
         const initialTab = (location.hash || '#listings').replace('#', '');
         setActiveTab(['listings', 'saved', 'messages', 'settings'].includes(initialTab) ? initialTab : 'listings');
 

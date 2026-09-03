@@ -35,6 +35,7 @@ if (TOKEN && ADMIN_SESSION_API_BASE && ADMIN_SESSION_API_BASE !== API_BASE) {
     TOKEN = '';
 }
 let CURRENT_USER = null;
+const ADMIN_PRODUCTS = new Map();
 
 const loginScreen = document.getElementById('loginScreen');
 const adminApp = document.getElementById('adminApp');
@@ -122,12 +123,16 @@ const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit',
 const isAdmin = () => CURRENT_USER && CURRENT_USER.role === 'admin';
 const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : inr(p.price));
 const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 function listingActions(p) {
+    const viewed = !!p.reviewViewedAt;
     return `
-      ${p.status !== 'approved' ? `<button class="row-btn btn-approve" onclick="approveProduct('${p._id}')">Approve</button>` : ''}
+      <button class="row-btn btn-view" onclick="viewListingImages('${p._id}')">View Images</button>
+      ${p.status !== 'approved' ? `<button class="row-btn btn-approve" ${viewed ? '' : 'disabled title="View images/details first"'} onclick="approveProduct('${p._id}')">Approve</button>` : ''}
       ${p.status !== 'rejected' && p.status !== 'sold' ? `<button class="row-btn btn-reject" onclick="rejectProduct('${p._id}')">Reject</button>` : ''}
       <button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>
+      <span class="${viewed ? 'review-seen' : 'review-needed'}">${viewed ? 'Viewed by staff' : 'View before approval'}</span>
     `;
 }
 
@@ -135,12 +140,20 @@ function listingBookCell(p) {
     const thumb = listingThumb(p);
     return `
       <div class="listing-book">
-        ${thumb ? `<img src="${thumb}" alt="">` : `<span class="listing-thumb-empty">No image</span>`}
+        ${thumb ? `<img src="${esc(thumb)}" alt="">` : `<span class="listing-thumb-empty">No image</span>`}
         <div>
-          <strong>${p.title}</strong>
-          <span class="sub">${p.category || 'Book'}</span>
+          <strong>${esc(p.title)}</strong>
+          <span class="sub">${esc(p.category || 'Book')}</span>
         </div>
       </div>
+    `;
+}
+
+function listingImagesCell(p) {
+    const count = Array.isArray(p.images) ? p.images.length : 0;
+    return `
+      <span class="image-count">${count} photo${count === 1 ? '' : 's'}</span>
+      <button class="row-btn btn-view" onclick="viewListingImages('${p._id}')">View</button>
     `;
 }
 
@@ -261,30 +274,28 @@ document.querySelectorAll('.filter-btn').forEach((btn) => {
 async function loadListings() {
     const qs = currentListingFilter ? `?status=${currentListingFilter}` : '';
     const { products } = await api('/api/admin/products' + qs);
+    ADMIN_PRODUCTS.clear();
+    products.forEach((p) => ADMIN_PRODUCTS.set(String(p._id), p));
     const tbody = document.querySelector('#listingsTable tbody');
     tbody.innerHTML = products.map((p) => `
         <tr>
-          <td>${p.title}</td>
-          <td>${p.category}</td>
+          <td>${listingBookCell(p)}</td>
+          <td>${listingImagesCell(p)}</td>
+          <td>${esc(p.category)}</td>
           <td>${p.type === 'donate' ? 'Donate' : inr(p.price)}</td>
-          <td class="pair-cell">${p.seller ? p.seller.name : '—'}<span class="sub">${p.seller ? p.seller.email : ''}</span></td>
+          <td class="pair-cell">${p.seller ? esc(p.seller.name) : '—'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
-          <td>
-            ${p.status === 'pending' ? `
-              <button class="row-btn btn-approve" onclick="approveProduct('${p._id}')">Approve</button>
-              <button class="row-btn btn-reject" onclick="rejectProduct('${p._id}')">Reject</button>
-            ` : ''}
-            <button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>
-          </td>
+          <td>${listingActions(p)}</td>
         </tr>`).join('');
     const latestBody = document.querySelector('#latestListingsTable tbody');
     if (latestBody) {
         latestBody.innerHTML = products.slice(0, 8).map((p) => `
         <tr>
           <td>${listingBookCell(p)}</td>
+          <td>${listingImagesCell(p)}</td>
           <td>${listingPrice(p)}</td>
-          <td class="pair-cell">${p.seller ? p.seller.name : '—'}<span class="sub">${p.seller ? p.seller.email : ''}</span></td>
+          <td class="pair-cell">${p.seller ? esc(p.seller.name) : '—'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
           <td>${listingActions(p)}</td>
@@ -293,8 +304,17 @@ async function loadListings() {
 }
 
 async function approveProduct(id) {
-    await api(`/api/admin/products/${id}/approve`, { method: 'PUT' });
-    loadListings(); loadStats();
+    const product = ADMIN_PRODUCTS.get(String(id));
+    if (product && !product.reviewViewedAt) {
+        alert('Please click View Images and inspect this listing before approving it.');
+        return;
+    }
+    try {
+        await api(`/api/admin/products/${id}/approve`, { method: 'PUT' });
+        loadListings(); loadStats();
+    } catch (err) {
+        alert(err.message);
+    }
 }
 async function rejectProduct(id) {
     const reason = prompt('Reason for rejecting this listing:', 'Does not meet CIRVIO guidelines');
@@ -306,6 +326,61 @@ async function deleteProduct(id) {
     if (!confirm('Delete this listing permanently?')) return;
     await api(`/api/admin/products/${id}`, { method: 'DELETE' });
     loadListings(); loadStats();
+}
+
+function ensureImageModal() {
+    if (document.getElementById('listingImageModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'listingImageModal';
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+      <div class="image-dialog" role="dialog" aria-label="Listing images">
+        <div class="image-dialog-head">
+          <div>
+            <h3 id="imageModalTitle">Listing images</h3>
+            <p id="imageModalMeta"></p>
+          </div>
+          <button class="row-btn btn-delete" id="closeImageModal">Close</button>
+        </div>
+        <div id="imageModalGrid" class="image-grid"></div>
+        <div id="imageModalDetail" class="image-detail"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('closeImageModal').addEventListener('click', closeListingImages);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeListingImages();
+    });
+}
+
+async function viewListingImages(id) {
+    const product = ADMIN_PRODUCTS.get(String(id));
+    if (!product) return;
+    ensureImageModal();
+    const images = Array.isArray(product.images) ? product.images : [];
+    document.getElementById('imageModalTitle').textContent = product.title || 'Listing images';
+    document.getElementById('imageModalMeta').textContent = `${product.category || 'Listing'} | ${listingPrice(product)} | ${product.seller ? product.seller.name : 'No seller'}`;
+    document.getElementById('imageModalGrid').innerHTML = images.length
+        ? images.map((src, i) => `<a href="${esc(src)}" target="_blank" rel="noopener"><img src="${esc(src)}" alt="Listing image ${i + 1}"></a>`).join('')
+        : '<div class="image-empty">No uploaded images for this listing.</div>';
+    document.getElementById('imageModalDetail').innerHTML = `
+      <strong>Description</strong><br>${esc(product.description || 'No description provided.')}<br><br>
+      <strong>Location</strong><br>${esc(product.location || '—')}
+    `;
+    document.getElementById('listingImageModal').classList.add('open');
+    try {
+        const { product: updated } = await api(`/api/admin/products/${id}/review-viewed`, { method: 'PUT' });
+        ADMIN_PRODUCTS.set(String(id), updated);
+        product.reviewViewedAt = updated.reviewViewedAt;
+        loadListings();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+function closeListingImages() {
+    const modal = document.getElementById('listingImageModal');
+    if (modal) modal.classList.remove('open');
 }
 
 /* ---------- purchases (buyer + product + seller, paired) ---------- */
@@ -498,3 +573,4 @@ window.deleteUser = deleteUser;
 window.approveProduct = approveProduct;
 window.rejectProduct = rejectProduct;
 window.deleteProduct = deleteProduct;
+window.viewListingImages = viewListingImages;

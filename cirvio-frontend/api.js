@@ -37,10 +37,36 @@ window.CIRVIO_API_BASE_ACTIVE = API_BASE;
 function normalizeProduct(product) {
     const seller = product.seller || {};
     const img = product.img || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=500&q=70';
+    const rawCategory = product.cat || product.category || 'Books';
+    const categoryMap = {
+        books: 'School Books',
+        book: 'School Books',
+        school: 'School Books',
+        'school books': 'School Books',
+        college: 'College Books',
+        'college books': 'College Books',
+        competitive: 'Competitive Exams',
+        exams: 'Competitive Exams',
+        'competitive exams': 'Competitive Exams',
+        note: 'Notes',
+        notes: 'Notes',
+        material: 'Study Material',
+        'study material': 'Study Material',
+        calculator: 'Calculators',
+        calculators: 'Calculators',
+        novel: 'Novels',
+        novels: 'Novels',
+        stationery: 'Stationery Bundles',
+        'stationery bundles': 'Stationery Bundles',
+        donation: 'Free & Donations',
+        donations: 'Free & Donations',
+        free: 'Free & Donations'
+    };
+    const cat = categoryMap[String(rawCategory).trim().toLowerCase()] || rawCategory;
     return {
         ...product,
         id: product._id || product.id,
-        cat: product.cat || product.category || 'Books',
+        cat,
         cond: product.cond || product.condition || 'Good',
         orig: product.orig || product.originalPrice || 0,
         desc: product.desc || product.description || '',
@@ -227,6 +253,7 @@ window.cirvioProductToListing = function cirvioProductToListing(product) {
         seller: p.seller,
         time: p.time,
         status: p.status || 'pending',
+        reviewViewedAt: p.reviewViewedAt || '',
         submittedAt: p.createdAt ? new Date(p.createdAt).getTime() : Date.now(),
         rejectReason: p.rejectReason || ''
     };

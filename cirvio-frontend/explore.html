@@ -795,8 +795,7 @@
     <script src="common.js"></script>
     <script>
         /* ============================================================
-           DEMO DATA — kept in sync with index.html so product IDs,
-           categories and images line up across the site.
+           DATA — approved listings are loaded from the backend.
         ============================================================ */
         const CATEGORIES = [
             { name: "School Books", count: "3,240", icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' },
@@ -813,20 +812,7 @@
             { name: "Free & Donations", count: "720", icon: '<path d="M12 2C7 6 4 11 4 15a8 8 0 0 0 16 0c0-4-3-9-8-13z"/><path d="M12 22V10"/>' },
         ];
 
-        const PRODUCTS = [
-            { id: 1, title: "Engineering Mathematics by B.S. Grewal", cat: "College Books", price: 280, orig: 650, cond: "Good", loc: "Powai, Mumbai", seller: "Aarav M.", time: "2h ago", type: "sell", img: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70", desc: "Widely used engineering maths textbook covering all core topics for first-year engineering students. Minor highlighting in first two chapters, spine intact." },
-            { id: 2, title: "NCERT Class 12 Physics Part 1 & 2", cat: "School Books", price: 150, orig: 340, cond: "Like New", loc: "Andheri, Mumbai", seller: "Priya S.", time: "5h ago", type: "sell", img: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=500&q=70", desc: "Complete set of NCERT Class 12 Physics textbooks, barely used, no markings. Perfect for board exam preparation." },
-            { id: 3, title: "Organic Chemistry — Morrison & Boyd", cat: "Competitive Exams", price: 420, orig: 900, cond: "Excellent", loc: "Kothrud, Pune", seller: "Rohan K.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=500&q=70", desc: "Classic organic chemistry reference used for NEET and JEE preparation. All pages intact, light cover wear." },
-            { id: 4, title: "JEE Main Previous Year Question Papers", cat: "Question Banks", price: 0, orig: 250, cond: "Good", loc: "Vashi, Navi Mumbai", seller: "Sneha D.", time: "3h ago", type: "donate", img: "https://images.unsplash.com/photo-1509266272358-7701da638078?w=500&q=70", desc: "10-year compilation of JEE Main previous papers with solutions. Donating to help a fellow aspirant — pickup preferred." },
-            { id: 5, title: "NEET Biology Handwritten Notes", cat: "Notes", price: 180, orig: 400, cond: "Excellent", loc: "Bandra, Mumbai", seller: "Meera J.", time: "6h ago", type: "sell", img: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=500&q=70", desc: "Neatly organized handwritten biology notes covering the full NEET syllabus, colour-coded diagrams included." },
-            { id: 6, title: "Casio FX-991ES Plus Scientific Calculator", cat: "Calculators", price: 650, orig: 1200, cond: "Good", loc: "Baner, Pune", seller: "Karan V.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1587145820098-24e73c66d5a8?w=500&q=70", desc: "Fully functional scientific calculator, ideal for engineering and competitive exams. Comes with original cover." },
-            { id: 7, title: "Data Structures Handwritten Notes (CS)", cat: "Notes", price: 120, orig: 0, cond: "Good", loc: "Malad, Mumbai", seller: "Ishaan R.", time: "4h ago", type: "free", img: "https://images.unsplash.com/photo-1517842645767-c639042777db?w=500&q=70", desc: "Semester 3 Data Structures notes with solved examples and diagrams. Giving away for free to a junior in need." },
-            { id: 8, title: "Indian Polity by M. Laxmikanth", cat: "Competitive Exams", price: 350, orig: 695, cond: "Like New", loc: "Dwarka, Delhi", seller: "Ananya T.", time: "8h ago", type: "sell", img: "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=500&q=70", desc: "Latest edition of the definitive UPSC Indian Polity reference. No markings, used for one attempt only." },
-            { id: 9, title: "Rich Dad Poor Dad — Robert Kiyosaki", cat: "Novels", price: 99, orig: 299, cond: "Good", loc: "Koramangala, Bengaluru", seller: "Vivaan P.", time: "12h ago", type: "sell", img: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&q=70", desc: "Popular personal finance book, gently used with a few dog-eared pages. Great condition overall." },
-            { id: 10, title: "The Alchemist — Paulo Coelho", cat: "Novels", price: 0, orig: 250, cond: "Fair", loc: "Salt Lake, Kolkata", seller: "Riya B.", time: "1d ago", type: "donate", img: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&q=70", desc: "A well-loved copy ready for its next reader. Donating as part of our campus book drive this month." },
-            { id: 11, title: "B.Com Semester 3 Complete Notes Set", cat: "Study Material", price: 220, orig: 480, cond: "Excellent", loc: "Nungambakkam, Chennai", seller: "Aditya N.", time: "9h ago", type: "sell", img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=500&q=70", desc: "Complete B.Com semester 3 notes including accounting, costing and business law summaries." },
-            { id: 12, title: "Class 10 CBSE Complete Book Set", cat: "School Books", price: 600, orig: 1400, cond: "Good", loc: "Sector 15, Gurugram", seller: "Diya C.", time: "2d ago", type: "sell", img: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=500&q=70", desc: "Full set of Class 10 CBSE textbooks across all subjects. Some highlighting present in Maths and Science." },
-        ];
+        const PRODUCTS = [];
 
         function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
         function discountPct(p) {
@@ -898,7 +884,6 @@
            RENDER — per-category sections
         ============================================================ */
         const sectionsHolder = document.getElementById('exploreSections');
-        PRODUCTS.splice(0, PRODUCTS.length);
         function renderExploreSections() {
             sectionsHolder.innerHTML = CATEGORIES.map(c => {
             const slug = slugify(c.name);

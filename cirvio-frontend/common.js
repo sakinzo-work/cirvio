@@ -204,28 +204,37 @@ function addListingNotification(listing, status) {
 }
 
 let listingNotificationPollStarted = false;
+
+function syncLocalListingsWithBackend(backendListings, { silent = true } = {}) {
+    const before = CirvioStore.getListings().filter(l => l.status !== 'draft');
+    const beforeById = Object.fromEntries(before.flatMap(l => {
+        const keys = [l.id, l.backendId].filter(v => v !== undefined && v !== null && v !== '');
+        return keys.map(key => [String(key), l]);
+    }));
+    const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
+
+    backendListings.forEach((listing) => {
+        const previous = beforeById[String(listing.id)] || beforeById[String(listing.backendId)];
+        const finalStatus = ['approved', 'rejected'].includes(listing.status);
+        if (!finalStatus) return;
+        if (previous && previous.status === listing.status) return;
+        addListingNotification(listing, listing.status);
+        if (!silent) showToast(listing.status === 'approved' ? 'Listing approved and now live' : 'Listing review update');
+    });
+
+    CirvioStore.setListings([...backendListings, ...localDrafts]);
+    refreshNotificationBadge();
+    refreshMsgBadge();
+    window.dispatchEvent(new CustomEvent('cirvio:listings-synced', { detail: { listings: backendListings } }));
+}
+window.CirvioListings = { syncLocalListingsWithBackend };
+
 async function syncListingStatusNotifications({ silent = true } = {}) {
     if (!window.CirvioAPI || !window.cirvioProductToListing || !localStorage.getItem('cirvio_token')) return;
     try {
-        const before = CirvioStore.getListings().filter(l => l.status !== 'draft');
-        const beforeById = Object.fromEntries(before.map(l => [String(l.id || l.backendId), l]));
         const { products } = await CirvioAPI.myListings();
         const backendListings = (products || []).map(cirvioProductToListing);
-        const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
-
-        backendListings.forEach((listing) => {
-            const previous = beforeById[String(listing.id)];
-            if (!previous || previous.status === listing.status) return;
-            if (['approved', 'rejected'].includes(listing.status)) {
-                addListingNotification(listing, listing.status);
-                if (!silent) showToast(listing.status === 'approved' ? 'Listing approved and now live' : 'Listing review update');
-            }
-        });
-
-        CirvioStore.setListings([...backendListings, ...localDrafts]);
-        refreshNotificationBadge();
-        refreshMsgBadge();
-        window.dispatchEvent(new CustomEvent('cirvio:listings-synced', { detail: { listings: backendListings } }));
+        syncLocalListingsWithBackend(backendListings, { silent });
     } catch (err) {
         console.warn('Could not sync listing notifications:', err.message);
     }

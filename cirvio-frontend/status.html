@@ -405,8 +405,12 @@
             try {
                 const { products } = await CirvioAPI.myListings();
                 const backendListings = (products || []).map(cirvioProductToListing);
-                const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
-                CirvioStore.setListings([...backendListings, ...localDrafts]);
+                if (window.CirvioListings) {
+                    CirvioListings.syncLocalListingsWithBackend(backendListings, { silent: false });
+                } else {
+                    const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
+                    CirvioStore.setListings([...backendListings, ...localDrafts]);
+                }
                 renderStatus();
             } catch (err) {
                 console.warn('Could not load backend status:', err.message);

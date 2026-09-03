@@ -468,15 +468,20 @@
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
         function handleFiles(fileList) {
+            const incoming = [...fileList];
+            if (!incoming.length) return;
             const remaining = 4 - photos.length;
             if (remaining <= 0) { showToast('You can add up to 4 photos'); return; }
-            [...fileList].slice(0, remaining).forEach(file => {
+            setPublishStatus(`Preparing ${Math.min(incoming.length, remaining)} selected photo(s)...`, 'working');
+            incoming.slice(0, remaining).forEach(file => {
                 if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
                     showToast('Please upload JPG, PNG, WEBP or GIF images');
+                    setPublishStatus('Only JPG, PNG, WEBP or GIF images can be uploaded.', 'error');
                     return;
                 }
                 if (file.size > 5 * 1024 * 1024) {
                     showToast('Each photo must be under 5 MB');
+                    setPublishStatus('Each selected photo must be under 5 MB.', 'error');
                     return;
                 }
                 const reader = new FileReader();
@@ -485,6 +490,7 @@
                     photoFiles.push(file);
                     renderPreviewImages();
                     updatePreview();
+                    setPublishStatus(`${photoFiles.length} photo(s) selected: ${photoFiles.map(f => f.name).join(', ')}`, 'ok');
                 };
                 reader.readAsDataURL(file);
             });
@@ -522,6 +528,10 @@
 
         /* ---------- live preview card ---------- */
         const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70";
+        function getSellerName() {
+            return CirvioStore.getProfile().name || CirvioStore.getProfile().email || 'CIRVIO Student';
+        }
+
         function updatePreview() {
             const title = document.getElementById('itemTitle').value.trim() || 'Your listing title will appear here';
             const cat = document.getElementById('itemCategory').value || 'Category';
@@ -554,7 +564,7 @@
             <span>${loc}</span>
           </div>
           <div class="p-foot">
-            <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${CirvioStore.getProfile().name}</span>
+            <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${getSellerName()}</span>
             <span>Just now</span>
           </div>
         </div>`;
@@ -590,7 +600,7 @@
                 college: document.getElementById('itemCollege').value.trim(),
                 type: listingType,
                 img: photos[0] || PLACEHOLDER_IMG,
-                seller: CirvioStore.getProfile().name
+                seller: getSellerName()
             };
         }
 
@@ -604,7 +614,9 @@
                 document.getElementById('confirmBookName').textContent = listing.title || 'Untitled';
                 document.getElementById('confirmBookPrice').textContent =
                     listing.type === 'sell' ? `Rs ${listing.price}` : (listing.type === 'donate' ? 'Donation' : 'Free');
-                document.getElementById('confirmBookPhotos').textContent = `${photoFiles.length} file${photoFiles.length === 1 ? '' : 's'}`;
+                document.getElementById('confirmBookPhotos').textContent = photoFiles.length
+                    ? photoFiles.map(file => file.name).join(', ')
+                    : 'No photos selected';
                 document.getElementById('confirmBookStatus').textContent = 'Pending approval';
 
                 function close(result) {
@@ -669,7 +681,7 @@
                 college: document.getElementById('itemCollege').value.trim(),
                 type: listingType,
                 img: photos[0] || PLACEHOLDER_IMG,
-                seller: CirvioStore.getProfile().name,
+                seller: getSellerName(),
                 time: 'Just now',
                 status: isSubmit ? 'pending' : 'draft',
                 submittedAt: isSubmit ? now : null
@@ -692,8 +704,8 @@
                     imageUrls = uploadResult.images || [];
                     setPublishStatus(`Photos uploaded: ${imageUrls.length}. Creating listing...`, 'working');
                 } catch (err) {
-                    console.warn('Photo upload failed, creating listing without uploaded photos:', err.message);
-                    setPublishStatus('Photo upload failed, publishing listing without photos...', 'warning');
+                    console.warn('Photo upload failed:', err.message);
+                    throw new Error(err.message || 'Photo upload failed. Listing was not published.');
                 }
             }
             setPublishStatus(`Publishing listing to ${window.CIRVIO_API_BASE_ACTIVE || 'backend'}...`, 'working');
@@ -723,7 +735,6 @@
         document.getElementById('sellForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!CirvioAuth.requireLogin()) return;
-            if (!(await verifyBackendSession())) return;
             let ok = true;
             ok = validateField('itemTitle', document.getElementById('itemTitle').value.trim().length > 0) && ok;
             ok = validateField('itemCategory', document.getElementById('itemCategory').value.length > 0) && ok;
@@ -743,11 +754,13 @@
 
             const submitBtn = document.getElementById('submitBtn');
             const draftListing = getDraftListing();
+            setPublishStatus('Review your listing details in the confirmation popup.', 'working');
             const confirmed = await openPublishConfirm(draftListing);
             if (!confirmed) {
                 setPublishStatus('Upload cancelled. Listing was not sent to backend.', 'warning');
                 return;
             }
+            if (!(await verifyBackendSession())) return;
 
             submitBtn.disabled = true;
             submitBtn.textContent = 'Uploading...';

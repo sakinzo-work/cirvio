@@ -638,6 +638,20 @@
             });
         }
 
+        async function verifyBackendSession() {
+            if (!window.CirvioAPI) return false;
+            try {
+                const data = await CirvioAPI.me();
+                if (data.user) CirvioStore.setProfile(data.user);
+                return true;
+            } catch (err) {
+                setPublishStatus(`${err.message || 'Please login again'} Backend: ${window.CIRVIO_API_BASE_ACTIVE || 'unknown'}`, 'error');
+                showToast('Please login again before publishing');
+                setTimeout(() => CirvioAuth.requireLogin(), 800);
+                return false;
+            }
+        }
+
         function saveListing(status) {
             // A "submit" (status passed in as 'live') now goes to CIRVIO for
             // review first — it isn't actually live until approved.
@@ -709,6 +723,7 @@
         document.getElementById('sellForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!CirvioAuth.requireLogin()) return;
+            if (!(await verifyBackendSession())) return;
             let ok = true;
             ok = validateField('itemTitle', document.getElementById('itemTitle').value.trim().length > 0) && ok;
             ok = validateField('itemCategory', document.getElementById('itemCategory').value.length > 0) && ok;
@@ -768,7 +783,7 @@
         /* ============================================================
            INIT SHARED CHROME
         ============================================================ */
-        CirvioAuth.requireLogin();
+        if (CirvioAuth.requireLogin()) verifyBackendSession();
         initCirvioChrome('sell');
     </script>
 </body>

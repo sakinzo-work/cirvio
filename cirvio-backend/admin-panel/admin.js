@@ -28,6 +28,12 @@ function getAdminApiBase() {
 let API_BASE = getAdminApiBase();
 
 let TOKEN = localStorage.getItem('cirvio_admin_token') || '';
+const ADMIN_SESSION_API_BASE = localStorage.getItem('cirvio_admin_session_api_base') || '';
+if (TOKEN && ADMIN_SESSION_API_BASE && ADMIN_SESSION_API_BASE !== API_BASE) {
+    localStorage.removeItem('cirvio_admin_token');
+    localStorage.removeItem('cirvio_admin_session_api_base');
+    TOKEN = '';
+}
 let CURRENT_USER = null;
 
 const loginScreen = document.getElementById('loginScreen');
@@ -63,6 +69,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         TOKEN = data.token;
         CURRENT_USER = data.user;
         localStorage.setItem('cirvio_admin_token', TOKEN);
+        localStorage.setItem('cirvio_admin_session_api_base', API_BASE);
         showApp();
     } catch (err) {
         errEl.textContent = err.message;
@@ -71,6 +78,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.removeItem('cirvio_admin_token');
+    localStorage.removeItem('cirvio_admin_session_api_base');
     TOKEN = '';
     location.reload();
 });

@@ -56,14 +56,21 @@ function normalizeProduct(product) {
 
 const CirvioAPI = {
     token() {
+        const sessionApiBase = localStorage.getItem('cirvio_session_api_base') || '';
+        if (sessionApiBase && sessionApiBase !== API_BASE) {
+            this.clearSession();
+            return '';
+        }
         return localStorage.getItem('cirvio_token') || '';
     },
     setSession(token, user) {
         if (token) localStorage.setItem('cirvio_token', token);
+        if (token) localStorage.setItem('cirvio_session_api_base', API_BASE);
         if (user) localStorage.setItem('cirvio_profile', JSON.stringify(user));
     },
     clearSession() {
         localStorage.removeItem('cirvio_token');
+        localStorage.removeItem('cirvio_session_api_base');
         localStorage.removeItem('cirvio_profile');
     },
     logout() {
@@ -117,6 +124,12 @@ const CirvioAPI = {
             body: JSON.stringify({ idToken })
         });
         this.setSession(data.token, data.user);
+        return data;
+    },
+    async me() {
+        await this.ensureSession();
+        const data = await this.request('/api/auth/me');
+        if (data.user) localStorage.setItem('cirvio_profile', JSON.stringify(data.user));
         return data;
     },
     startPhoneOtp(phone) {

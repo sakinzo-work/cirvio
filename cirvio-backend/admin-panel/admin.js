@@ -458,11 +458,25 @@ async function loadMessages() {
         return `
         <tr>
           <td>${fmtDate(m.createdAt)}</td>
-          <td class="pair-cell">${esc(sender.name || '-')}<span class="sub">${esc(sender.email || '')}</span></td>
+          <td>
+            <div class="identity-card">
+              <span class="role-pill buyer">Buyer</span>
+              <strong>${esc(sender.name || '-')}</strong>
+              <span class="sub">${esc(sender.email || '')}</span>
+              <span class="sub">${esc(sender.phone || sender.city || sender.college || '')}</span>
+            </div>
+          </td>
           <td class="pair-cell">${esc(product.title || m.productTitle || '-')}<span class="sub">${esc(product.category || '')}</span></td>
-          <td class="pair-cell">${esc(seller.name || '-')}<span class="sub">${esc(seller.email || '')}</span></td>
+          <td>
+            <div class="identity-card">
+              <span class="role-pill seller">Seller</span>
+              <strong>${esc(seller.name || '-')}</strong>
+              <span class="sub">${esc(seller.email || '')}</span>
+              <span class="sub">${esc(seller.phone || seller.city || seller.college || '')}</span>
+            </div>
+          </td>
           <td>${esc(product.location || '-')}</td>
-          <td>${esc(m.text || '')}</td>
+          <td class="message-text">${esc(m.text || '')}</td>
         </tr>`;
     }).join('') : '<tr><td colspan="6" class="sub">No product messages yet.</td></tr>';
 }

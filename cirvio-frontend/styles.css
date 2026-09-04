@@ -3351,6 +3351,127 @@ footer {
 }
 
 /* ============================================================
+   FLOATING CIRVIO ADMIN BOT
+============================================================ */
+.message-bot {
+    position: fixed;
+    right: 20px;
+    bottom: 92px;
+    z-index: 255;
+}
+
+.message-bot-btn {
+    width: 58px;
+    height: 58px;
+    border: none;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--olive-deep);
+    color: var(--ivory);
+    box-shadow: var(--shadow-pop);
+    cursor: pointer;
+}
+
+.message-bot-btn svg {
+    width: 26px;
+    height: 26px;
+    stroke: currentColor;
+}
+
+.message-bot-panel {
+    position: absolute;
+    right: 0;
+    bottom: 72px;
+    width: min(340px, calc(100vw - 32px));
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 24px 70px -34px rgba(37, 42, 36, .55);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+.message-bot.open .message-bot-panel {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.message-bot-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 14px;
+    background: var(--ivory);
+    border-bottom: 1px solid var(--border);
+}
+
+.message-bot-head strong {
+    display: block;
+    color: var(--olive-deep);
+    font-size: .92rem;
+}
+
+.message-bot-head span,
+.message-bot-product span,
+.message-bot-product small {
+    display: block;
+    color: #8a856f;
+    font-size: .72rem;
+}
+
+.message-bot-close {
+    width: 34px;
+    height: 34px;
+}
+
+.message-bot-body {
+    padding: 14px;
+}
+
+.message-bot-product {
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.message-bot-product img,
+.message-bot-product .message-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    border: 1px solid var(--border);
+}
+
+.message-bot-product strong {
+    display: block;
+    margin: 2px 0 4px;
+    color: var(--charcoal);
+    font-size: .9rem;
+    line-height: 1.25;
+}
+
+.message-bot-copy {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: .86rem;
+    line-height: 1.5;
+}
+
+.message-bot-action {
+    width: 100%;
+    justify-content: center;
+}
+
+/* ============================================================
    PWA INSTALL BUTTON
 ============================================================ */
 .pwa-install-btn {
@@ -3381,6 +3502,11 @@ footer {
         right: 16px;
         padding: 11px 16px;
         font-size: .78rem;
+    }
+
+    .message-bot {
+        right: 16px;
+        bottom: 146px;
     }
 }
 

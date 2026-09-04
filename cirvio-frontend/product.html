@@ -875,6 +875,7 @@
 
         function render() {
             if (!product) {
+                window.CirvioCurrentProduct = null;
                 document.querySelector('.product-detail').innerHTML = `
       <div style="grid-column:1/-1;text-align:center;padding:70px 20px;color:#8a856f;">
         <p style="font-family:var(--font-display);font-size:1.4rem;color:var(--olive-deep);margin-bottom:8px;">Product not found</p>
@@ -894,6 +895,7 @@
             document.getElementById('pdDesc').textContent = product.desc;
             document.getElementById('sellerAvatar').textContent = product.seller.trim().charAt(0).toUpperCase();
             document.getElementById('sellerName').textContent = product.seller;
+            window.CirvioCurrentProduct = product;
 
             document.getElementById('pdPrice').textContent = product.price === 0
                 ? (product.type === 'donate' ? 'Donation' : 'Free')

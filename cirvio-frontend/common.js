@@ -674,6 +674,84 @@ async function ccSend() {
     }
 }
 
+/* ---------- floating CIRVIO admin bot ---------- */
+function botEsc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function initMessageBot() {
+    if (document.getElementById('cirvioMessageBot')) return;
+    const holder = document.createElement('div');
+    holder.innerHTML = `
+<div class="message-bot" id="cirvioMessageBot">
+  <button class="message-bot-btn" id="messageBotBtn" type="button" aria-label="Message CIRVIO admin">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.4a8.4 8.4 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5z"/>
+    </svg>
+  </button>
+  <div class="message-bot-panel" id="messageBotPanel" aria-live="polite">
+    <div class="message-bot-head">
+      <div class="cc-badge">C</div>
+      <div>
+        <strong>CIRVIO Admin Bot</strong>
+        <span>Product messages only</span>
+      </div>
+      <button class="btn-icon message-bot-close" id="messageBotClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="message-bot-body" id="messageBotBody"></div>
+  </div>
+</div>`.trim();
+    document.body.appendChild(holder.firstElementChild);
+
+    document.getElementById('messageBotBtn').addEventListener('click', openMessageBot);
+    document.getElementById('messageBotClose').addEventListener('click', closeMessageBot);
+    document.getElementById('messageBotBody').addEventListener('click', (e) => {
+        const start = e.target.closest('[data-bot-start]');
+        const browse = e.target.closest('[data-bot-browse]');
+        if (start) {
+            closeMessageBot();
+            const product = window.CirvioCurrentProduct;
+            ccOpen(product, `Hi CIRVIO Admin, I need help with "${product.title}".`);
+        } else if (browse) {
+            window.location.href = 'explore.html';
+        }
+    });
+}
+
+function openMessageBot() {
+    const bot = document.getElementById('cirvioMessageBot');
+    const body = document.getElementById('messageBotBody');
+    if (!bot || !body) return;
+    const product = window.CirvioCurrentProduct;
+    if (product && product.id) {
+        body.innerHTML = `
+          <div class="message-bot-product">
+            ${product.img ? `<img src="${botEsc(product.img)}" alt="">` : '<div class="message-icon">C</div>'}
+            <div>
+              <span>Current product</span>
+              <strong>${botEsc(product.title || 'Selected product')}</strong>
+              <small>Buyer: You -> CIRVIO Admin</small>
+              <small>Seller: ${botEsc(product.seller || 'Seller')}</small>
+            </div>
+          </div>
+          <button class="btn btn-terracotta message-bot-action" type="button" data-bot-start>Message Admin</button>
+        `;
+    } else {
+        body.innerHTML = `
+          <p class="message-bot-copy">Open any product first, then this bot will send your product message to CIRVIO admin.</p>
+          <button class="btn btn-terracotta message-bot-action" type="button" data-bot-browse>Browse Products</button>
+        `;
+    }
+    bot.classList.add('open');
+}
+
+function closeMessageBot() {
+    const bot = document.getElementById('cirvioMessageBot');
+    if (bot) bot.classList.remove('open');
+}
+
 /* ---------- PWA: install prompt ---------- */
 let deferredInstallPrompt = null;
 function initInstallPrompt() {
@@ -796,6 +874,7 @@ function initCirvioChrome(pageKey) {
     refreshCartBadge();
     initReveal();
     initInstallPrompt();
+    initMessageBot();
     registerCirvioSW();
     startListingNotificationPoll();
     if (pageKey) markActiveNav(pageKey);

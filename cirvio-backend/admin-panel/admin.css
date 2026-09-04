@@ -71,6 +71,12 @@ tbody tr:last-child td{border-bottom:none;}
 tbody tr:hover{background:rgba(200,117,79,.055);}
 .sub{display:block;color:var(--sage);font-size:11.5px;margin-top:3px;}
 .pair-cell{display:flex;flex-direction:column;line-height:1.35;}
+.identity-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.35;min-width:170px;}
+.identity-card strong{color:var(--olive-deep);}
+.role-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;margin-bottom:2px;font-size:10px;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:.05em;}
+.role-pill.buyer{background:#DDEDDD;color:var(--success);border:1px solid #C5DEC8;}
+.role-pill.seller{background:#F6E8C8;color:var(--warning);border:1px solid #E8CF98;}
+.message-text{white-space:normal;min-width:260px;max-width:460px;line-height:1.5;}
 
 .badge{padding:5px 10px;border-radius:999px;font-size:11px;font-weight:850;display:inline-flex;align-items:center;line-height:1;border:1px solid transparent;text-transform:capitalize;}
 .badge-pending{background:#F6E8C8;color:var(--warning);border-color:#E8CF98;}

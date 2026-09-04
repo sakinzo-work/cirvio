@@ -708,6 +708,7 @@
             renderListings();
             renderMessages();
         });
+        window.addEventListener('cirvio:messages-synced', renderMessages);
 
         /* ============================================================
            INIT
@@ -746,6 +747,7 @@
         if (CirvioAuth.requireLogin()) {
             loadBackendSavedProducts();
             loadBackendListings();
+            if (window.CirvioMessages) CirvioMessages.sync();
         }
         const initialTab = (location.hash || '#listings').replace('#', '');
         setActiveTab(['listings', 'saved', 'messages', 'settings'].includes(initialTab) ? initialTab : 'listings');

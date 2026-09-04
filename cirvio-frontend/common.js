@@ -562,6 +562,7 @@ document.addEventListener('click', (e) => {
    no direct student-to-student contact info is ever shared.
 ============================================================ */
 let ccCurrentProduct = null;
+let ccCurrentThreadId = '';
 
 function ccEnsureModal() {
     if (document.getElementById('ccOverlay')) return;
@@ -602,9 +603,10 @@ function ccEnsureModal() {
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ccClose(); });
 }
 
-function ccOpen(product, presetText) {
+function ccOpen(product, presetText, threadId = '') {
     ccEnsureModal();
     ccCurrentProduct = product || null;
+    ccCurrentThreadId = threadId || '';
     const prodBox = document.getElementById('ccProduct');
     if (product) {
         document.getElementById('ccProductImg').src = product.img || '';
@@ -630,6 +632,74 @@ function ccClose() {
     document.body.style.overflow = '';
 }
 
+function messageEntryFromThread(thread, part, index = -1, existing = null) {
+    const isRoot = index < 0;
+    const fromAdmin = !isRoot && ['admin', 'employee'].includes(part.senderRole);
+    const createdAt = part.createdAt || thread.createdAt || new Date().toISOString();
+    return {
+        id: isRoot ? `${thread._id}:root` : `${thread._id}:reply:${part._id || index}`,
+        backendKey: isRoot ? `${thread._id}:root` : `${thread._id}:reply:${part._id || index}`,
+        threadId: thread._id,
+        productId: thread.product?._id || thread.product || null,
+        productTitle: thread.product?.title || thread.productTitle || null,
+        productImg: thread.productImg || (thread.product?.images && thread.product.images[0]) || null,
+        text: part.text || '',
+        from: fromAdmin ? 'cirvio' : 'user',
+        read: existing ? existing.read : !fromAdmin,
+        createdAt,
+        time: createdAt ? new Date(createdAt).toLocaleString() : 'Just now'
+    };
+}
+
+function mergeBackendMessages(threads, { notify = false } = {}) {
+    const existing = CirvioStore.getMessages();
+    const existingByKey = Object.fromEntries(existing.filter(m => m.backendKey).map(m => [m.backendKey, m]));
+    const backendKeys = new Set();
+    const backendEntries = [];
+    let newAdminReply = null;
+
+    (threads || []).forEach((thread) => {
+        const root = messageEntryFromThread(thread, { text: thread.text, createdAt: thread.createdAt }, -1, existingByKey[`${thread._id}:root`]);
+        backendKeys.add(root.backendKey);
+        backendEntries.push(root);
+
+        (thread.replies || []).forEach((reply, index) => {
+            const key = `${thread._id}:reply:${reply._id || index}`;
+            const entry = messageEntryFromThread(thread, reply, index, existingByKey[key]);
+            backendKeys.add(entry.backendKey);
+            backendEntries.push(entry);
+            if (notify && entry.from === 'cirvio' && !existingByKey[key]) newAdminReply = entry;
+        });
+    });
+
+    const localOnly = existing.filter(m => !m.backendKey || !backendKeys.has(m.backendKey));
+    const combined = [...localOnly, ...backendEntries].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    CirvioStore.setMessages(combined);
+    refreshMsgBadge();
+    window.dispatchEvent(new CustomEvent('cirvio:messages-synced', { detail: { messages: combined } }));
+    if (newAdminReply) showToast(`CIRVIO Admin replied about "${newAdminReply.productTitle || 'your product'}"`);
+}
+
+let messagePollStarted = false;
+async function syncMessagesFromBackend({ notify = false } = {}) {
+    if (!window.CirvioAPI || !localStorage.getItem('cirvio_token')) return;
+    try {
+        const { messages } = await CirvioAPI.myMessages();
+        mergeBackendMessages(messages || [], { notify });
+    } catch (err) {
+        console.warn('Could not sync messages:', err.message);
+    }
+}
+
+function startMessagePoll() {
+    if (messagePollStarted || !localStorage.getItem('cirvio_token')) return;
+    messagePollStarted = true;
+    syncMessagesFromBackend();
+    setInterval(() => syncMessagesFromBackend({ notify: true }), 7000);
+}
+
+window.CirvioMessages = { sync: syncMessagesFromBackend };
+
 async function ccSend() {
     const ta = document.getElementById('ccText');
     const text = ta.value.trim();
@@ -638,33 +708,30 @@ async function ccSend() {
     const sendBtn = document.getElementById('ccSend');
     sendBtn.disabled = true;
     const thread = CirvioStore.getMessages();
-    const now = Date.now();
     try {
+        let saved = null;
         if (window.CirvioAPI) {
-            await CirvioAPI.sendMessage(ccCurrentProduct.id, text);
+            saved = ccCurrentThreadId
+                ? await CirvioAPI.replyToMessage(ccCurrentThreadId, text)
+                : await CirvioAPI.sendMessage(ccCurrentProduct.id, text);
         }
-        thread.push({
-            id: now,
-            productId: ccCurrentProduct.id,
-            productTitle: ccCurrentProduct.title,
-            productImg: ccCurrentProduct.img,
-            text,
-            from: 'user',
-            read: true,
-            time: 'Just now'
-        });
-        thread.push({
-            id: now + 1,
-            productId: ccCurrentProduct.id,
-            productTitle: ccCurrentProduct.title,
-            productImg: ccCurrentProduct.img,
-            text: `Thanks! CIRVIO admins received your message about "${ccCurrentProduct.title}" and will handle the next step safely.`,
-            from: 'cirvio',
-            read: false,
-            time: 'Just now'
-        });
-        CirvioStore.setMessages(thread);
-        refreshMsgBadge();
+        if (saved?.message) {
+            mergeBackendMessages([saved.message]);
+        } else {
+            const now = Date.now();
+            thread.push({
+                id: now,
+                productId: ccCurrentProduct.id,
+                productTitle: ccCurrentProduct.title,
+                productImg: ccCurrentProduct.img,
+                text,
+                from: 'user',
+                read: true,
+                time: 'Just now'
+            });
+            CirvioStore.setMessages(thread);
+            refreshMsgBadge();
+        }
         showToast('Message sent to CIRVIO admin');
         ccClose();
     } catch (err) {
@@ -713,7 +780,8 @@ function initMessageBot() {
         if (start) {
             closeMessageBot();
             const product = window.CirvioCurrentProduct;
-            ccOpen(product, `Hi CIRVIO Admin, I need help with "${product.title}".`);
+            const threadId = start.dataset.botStart || '';
+            ccOpen(product, `Hi CIRVIO Admin, I need help with "${product.title}".`, threadId);
         } else if (browse) {
             window.location.href = 'explore.html';
         }
@@ -726,6 +794,8 @@ function openMessageBot() {
     if (!bot || !body) return;
     const product = window.CirvioCurrentProduct;
     if (product && product.id) {
+        const latest = CirvioStore.getMessages().slice().reverse().find((m) => m.threadId && String(m.productId) === String(product.id));
+        const latestThreadId = latest ? latest.threadId : '';
         body.innerHTML = `
           <div class="message-bot-product">
             ${product.img ? `<img src="${botEsc(product.img)}" alt="">` : '<div class="message-icon">C</div>'}
@@ -736,7 +806,7 @@ function openMessageBot() {
               <small>Seller: ${botEsc(product.seller || 'Seller')}</small>
             </div>
           </div>
-          <button class="btn btn-terracotta message-bot-action" type="button" data-bot-start>Message Admin</button>
+          <button class="btn btn-terracotta message-bot-action" type="button" data-bot-start="${botEsc(latestThreadId)}">${latestThreadId ? 'Reply to Admin' : 'Message Admin'}</button>
         `;
     } else {
         body.innerHTML = `
@@ -875,6 +945,7 @@ function initCirvioChrome(pageKey) {
     initReveal();
     initInstallPrompt();
     initMessageBot();
+    startMessagePoll();
     registerCirvioSW();
     startListingNotificationPoll();
     if (pageKey) markActiveNav(pageKey);

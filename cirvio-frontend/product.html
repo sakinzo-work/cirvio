@@ -999,20 +999,25 @@
             const amt = document.getElementById('offerAmount').value;
             if (!amt) { showToast('Enter an offer amount'); return; }
             const offerText = `I'd like to offer ₹${amt} for "${product.title}".`;
+            let sentToBackend = false;
             try {
                 if (window.CirvioAPI) {
                     await CirvioAPI.sendMessage(product.id, offerText);
+                    sentToBackend = true;
                 }
             } catch (err) {
                 showToast(err.message || 'Could not send offer');
                 return;
             }
-            const thread = CirvioStore.getMessages();
-            const now = Date.now();
-            thread.push({ id: now, productId: product.id, productTitle: product.title, productImg: product.img, text: offerText, from: 'user', read: true, time: 'Just now' });
-            thread.push({ id: now + 1, productId: product.id, productTitle: product.title, productImg: product.img, text: `Thanks! CIRVIO admins received your ₹${amt} offer and will handle the next step safely.`, from: 'cirvio', read: false, time: 'Just now' });
-            CirvioStore.setMessages(thread);
-            refreshMsgBadge();
+            if (sentToBackend && window.CirvioMessages) {
+                await CirvioMessages.sync();
+            } else {
+                const thread = CirvioStore.getMessages();
+                const now = Date.now();
+                thread.push({ id: now, productId: product.id, productTitle: product.title, productImg: product.img, text: offerText, from: 'user', read: true, time: 'Just now' });
+                CirvioStore.setMessages(thread);
+                refreshMsgBadge();
+            }
             showToast('Offer of ₹' + amt + ' sent via CIRVIO');
             document.getElementById('offerPanel').classList.remove('open');
             document.getElementById('offerAmount').value = '';

@@ -36,6 +36,8 @@ if (TOKEN && ADMIN_SESSION_API_BASE && ADMIN_SESSION_API_BASE !== API_BASE) {
 }
 let CURRENT_USER = null;
 const ADMIN_PRODUCTS = new Map();
+const ADMIN_MESSAGES = new Map();
+let adminMessagePollStarted = false;
 
 const loginScreen = document.getElementById('loginScreen');
 const adminApp = document.getElementById('adminApp');
@@ -103,6 +105,7 @@ async function showApp() {
     ensureEmployeePanel();
     applyRolePermissions();
     await Promise.all([loadStats(), loadUsers(), loadListings(), loadPurchases(), loadMessages(), loadClientOrigins()]);
+    startAdminMessagePoll();
 }
 
 (async function init() {
@@ -447,16 +450,35 @@ async function loadPurchases() {
 }
 
 /* ---------- product messages ---------- */
-async function loadMessages() {
+async function loadMessages({ notify = false } = {}) {
     const table = document.querySelector('#messagesTable tbody');
     if (!table) return;
+    const previous = new Map(ADMIN_MESSAGES);
     const { messages } = await api('/api/admin/messages');
+    ADMIN_MESSAGES.clear();
+    messages.forEach((m) => ADMIN_MESSAGES.set(String(m._id), m));
+    if (notify) {
+        const changed = messages.find((m) => {
+            const old = previous.get(String(m._id));
+            if (!old) return true;
+            const replies = m.replies || [];
+            const oldReplies = old.replies || [];
+            const lastReply = replies[replies.length - 1];
+            return replies.length > oldReplies.length && lastReply && lastReply.senderRole === 'user';
+        });
+        if (changed) {
+            const sender = changed.sender || {};
+            showAdminNotice(`New message from ${sender.name || 'buyer'}`);
+        }
+    }
     table.innerHTML = messages.length ? messages.map((m) => {
         const product = m.product || {};
         const seller = product.seller || {};
         const sender = m.sender || {};
+        const replies = m.replies || [];
+        const lastReply = replies[replies.length - 1];
         return `
-        <tr>
+        <tr class="message-row" onclick="handleMessageRowClick(event,'${m._id}')" ondblclick="openMessageReply('${m._id}')">
           <td>${fmtDate(m.createdAt)}</td>
           <td>
             <div class="identity-card">
@@ -476,9 +498,132 @@ async function loadMessages() {
             </div>
           </td>
           <td>${esc(product.location || '-')}</td>
-          <td class="message-text">${esc(m.text || '')}</td>
+          <td class="message-text">
+            <strong>${esc(m.text || '')}</strong>
+            <span class="sub">${replies.length ? `${replies.length} repl${replies.length === 1 ? 'y' : 'ies'} | Last: ${esc(lastReply.text || '')}` : 'No reply yet'}</span>
+          </td>
         </tr>`;
     }).join('') : '<tr><td colspan="6" class="sub">No product messages yet.</td></tr>';
+}
+
+function startAdminMessagePoll() {
+    if (adminMessagePollStarted) return;
+    adminMessagePollStarted = true;
+    setInterval(async () => {
+        try {
+            await loadMessages({ notify: true });
+        } catch (err) {
+            console.warn('Could not refresh admin messages:', err.message);
+        }
+    }, 7000);
+}
+
+let adminNoticeTimer;
+function showAdminNotice(text) {
+    let notice = document.getElementById('adminNotice');
+    if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'adminNotice';
+        notice.className = 'admin-notice';
+        document.body.appendChild(notice);
+    }
+    notice.textContent = text;
+    notice.classList.add('show');
+    clearTimeout(adminNoticeTimer);
+    adminNoticeTimer = setTimeout(() => notice.classList.remove('show'), 3200);
+}
+
+function handleMessageRowClick(event, id) {
+    const isTouch = window.matchMedia('(pointer: coarse), (max-width: 760px)').matches;
+    if (isTouch) openMessageReply(id);
+}
+
+function ensureMessageReplyModal() {
+    if (document.getElementById('messageReplyModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'messageReplyModal';
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+      <div class="message-reply-dialog" role="dialog" aria-label="Reply to product message">
+        <div class="image-dialog-head">
+          <div>
+            <h3 id="messageReplyTitle">Reply to enquiry</h3>
+            <p id="messageReplyMeta"></p>
+          </div>
+          <button class="row-btn btn-delete" id="messageReplyClose">Close</button>
+        </div>
+        <div class="message-reply-body">
+          <div id="messageReplyContext" class="message-reply-context"></div>
+          <div id="messageReplyThread" class="message-reply-thread"></div>
+          <textarea id="messageReplyText" placeholder="Type CIRVIO admin reply..."></textarea>
+          <div class="message-reply-actions">
+            <span id="messageReplyStatus" class="sub"></span>
+            <button class="row-btn btn-approve" id="messageReplySend">Send Reply</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('messageReplyClose').addEventListener('click', closeMessageReply);
+    document.getElementById('messageReplySend').addEventListener('click', sendMessageReply);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeMessageReply();
+    });
+}
+
+let activeMessageId = '';
+function openMessageReply(id) {
+    const message = ADMIN_MESSAGES.get(String(id));
+    if (!message) return;
+    ensureMessageReplyModal();
+    activeMessageId = String(id);
+    const product = message.product || {};
+    const seller = product.seller || {};
+    const sender = message.sender || {};
+    document.getElementById('messageReplyTitle').textContent = product.title || message.productTitle || 'Product enquiry';
+    document.getElementById('messageReplyMeta').textContent = `${sender.name || 'Buyer'} -> CIRVIO Admin | Seller: ${seller.name || '-'}`;
+    document.getElementById('messageReplyContext').innerHTML = `
+      <div class="identity-card"><span class="role-pill buyer">Buyer</span><strong>${esc(sender.name || '-')}</strong><span class="sub">${esc(sender.email || '')}</span><span class="sub">${esc(sender.phone || sender.city || sender.college || '')}</span></div>
+      <div class="identity-card"><span class="role-pill seller">Seller</span><strong>${esc(seller.name || '-')}</strong><span class="sub">${esc(seller.email || '')}</span><span class="sub">${esc(seller.phone || seller.city || seller.college || '')}</span></div>
+      <div class="identity-card"><span class="role-pill">Product</span><strong>${esc(product.title || message.productTitle || '-')}</strong><span class="sub">${esc(product.location || '-')}</span></div>
+    `;
+    const parts = [{ text: message.text, senderRole: 'user', createdAt: message.createdAt }, ...(message.replies || [])];
+    document.getElementById('messageReplyThread').innerHTML = parts.map((part) => `
+      <div class="reply-bubble ${['admin', 'employee'].includes(part.senderRole) ? 'from-admin' : 'from-buyer'}">
+        <strong>${['admin', 'employee'].includes(part.senderRole) ? 'CIRVIO Admin' : 'Buyer'}</strong>
+        <p>${esc(part.text || '')}</p>
+        <small>${fmtDate(part.createdAt)}</small>
+      </div>`).join('');
+    document.getElementById('messageReplyText').value = '';
+    document.getElementById('messageReplyStatus').textContent = '';
+    document.getElementById('messageReplyModal').classList.add('open');
+}
+
+function closeMessageReply() {
+    const modal = document.getElementById('messageReplyModal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function sendMessageReply() {
+    const textEl = document.getElementById('messageReplyText');
+    const status = document.getElementById('messageReplyStatus');
+    const text = textEl.value.trim();
+    if (!activeMessageId || !text) {
+        status.textContent = 'Reply text is required';
+        return;
+    }
+    status.textContent = 'Sending...';
+    try {
+        const { message } = await api(`/api/admin/messages/${activeMessageId}/reply`, {
+            method: 'POST',
+            body: JSON.stringify({ text })
+        });
+        ADMIN_MESSAGES.set(String(message._id), message);
+        status.textContent = 'Reply sent';
+        await loadMessages();
+        openMessageReply(message._id);
+    } catch (err) {
+        status.textContent = err.message;
+    }
 }
 
 /* ---------- allowed frontend URLs ---------- */
@@ -646,3 +791,5 @@ window.approveProduct = approveProduct;
 window.rejectProduct = rejectProduct;
 window.deleteProduct = deleteProduct;
 window.viewListingImages = viewListingImages;
+window.handleMessageRowClick = handleMessageRowClick;
+window.openMessageReply = openMessageReply;

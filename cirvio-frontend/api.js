@@ -237,6 +237,17 @@ const CirvioAPI = {
             method: 'POST',
             body: JSON.stringify({ productId, text })
         });
+    },
+    async myMessages() {
+        await this.ensureSession();
+        return this.request('/api/messages/my');
+    },
+    async replyToMessage(messageId, text) {
+        await this.ensureSession();
+        return this.request('/api/messages/' + encodeURIComponent(messageId) + '/replies', {
+            method: 'POST',
+            body: JSON.stringify({ text })
+        });
     }
 };
 

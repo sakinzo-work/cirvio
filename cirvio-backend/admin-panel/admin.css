@@ -77,6 +77,23 @@ tbody tr:hover{background:rgba(200,117,79,.055);}
 .role-pill.buyer{background:#DDEDDD;color:var(--success);border:1px solid #C5DEC8;}
 .role-pill.seller{background:#F6E8C8;color:var(--warning);border:1px solid #E8CF98;}
 .message-text{white-space:normal;min-width:260px;max-width:460px;line-height:1.5;}
+.message-row{cursor:pointer;}
+.message-row:hover .message-text strong{text-decoration:underline;}
+.message-reply-dialog{width:min(760px,96vw);max-height:92vh;overflow:hidden;background:var(--ivory);border-radius:10px;border:1px solid rgba(222,215,200,.82);box-shadow:0 30px 90px -36px rgba(0,0,0,.72);display:grid;grid-template-rows:auto minmax(0,1fr);}
+.message-reply-body{padding:18px 20px;overflow:auto;}
+.message-reply-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px;}
+.message-reply-context .identity-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px;min-width:0;}
+.message-reply-thread{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+.reply-bubble{max-width:82%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fff;white-space:normal;}
+.reply-bubble.from-admin{align-self:flex-end;background:#DDEDDD;border-color:#C5DEC8;}
+.reply-bubble.from-buyer{align-self:flex-start;background:#fff;}
+.reply-bubble strong{display:block;color:var(--olive-deep);font-size:12px;margin-bottom:4px;}
+.reply-bubble p{margin:0;color:var(--charcoal);line-height:1.5;}
+.reply-bubble small{display:block;margin-top:5px;color:var(--sage);font-size:11px;}
+.message-reply-body textarea{width:100%;min-height:110px;border:1px solid var(--border);border-radius:8px;padding:12px;font:inherit;background:#fff;resize:vertical;}
+.message-reply-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;}
+.admin-notice{position:fixed;right:22px;bottom:22px;z-index:80;background:var(--olive-deep);color:var(--ivory);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:12px 14px;box-shadow:0 18px 54px -28px rgba(0,0,0,.7);font-weight:850;font-size:13px;opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .2s ease,transform .2s ease;}
+.admin-notice.show{opacity:1;transform:translateY(0);}
 
 .badge{padding:5px 10px;border-radius:999px;font-size:11px;font-weight:850;display:inline-flex;align-items:center;line-height:1;border:1px solid transparent;text-transform:capitalize;}
 .badge-pending{background:#F6E8C8;color:var(--warning);border-color:#E8CF98;}
@@ -167,4 +184,6 @@ tbody tr:hover{background:rgba(200,117,79,.055);}
   .image-dialog{width:100%;max-height:94vh;}
   .image-dialog-head{padding:14px;}
   .image-main,.image-side{padding:14px;}
+  .message-reply-context{grid-template-columns:1fr;}
+  .reply-bubble{max-width:100%;}
 }

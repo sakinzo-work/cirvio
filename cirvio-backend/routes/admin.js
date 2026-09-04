@@ -250,15 +250,45 @@ router.get('/purchases', async (req, res) => {
 router.get('/messages', async (req, res) => {
     const messages = await Message.find({ recipientRole: 'admin' })
         .populate('sender', 'name email college city phone')
+        .populate('replies.sender', 'name email')
         .populate({
             path: 'product',
             select: 'title category location images seller',
             populate: { path: 'seller', select: 'name email college city phone' }
         })
-        .sort({ createdAt: -1 })
+        .sort({ updatedAt: -1 })
         .lean();
 
     res.json({ count: messages.length, messages });
+});
+
+// POST /api/admin/messages/:id/reply — CIRVIO staff replies to the user enquiry.
+router.post('/messages/:id/reply', async (req, res) => {
+    const text = String(req.body.text || '').trim();
+    if (!text) return res.status(400).json({ message: 'Reply is required' });
+
+    const message = await Message.findById(req.params.id);
+    if (!message) return res.status(404).json({ message: 'Message not found' });
+
+    message.replies.push({
+        sender: req.user._id,
+        senderRole: req.user.role === 'admin' ? 'admin' : 'employee',
+        text
+    });
+    message.readByAdminAt = message.readByAdminAt || new Date();
+    await message.save();
+
+    const updated = await Message.findById(message._id)
+        .populate('sender', 'name email college city phone')
+        .populate('replies.sender', 'name email')
+        .populate({
+            path: 'product',
+            select: 'title category location images seller',
+            populate: { path: 'seller', select: 'name email college city phone' }
+        })
+        .lean();
+
+    res.status(201).json({ message: updated });
 });
 
 // PUT /api/admin/orders/:id/status   body: { status }

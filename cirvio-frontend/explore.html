@@ -574,7 +574,7 @@
                     Wishlist
                     <span class="badge-count" id="mpWishCount">0</span>
                 </a>
-                <a href="profile.html#messages" class="mp-quick-item">
+                <a href="messages.html" class="mp-quick-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path
@@ -788,7 +788,7 @@
                     <div><strong id="modalPosted"></strong>Posted</div>
                 </div>
                 <div class="modal-actions">
-                    <a href="#" class="btn btn-terracotta" id="modalContactBtn">Contact Seller</a>
+                    <a href="#" class="btn btn-terracotta" id="modalContactBtn">Contact</a>
                     <a href="#" class="btn btn-outline" id="modalOfferBtn">Make an Offer</a>
                 </div>
             </div>
@@ -870,6 +870,7 @@
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
         Add to Cart
       </button>
+      <button type="button" class="btn btn-outline btn-sm" data-contact-product="${p.id}">Contact</button>
     </div>
   </a>`;
         }
@@ -964,6 +965,13 @@
             if (qvBtn) {
                 e.preventDefault();
                 openModal(qvBtn.dataset.id);
+                return;
+            }
+            const contactBtn = e.target.closest('[data-contact-product]');
+            if (contactBtn) {
+                e.preventDefault();
+                const p = PRODUCTS.find(x => String(x.id) === String(contactBtn.dataset.contactProduct));
+                if (p) CirvioContact.open(p, `Hi, I'm interested in "${p.title}".`);
             }
         });
 
@@ -1092,13 +1100,13 @@
             e.preventDefault();
             if (!modalProduct) return;
             closeModal();
-            CirvioContact.open(modalProduct, `Hi CIRVIO, I'm interested in "${modalProduct.title}". Could you connect me with the seller?`);
+            CirvioContact.open(modalProduct, `Hi, I'm interested in "${modalProduct.title}".`);
         });
         document.getElementById('modalOfferBtn').addEventListener('click', (e) => {
             e.preventDefault();
             if (!modalProduct) return;
             closeModal();
-            CirvioContact.open(modalProduct, `Hi CIRVIO, I'd like to offer ₹___ for "${modalProduct.title}". Please pass this on to the seller.`);
+            CirvioContact.open(modalProduct, `Hi, I'd like to offer ₹___ for "${modalProduct.title}".`);
         });
 
         /* ============================================================

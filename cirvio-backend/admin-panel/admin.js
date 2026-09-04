@@ -464,7 +464,7 @@ async function loadMessages({ notify = false } = {}) {
             const replies = m.replies || [];
             const oldReplies = old.replies || [];
             const lastReply = replies[replies.length - 1];
-            return replies.length > oldReplies.length && lastReply && lastReply.senderRole === 'user';
+            return replies.length > oldReplies.length && lastReply && ['buyer', 'seller'].includes(lastReply.senderRole);
         });
         if (changed) {
             const sender = changed.sender || {};
@@ -586,10 +586,10 @@ function openMessageReply(id) {
       <div class="identity-card"><span class="role-pill seller">Seller</span><strong>${esc(seller.name || '-')}</strong><span class="sub">${esc(seller.email || '')}</span><span class="sub">${esc(seller.phone || seller.city || seller.college || '')}</span></div>
       <div class="identity-card"><span class="role-pill">Product</span><strong>${esc(product.title || message.productTitle || '-')}</strong><span class="sub">${esc(product.location || '-')}</span></div>
     `;
-    const parts = [{ text: message.text, senderRole: 'user', createdAt: message.createdAt }, ...(message.replies || [])];
+    const parts = [{ text: message.text, senderRole: 'buyer', createdAt: message.createdAt }, ...(message.replies || [])];
     document.getElementById('messageReplyThread').innerHTML = parts.map((part) => `
       <div class="reply-bubble ${['admin', 'employee'].includes(part.senderRole) ? 'from-admin' : 'from-buyer'}">
-        <strong>${['admin', 'employee'].includes(part.senderRole) ? 'CIRVIO Admin' : 'Buyer'}</strong>
+        <strong>${['admin', 'employee'].includes(part.senderRole) ? 'CIRVIO Admin' : (part.senderRole === 'seller' ? 'Seller' : 'Buyer')}</strong>
         <p>${esc(part.text || '')}</p>
         <small>${fmtDate(part.createdAt)}</small>
       </div>`).join('');

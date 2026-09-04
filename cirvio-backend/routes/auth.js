@@ -26,6 +26,7 @@ function sendUser(user) {
         course: user.course,
         city: user.city,
         phone: user.phone,
+        photo: user.photo,
         role: user.role,
         verified: user.verified,
         createdAt: user.createdAt
@@ -215,6 +216,24 @@ router.post('/phone/verify', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', protect, async (req, res) => {
     res.json({ user: sendUser(req.user) });
+});
+
+// PUT /api/auth/me — update own profile fields, including profile photo.
+router.put('/me', protect, async (req, res) => {
+    try {
+        const editable = ['name', 'college', 'course', 'city', 'phone', 'photo'];
+        const updates = {};
+        editable.forEach((field) => {
+            if (req.body[field] !== undefined) updates[field] = String(req.body[field] || '').trim();
+        });
+        if (updates.photo && updates.photo.length > 1500000) {
+            return res.status(400).json({ message: 'Profile photo is too large' });
+        }
+        const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true });
+        res.json({ user: sendUser(user) });
+    } catch (err) {
+        res.status(500).json({ message: 'Profile update failed', error: err.message });
+    }
 });
 
 // PUT /api/auth/password

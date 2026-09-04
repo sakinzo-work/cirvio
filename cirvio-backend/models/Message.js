@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const replySchema = new mongoose.Schema(
     {
         sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        senderRole: { type: String, enum: ['user', 'admin', 'employee'], required: true },
+        senderRole: { type: String, enum: ['buyer', 'seller', 'admin', 'employee'], required: true },
         text: { type: String, required: true, trim: true, maxlength: 2000 },
         readByUserAt: { type: Date },
         readByAdminAt: { type: Date }

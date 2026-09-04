@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - CIRVIO</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <main class="chat-page">
+        <aside class="chat-sidebar">
+            <div class="chat-brand">
+                <a href="index.html" class="chat-back">CIRVIO</a>
+                <span>Messages</span>
+            </div>
+            <div class="chat-search">
+                <input id="chatSearch" type="search" placeholder="Search chats">
+            </div>
+            <div class="chat-thread-list" id="chatThreadList"></div>
+        </aside>
+
+        <section class="chat-main" id="chatMain">
+            <div class="chat-empty" id="chatEmpty">
+                <div class="message-icon">C</div>
+                <h1>Product group chats</h1>
+                <p>Select a chat to talk with the buyer, seller and CIRVIO admin in one safe place.</p>
+                <a class="btn btn-terracotta" href="explore.html">Browse Products</a>
+            </div>
+
+            <div class="chat-room" id="chatRoom" hidden>
+                <header class="chat-room-head">
+                    <button class="btn-icon chat-mobile-back" id="chatMobileBack" aria-label="Back to chats">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    </button>
+                    <img id="chatProductImg" src="" alt="">
+                    <div>
+                        <h1 id="chatProductTitle">Product chat</h1>
+                        <p id="chatParties">Buyer · Seller · Admin</p>
+                    </div>
+                </header>
+                <div class="chat-messages" id="chatMessages"></div>
+                <form class="chat-composer" id="chatComposer">
+                    <textarea id="chatInput" placeholder="Type a message..." rows="1"></textarea>
+                    <button class="btn btn-terracotta" type="submit">Send</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M20 6L9 17l-5-5" />
+        </svg><span id="toastMsg">Message sent</span></div>
+
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="common.js"></script>
+    <script>
+        let activeThreadId = '';
+        let activeThreads = [];
+
+        const listEl = document.getElementById('chatThreadList');
+        const emptyEl = document.getElementById('chatEmpty');
+        const roomEl = document.getElementById('chatRoom');
+        const messagesEl = document.getElementById('chatMessages');
+
+        function escChat(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        }
+
+        function profilePhoto() {
+            return CirvioStore.getProfile().photo || '';
+        }
+
+        function groupThreads() {
+            const byThread = new Map();
+            CirvioStore.getMessages().forEach((m) => {
+                const key = m.threadId || m.backendKey || String(m.id);
+                if (!byThread.has(key)) {
+                    byThread.set(key, {
+                        id: key,
+                        productId: m.productId,
+                        productTitle: m.productTitle || 'Product chat',
+                        productImg: m.productImg || '',
+                        messages: []
+                    });
+                }
+                byThread.get(key).messages.push(m);
+            });
+            return [...byThread.values()].map((thread) => {
+                thread.messages.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                thread.latest = thread.messages[thread.messages.length - 1];
+                thread.unread = thread.messages.some((m) => !isOwnMessage(m) && !m.read);
+                return thread;
+            }).sort((a, b) => new Date(b.latest?.createdAt || 0) - new Date(a.latest?.createdAt || 0));
+        }
+
+        function renderThreadList() {
+            const q = document.getElementById('chatSearch').value.trim().toLowerCase();
+            activeThreads = groupThreads();
+            const filtered = q ? activeThreads.filter((t) => t.productTitle.toLowerCase().includes(q) || (t.latest?.text || '').toLowerCase().includes(q)) : activeThreads;
+            listEl.innerHTML = filtered.length ? filtered.map((t) => `
+                <button class="chat-thread ${t.id === activeThreadId ? 'active' : ''} ${t.unread ? 'unread' : ''}" data-thread="${escChat(t.id)}">
+                    ${t.productImg ? `<img src="${escChat(t.productImg)}" alt="">` : '<span class="message-icon">C</span>'}
+                    <span>
+                        <strong>${escChat(t.productTitle)}</strong>
+                        <small>${escChat(isOwnMessage(t.latest || {}) ? 'You' : (t.latest?.from === 'cirvio' ? 'CIRVIO Admin' : (t.latest?.from === 'seller' ? 'Seller' : 'Buyer')))}: ${escChat(t.latest?.text || '')}</small>
+                    </span>
+                </button>
+            `).join('') : '<div class="chat-list-empty">No chats yet.</div>';
+        }
+
+        function markActiveRead() {
+            const messages = CirvioStore.getMessages();
+            let changed = false;
+            messages.forEach((m) => {
+                if (m.threadId === activeThreadId && !isOwnMessage(m) && !m.read) {
+                    m.read = true;
+                    changed = true;
+                }
+            });
+            if (changed) {
+                CirvioStore.setMessages(messages);
+                refreshMsgBadge();
+            }
+        }
+
+        function selectThread(id) {
+            activeThreadId = id;
+            const thread = groupThreads().find((t) => t.id === id);
+            if (!thread) return;
+            markActiveRead();
+            emptyEl.hidden = true;
+            roomEl.hidden = false;
+            document.body.classList.add('chat-open');
+            document.getElementById('chatProductTitle').textContent = thread.productTitle;
+            document.getElementById('chatParties').textContent = 'Buyer · Seller · CIRVIO Admin';
+            document.getElementById('chatProductImg').src = thread.productImg || 'cirvio-logo-header.png';
+            renderMessages(thread);
+            renderThreadList();
+        }
+
+        function renderMessages(thread) {
+            const photo = profilePhoto();
+            messagesEl.innerHTML = thread.messages.map((m) => {
+                const mine = isOwnMessage(m);
+                const label = mine ? 'You' : (m.from === 'cirvio' ? 'CIRVIO Admin' : (m.from === 'seller' ? 'Seller' : 'Buyer'));
+                const avatar = mine && photo ? `<img src="${escChat(photo)}" alt="">` : `<span>${escChat(label.charAt(0))}</span>`;
+                return `
+                    <div class="chat-message ${mine ? 'mine' : ''}">
+                        <div class="chat-avatar">${avatar}</div>
+                        <div class="chat-bubble">
+                            <strong>${escChat(label)}</strong>
+                            <p>${escChat(m.text || '')}</p>
+                            <small>${escChat(m.time || 'Just now')}</small>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        listEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.chat-thread');
+            if (btn) selectThread(btn.dataset.thread);
+        });
+
+        document.getElementById('chatSearch').addEventListener('input', renderThreadList);
+        document.getElementById('chatMobileBack').addEventListener('click', () => {
+            document.body.classList.remove('chat-open');
+        });
+
+        document.getElementById('chatComposer').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!activeThreadId || !text) return;
+            try {
+                const { message } = await CirvioAPI.replyToMessage(activeThreadId, text);
+                if (message && window.CirvioMessages) {
+                    await CirvioMessages.sync();
+                }
+                input.value = '';
+                selectThread(activeThreadId);
+            } catch (err) {
+                showToast(err.message || 'Could not send message');
+            }
+        });
+
+        window.addEventListener('cirvio:messages-synced', () => {
+            renderThreadList();
+            if (activeThreadId) selectThread(activeThreadId);
+        });
+
+        if (CirvioAuth.requireLogin()) {
+            initCirvioChrome('messages');
+            renderThreadList();
+            if (window.CirvioMessages) CirvioMessages.sync();
+        }
+    </script>
+</body>
+
+</html>

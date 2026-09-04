@@ -157,8 +157,19 @@ function refreshWishBadge() {
 }
 
 /* ---------- messages badge sync (header + mobile panel) ---------- */
+function currentUserId() {
+    const profile = CirvioStore.getProfile();
+    return String(profile.id || profile._id || '');
+}
+
+function isOwnMessage(m) {
+    const uid = currentUserId();
+    if (m.from === 'user') return true;
+    return !!(uid && m.senderId && String(m.senderId) === uid);
+}
+
 function refreshMsgBadge() {
-    const count = CirvioStore.getMessages().filter(m => m.from === 'cirvio' && !m.read).length;
+    const count = CirvioStore.getMessages().filter(m => !isOwnMessage(m) && !m.read).length;
     ['msgCount', 'mpMsgCount'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -557,7 +568,7 @@ document.addEventListener('click', (e) => {
 });
 
 /* ============================================================
-   CONTACT CIRVIO — every "Contact Seller" / "Message" action
+   CONTACT CIRVIO — every product "Contact" / "Message" action
    opens this modal. Buyers message CIRVIO admins about products;
    no direct student-to-student contact info is ever shared.
 ============================================================ */
@@ -577,8 +588,8 @@ function ccEnsureModal() {
       <div class="cc-head">
         <div class="cc-badge">C</div>
         <div>
-          <h3>Message CIRVIO Admin</h3>
-          <p class="cc-sub">For your safety, product messages go only to CIRVIO admins. Users never see each other's address or phone.</p>
+          <h3>Product Group Chat</h3>
+          <p class="cc-sub">Buyer, seller and CIRVIO admin stay in one safe product chat. Private address and phone details stay protected.</p>
         </div>
       </div>
       <div class="cc-product" id="ccProduct" style="display:none;">
@@ -589,7 +600,7 @@ function ccEnsureModal() {
         </div>
       </div>
       <div class="cc-thread" id="ccThread"></div>
-      <textarea id="ccText" class="cc-textarea" placeholder="Type your product message to CIRVIO admin..."></textarea>
+      <textarea id="ccText" class="cc-textarea" placeholder="Type your product message..."></textarea>
       <button class="btn btn-terracotta" id="ccSend" style="width:100%;justify-content:center;">Send to CIRVIO</button>
     </div>
   </div>
@@ -646,8 +657,8 @@ function renderContactThread() {
         return;
     }
     box.innerHTML = messages.map((m) => `
-      <div class="cc-bubble ${m.from === 'cirvio' ? 'from-admin' : 'from-user'}">
-        <strong>${m.from === 'cirvio' ? 'CIRVIO Admin' : 'You'}</strong>
+      <div class="cc-bubble ${isOwnMessage(m) ? 'from-user' : 'from-admin'}">
+        <strong>${isOwnMessage(m) ? 'You' : (m.from === 'cirvio' ? 'CIRVIO Admin' : (m.from === 'seller' ? 'Seller' : 'Buyer'))}</strong>
         <p>${botEsc(m.text || '')}</p>
         <small>${botEsc(m.time || 'Just now')}</small>
       </div>
@@ -660,7 +671,7 @@ function markThreadRead(threadId) {
     const messages = CirvioStore.getMessages();
     let changed = false;
     messages.forEach((m) => {
-        if (m.threadId === threadId && m.from === 'cirvio' && !m.read) {
+        if (m.threadId === threadId && !isOwnMessage(m) && !m.read) {
             m.read = true;
             changed = true;
         }
@@ -694,7 +705,11 @@ function ccClose() {
 
 function messageEntryFromThread(thread, part, index = -1, existing = null) {
     const isRoot = index < 0;
-    const fromAdmin = !isRoot && ['admin', 'employee'].includes(part.senderRole);
+    const role = isRoot ? 'buyer' : (part.senderRole || 'buyer');
+    const fromAdmin = ['admin', 'employee'].includes(role);
+    const fromSeller = role === 'seller';
+    const sender = isRoot ? thread.sender : part.sender;
+    const senderId = sender && typeof sender === 'object' ? sender._id : sender;
     const createdAt = part.createdAt || thread.createdAt || new Date().toISOString();
     return {
         id: isRoot ? `${thread._id}:root` : `${thread._id}:reply:${part._id || index}`,
@@ -703,9 +718,11 @@ function messageEntryFromThread(thread, part, index = -1, existing = null) {
         productId: thread.product?._id || thread.product || null,
         productTitle: thread.product?.title || thread.productTitle || null,
         productImg: thread.productImg || (thread.product?.images && thread.product.images[0]) || null,
+        senderId,
+        senderRole: role,
         text: part.text || '',
-        from: fromAdmin ? 'cirvio' : 'user',
-        read: existing ? existing.read : !fromAdmin,
+        from: fromAdmin ? 'cirvio' : (fromSeller ? 'seller' : 'buyer'),
+        read: existing ? existing.read : (!fromAdmin && !fromSeller),
         createdAt,
         time: createdAt ? new Date(createdAt).toLocaleString() : 'Just now'
     };
@@ -728,7 +745,7 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
             const entry = messageEntryFromThread(thread, reply, index, existingByKey[key]);
             backendKeys.add(entry.backendKey);
             backendEntries.push(entry);
-            if (notify && entry.from === 'cirvio' && !existingByKey[key]) newAdminReply = entry;
+            if (notify && entry.from !== 'user' && !existingByKey[key]) newAdminReply = entry;
         });
     });
 
@@ -738,7 +755,7 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
     refreshMsgBadge();
     window.dispatchEvent(new CustomEvent('cirvio:messages-synced', { detail: { messages: combined } }));
     if (document.getElementById('ccOverlay')?.classList.contains('open')) renderContactThread();
-    if (newAdminReply) showToast(`CIRVIO Admin replied about "${newAdminReply.productTitle || 'your product'}"`);
+    if (newAdminReply) showToast(`New chat reply about "${newAdminReply.productTitle || 'your product'}"`);
 }
 
 let messagePollStarted = false;
@@ -787,7 +804,9 @@ async function ccSend() {
                 productTitle: ccCurrentProduct.title,
                 productImg: ccCurrentProduct.img,
                 text,
-                from: 'user',
+                from: 'buyer',
+                senderId: currentUserId(),
+                senderRole: 'buyer',
                 read: true,
                 time: 'Just now'
             });
@@ -797,7 +816,7 @@ async function ccSend() {
         ta.value = '';
         renderContactThread();
         markThreadRead(ccCurrentThreadId);
-        showToast('Message sent to CIRVIO admin');
+        showToast('Message sent');
     } catch (err) {
         showToast(err.message || 'Could not send message');
     } finally {
@@ -825,7 +844,7 @@ function initMessageBot() {
       <div class="cc-badge">C</div>
       <div>
         <strong>CIRVIO Admin Bot</strong>
-        <span>Product messages only</span>
+        <span>Buyer · Seller · Admin</span>
       </div>
       <button class="btn-icon message-bot-close" id="messageBotClose" type="button" aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -866,16 +885,18 @@ function openMessageBot() {
             <div>
               <span>Current product</span>
               <strong>${botEsc(product.title || 'Selected product')}</strong>
-              <small>Buyer: You -> CIRVIO Admin</small>
+              <small>Group: buyer, seller, admin</small>
               <small>Seller: ${botEsc(product.seller || 'Seller')}</small>
             </div>
           </div>
-          <button class="btn btn-terracotta message-bot-action" type="button" data-bot-start="${botEsc(latestThreadId)}">${latestThreadId ? 'Reply to Admin' : 'Message Admin'}</button>
+          <button class="btn btn-terracotta message-bot-action" type="button" data-bot-start="${botEsc(latestThreadId)}">${latestThreadId ? 'Open Chat' : 'Start Chat'}</button>
+          <a class="btn btn-outline message-bot-action" href="messages.html">All Chats</a>
         `;
     } else {
         body.innerHTML = `
-          <p class="message-bot-copy">Open any product first, then this bot will send your product message to CIRVIO admin.</p>
-          <button class="btn btn-terracotta message-bot-action" type="button" data-bot-browse>Browse Products</button>
+          <p class="message-bot-copy">Open any product first, then this bot will start a safe group chat with seller and CIRVIO admin.</p>
+          <a class="btn btn-terracotta message-bot-action" href="messages.html">Open Messages</a>
+          <button class="btn btn-outline message-bot-action" type="button" data-bot-browse>Browse Products</button>
         `;
     }
     bot.classList.add('open');

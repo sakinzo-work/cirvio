@@ -148,7 +148,7 @@
                     Wishlist
                     <span class="badge-count" id="mpWishCount">0</span>
                 </a>
-                <a href="profile.html#messages" class="mp-quick-item">
+                <a href="messages.html" class="mp-quick-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path
@@ -198,7 +198,10 @@
         <div class="container">
 
             <div class="profile-header reveal show">
-                <div class="profile-avatar" id="profileAvatar">S</div>
+                <label class="profile-avatar profile-avatar-edit" id="profileAvatarWrap" title="Change profile photo">
+                    <span id="profileAvatar">S</span>
+                    <input type="file" id="profilePhotoInput" accept="image/*" hidden>
+                </label>
                 <div class="profile-id">
                     <h1 id="profileName">Student</h1>
                     <div class="p-college">
@@ -452,7 +455,10 @@
         /* ---------- profile header ---------- */
         function loadProfileHeader() {
             const p = CirvioStore.getProfile();
-            document.getElementById('profileAvatar').textContent = (p.name || 'S').trim().charAt(0).toUpperCase();
+            const avatar = document.getElementById('profileAvatar');
+            avatar.innerHTML = p.photo
+                ? `<img src="${p.photo}" alt="">`
+                : (p.name || 'S').trim().charAt(0).toUpperCase();
             document.getElementById('profileName').textContent = p.name || 'Student';
             document.getElementById('profileCollege').textContent = [p.course, p.college].filter(Boolean).join(' · ') || 'Add your college in Settings';
             document.getElementById('joinedBadge').textContent = 'Joined ' + (p.joined || '—');
@@ -465,6 +471,33 @@
             document.getElementById('setEmail').value = p.email || '';
             document.getElementById('setPhone').value = p.phone || '';
         }
+
+        document.getElementById('profilePhotoInput').addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('Select an image file');
+                return;
+            }
+            if (file.size > 1024 * 1024) {
+                showToast('Profile photo must be under 1 MB');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const p = CirvioStore.getProfile();
+                p.photo = reader.result;
+                CirvioStore.setProfile(p);
+                loadProfileHeader();
+                try {
+                    if (window.CirvioAPI) await CirvioAPI.updateProfile({ photo: p.photo });
+                    showToast('Profile photo updated');
+                } catch (err) {
+                    showToast(err.message || 'Photo saved on this device');
+                }
+            };
+            reader.readAsDataURL(file);
+        });
 
         /* ---------- listings tab ---------- */
         const STATUS_LABEL = { draft: 'Draft', pending: 'Pending Review', approved: 'Live', rejected: 'Rejected' };
@@ -599,10 +632,10 @@
                 grouped.push({ key, first: ordered[0], latest: ordered[ordered.length - 1], count: ordered.length });
             });
             list.innerHTML = grouped.map(({ first, latest, count }) => `
-                <div class="message-card message-thread-card ${latest.from === 'cirvio' && !latest.read ? 'unread' : ''}" data-thread-id="${first.threadId || ''}" data-product-id="${first.productId || ''}">
+                <div class="message-card message-thread-card ${!isOwnMessage(latest) && !latest.read ? 'unread' : ''}" data-thread-id="${first.threadId || ''}" data-product-id="${first.productId || ''}">
                     ${first.productImg ? `<img src="${first.productImg}" alt="">` : '<div class="message-icon">C</div>'}
                     <div>
-                        <strong>${latest.from === 'cirvio' ? 'CIRVIO Admin replied' : 'You to CIRVIO Admin'}</strong>
+                        <strong>${isOwnMessage(latest) ? 'You replied' : (latest.from === 'cirvio' ? 'CIRVIO Admin replied' : (latest.from === 'seller' ? 'Seller replied' : 'Buyer replied'))}</strong>
                         ${first.productTitle ? `<span>${first.productTitle}</span>` : ''}
                         <p>${latest.text}</p>
                         <small>${count} message${count === 1 ? '' : 's'} · ${latest.time || 'Just now'}</small>
@@ -636,7 +669,7 @@
         tabButtons.forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
 
         /* ---------- settings form ---------- */
-        document.getElementById('settingsForm').addEventListener('submit', (e) => {
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const p = CirvioStore.getProfile();
             p.name = document.getElementById('setName').value.trim() || p.name;
@@ -646,8 +679,14 @@
             p.email = document.getElementById('setEmail').value.trim();
             p.phone = document.getElementById('setPhone').value.trim();
             CirvioStore.setProfile(p);
-            loadProfileHeader();
-            showToast('Profile updated');
+            try {
+                if (window.CirvioAPI) await CirvioAPI.updateProfile(p);
+                loadProfileHeader();
+                showToast('Profile updated');
+            } catch (err) {
+                loadProfileHeader();
+                showToast(err.message || 'Profile saved on this device');
+            }
         });
 
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {

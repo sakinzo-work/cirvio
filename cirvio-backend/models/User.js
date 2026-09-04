@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema(
         course: { type: String, default: '' },
         city: { type: String, default: '' },
         phone: { type: String, default: '' },
+        photo: { type: String, default: '' },
         role: { type: String, enum: ['user', 'employee', 'admin'], default: 'user' },
         verified: { type: Boolean, default: false },
         status: { type: String, enum: ['active', 'suspended'], default: 'active' }

@@ -14,6 +14,14 @@ function populateThread(query) {
         .sort({ updatedAt: -1 });
 }
 
+async function canAccessThread(message, user) {
+    if (!message || !user) return false;
+    if (String(message.sender) === String(user._id)) return true;
+    if (['admin', 'employee'].includes(user.role)) return true;
+    const product = await Product.findById(message.product).select('seller').lean();
+    return product && String(product.seller) === String(user._id);
+}
+
 // POST /api/messages — users can only message CIRVIO admin about a product.
 router.post('/', protect, async (req, res) => {
     try {
@@ -42,25 +50,37 @@ router.post('/', protect, async (req, res) => {
     }
 });
 
-// GET /api/messages/my — threads started by this user, including admin replies.
+// GET /api/messages/my — group threads where this user is buyer or seller.
 router.get('/my', protect, async (req, res) => {
-    const messages = await populateThread(Message.find({ sender: req.user._id })).lean();
+    const sellingProducts = await Product.find({ seller: req.user._id }).select('_id').lean();
+    const productIds = sellingProducts.map((p) => p._id);
+    const messages = await populateThread(Message.find({
+        $or: [
+            { sender: req.user._id },
+            { product: { $in: productIds } }
+        ]
+    })).lean();
     res.json({ count: messages.length, messages });
 });
 
-// POST /api/messages/:id/replies — original sender can add follow-up replies to admin.
+// POST /api/messages/:id/replies — buyer/seller can reply in their product group thread.
 router.post('/:id/replies', protect, async (req, res) => {
     try {
         const cleanText = String(req.body.text || '').trim();
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid message is required' });
         if (!cleanText) return res.status(400).json({ message: 'Reply is required' });
 
-        const message = await Message.findOne({ _id: req.params.id, sender: req.user._id });
+        const message = await Message.findById(req.params.id);
         if (!message) return res.status(404).json({ message: 'Message not found' });
+        if (!(await canAccessThread(message, req.user))) {
+            return res.status(403).json({ message: 'Not allowed in this chat' });
+        }
+        const product = await Product.findById(message.product).select('seller').lean();
+        const senderRole = product && String(product.seller) === String(req.user._id) ? 'seller' : 'buyer';
 
         message.replies.push({
             sender: req.user._id,
-            senderRole: 'user',
+            senderRole,
             text: cleanText
         });
         await message.save();

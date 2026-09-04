@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const AppSetting = require('../models/AppSetting');
+const Message = require('../models/Message');
 const { protect, adminOnly, staffOnly } = require('../middleware/auth');
 
 const router = express.Router();
@@ -243,6 +244,21 @@ router.get('/purchases', async (req, res) => {
         });
     });
     res.json({ count: rows.length, purchases: rows });
+});
+
+// GET /api/admin/messages — product-related messages sent to CIRVIO admins.
+router.get('/messages', async (req, res) => {
+    const messages = await Message.find({ recipientRole: 'admin' })
+        .populate('sender', 'name email college city phone')
+        .populate({
+            path: 'product',
+            select: 'title category location images seller',
+            populate: { path: 'seller', select: 'name email college city phone' }
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+
+    res.json({ count: messages.length, messages });
 });
 
 // PUT /api/admin/orders/:id/status   body: { status }

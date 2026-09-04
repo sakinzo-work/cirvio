@@ -40,6 +40,20 @@ function listingStatusOnCreate() {
     return process.env.AUTO_APPROVE_LISTINGS === 'true' ? 'approved' : 'pending';
 }
 
+function publicProduct(product) {
+    const obj = product.toObject ? product.toObject() : product;
+    const seller = obj.seller && typeof obj.seller === 'object'
+        ? {
+            _id: obj.seller._id,
+            name: obj.seller.name,
+            college: obj.seller.college,
+            verified: obj.seller.verified
+        }
+        : obj.seller;
+    const { location, ...safeProduct } = obj;
+    return { ...safeProduct, location: '', seller };
+}
+
 // GET /api/products  — logged-in browse grid (only approved items)
 router.get('/', async (req, res) => {
     try {
@@ -55,9 +69,9 @@ router.get('/', async (req, res) => {
             if (maxPrice) filter.price.$lte = Number(maxPrice);
         }
         const products = await Product.find(filter)
-            .populate('seller', 'name college city verified')
+            .populate('seller', 'name college verified')
             .sort({ createdAt: -1 });
-        res.json({ count: products.length, products });
+        res.json({ count: products.length, products: products.map(publicProduct) });
     } catch (err) {
         res.status(500).json({ message: 'Failed to fetch products', error: err.message });
     }
@@ -90,11 +104,11 @@ router.get('/:id', async (req, res) => {
         const product = await Product.findOne({
             _id: req.params.id,
             status: { $in: ['approved', 'sold'] }
-        }).populate('seller', 'name college city phone verified');
+        }).populate('seller', 'name college verified');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         product.views += 1;
         await product.save();
-        res.json({ product });
+        res.json({ product: publicProduct(product) });
     } catch (err) {
         res.status(404).json({ message: 'Product not found' });
     }
@@ -126,7 +140,7 @@ router.post('/', protect, async (req, res) => {
             seller: req.user._id,
             status: listingStatusOnCreate()
         });
-        await product.populate('seller', 'name college city verified');
+        await product.populate('seller', 'name college verified');
         res.status(201).json({ product });
     } catch (err) {
         res.status(500).json({ message: 'Failed to create listing', error: err.message });

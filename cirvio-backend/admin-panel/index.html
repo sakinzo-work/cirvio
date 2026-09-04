@@ -27,6 +27,7 @@
       <button class="nav-btn" data-tab="users">Users</button>
       <button class="nav-btn" data-tab="listings">Listings</button>
       <button class="nav-btn" data-tab="purchases">Purchases</button>
+      <button class="nav-btn" data-tab="messages">Messages</button>
     </nav>
     <button id="logoutBtn" class="logout-btn">Logout</button>
   </aside>
@@ -114,6 +115,21 @@
       <div class="table-wrap">
         <table id="purchasesTable">
           <thead><tr><th>Date</th><th>Buyer</th><th>Product</th><th>Seller</th><th>Qty</th><th>Price</th><th>Order Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-messages" class="tab-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Messages</h2>
+          <p>Product questions sent by users to CIRVIO admins.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="messagesTable">
+          <thead><tr><th>Date</th><th>User</th><th>Product</th><th>Seller</th><th>Address</th><th>Message</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>

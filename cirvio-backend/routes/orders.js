@@ -5,6 +5,19 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
+function safeSellingOrder(order) {
+    const obj = order.toObject ? order.toObject() : order;
+    const buyer = obj.buyer && typeof obj.buyer === 'object'
+        ? {
+            _id: obj.buyer._id,
+            name: obj.buyer.name,
+            college: obj.buyer.college
+        }
+        : obj.buyer;
+    const { deliveryAddress, ...safeOrder } = obj;
+    return { ...safeOrder, buyer };
+}
+
 // POST /api/orders — checkout the cart. Body: { items: [{ productId, qty }], deliveryAddress }
 router.post('/', protect, async (req, res) => {
     try {
@@ -57,7 +70,7 @@ router.post('/', protect, async (req, res) => {
 // GET /api/orders/my — orders I placed (as buyer)
 router.get('/my', protect, async (req, res) => {
     const orders = await Order.find({ buyer: req.user._id })
-        .populate('items.seller', 'name college city')
+        .populate('items.seller', 'name college')
         .sort({ createdAt: -1 });
     res.json({ count: orders.length, orders });
 });
@@ -65,9 +78,9 @@ router.get('/my', protect, async (req, res) => {
 // GET /api/orders/selling — orders that include items I'm selling
 router.get('/selling', protect, async (req, res) => {
     const orders = await Order.find({ 'items.seller': req.user._id })
-        .populate('buyer', 'name college city phone')
+        .populate('buyer', 'name college')
         .sort({ createdAt: -1 });
-    res.json({ count: orders.length, orders });
+    res.json({ count: orders.length, orders: orders.map(safeSellingOrder) });
 });
 
 module.exports = router;

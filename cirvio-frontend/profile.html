@@ -271,7 +271,7 @@
                             d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.4a8.4 8.4 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5z" />
                     </svg>
                     <p>No messages yet</p>
-                    <span>When a buyer or seller contacts you about a listing, it'll show up here.</span>
+                    <span>Your product messages to CIRVIO admin will show up here.</span>
                     <a class='btn btn-terracotta' href='index.html#browse'>Browse Listings</a>
                 </div>
             </div>
@@ -592,7 +592,7 @@
                 <div class="message-card ${m.from === 'cirvio' ? 'from-cirvio' : 'from-user'}">
                     ${m.productImg ? `<img src="${m.productImg}" alt="">` : '<div class="message-icon">C</div>'}
                     <div>
-                        <strong>${m.from === 'cirvio' ? 'CIRVIO' : 'You'}</strong>
+                        <strong>${m.from === 'cirvio' ? 'CIRVIO Admin' : 'You to CIRVIO Admin'}</strong>
                         ${m.productTitle ? `<span>${m.productTitle}</span>` : ''}
                         <p>${m.text}</p>
                         <small>${m.time || 'Just now'}</small>

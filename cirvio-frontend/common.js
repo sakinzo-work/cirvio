@@ -558,9 +558,8 @@ document.addEventListener('click', (e) => {
 
 /* ============================================================
    CONTACT CIRVIO — every "Contact Seller" / "Message" action
-   opens this modal. Buyers message CIRVIO support, CIRVIO relays
-   to the seller — no direct student-to-student contact info is
-   ever shared.
+   opens this modal. Buyers message CIRVIO admins about products;
+   no direct student-to-student contact info is ever shared.
 ============================================================ */
 let ccCurrentProduct = null;
 
@@ -577,8 +576,8 @@ function ccEnsureModal() {
       <div class="cc-head">
         <div class="cc-badge">C</div>
         <div>
-          <h3>Message CIRVIO</h3>
-          <p class="cc-sub">For your safety, every chat goes through CIRVIO — <span id="ccSellerName">the seller</span> never gets your number directly.</p>
+          <h3>Message CIRVIO Admin</h3>
+          <p class="cc-sub">For your safety, product messages go only to CIRVIO admins. Users never see each other's address or phone.</p>
         </div>
       </div>
       <div class="cc-product" id="ccProduct" style="display:none;">
@@ -588,7 +587,7 @@ function ccEnsureModal() {
           <div class="cc-product-price" id="ccProductPrice"></div>
         </div>
       </div>
-      <textarea id="ccText" class="cc-textarea" placeholder="Type your message to CIRVIO support..."></textarea>
+      <textarea id="ccText" class="cc-textarea" placeholder="Type your product message to CIRVIO admin..."></textarea>
       <button class="btn btn-terracotta" id="ccSend" style="width:100%;justify-content:center;">Send to CIRVIO</button>
     </div>
   </div>
@@ -608,7 +607,6 @@ function ccOpen(product, presetText) {
     ccCurrentProduct = product || null;
     const prodBox = document.getElementById('ccProduct');
     if (product) {
-        document.getElementById('ccSellerName').textContent = product.seller || 'the seller';
         document.getElementById('ccProductImg').src = product.img || '';
         document.getElementById('ccProductImg').alt = product.title || '';
         document.getElementById('ccProductTitle').textContent = product.title || '';
@@ -616,7 +614,6 @@ function ccOpen(product, presetText) {
             product.price === 0 ? (product.type === 'donate' ? 'Donation' : 'Free') : (product.price ? '₹' + product.price : '');
         prodBox.style.display = 'flex';
     } else {
-        document.getElementById('ccSellerName').textContent = 'our team';
         prodBox.style.display = 'none';
     }
     const ta = document.getElementById('ccText');
@@ -633,38 +630,48 @@ function ccClose() {
     document.body.style.overflow = '';
 }
 
-function ccSend() {
+async function ccSend() {
     const ta = document.getElementById('ccText');
     const text = ta.value.trim();
     if (!text) { showToast('Type a message first'); return; }
+    if (!ccCurrentProduct || !ccCurrentProduct.id) { showToast('Select a product first'); return; }
+    const sendBtn = document.getElementById('ccSend');
+    sendBtn.disabled = true;
     const thread = CirvioStore.getMessages();
     const now = Date.now();
-    thread.push({
-        id: now,
-        productId: ccCurrentProduct ? ccCurrentProduct.id : null,
-        productTitle: ccCurrentProduct ? ccCurrentProduct.title : null,
-        productImg: ccCurrentProduct ? ccCurrentProduct.img : null,
-        text,
-        from: 'user',
-        read: true,
-        time: 'Just now'
-    });
-    thread.push({
-        id: now + 1,
-        productId: ccCurrentProduct ? ccCurrentProduct.id : null,
-        productTitle: ccCurrentProduct ? ccCurrentProduct.title : null,
-        productImg: ccCurrentProduct ? ccCurrentProduct.img : null,
-        text: ccCurrentProduct
-            ? `Thanks! We've passed your message about "${ccCurrentProduct.title}" on to ${ccCurrentProduct.seller || 'the seller'} and will update you here as soon as they reply.`
-            : `Thanks for reaching out — the CIRVIO support team will reply here shortly.`,
-        from: 'cirvio',
-        read: false,
-        time: 'Just now'
-    });
-    CirvioStore.setMessages(thread);
-    refreshMsgBadge();
-    showToast('Message sent to CIRVIO');
-    ccClose();
+    try {
+        if (window.CirvioAPI) {
+            await CirvioAPI.sendMessage(ccCurrentProduct.id, text);
+        }
+        thread.push({
+            id: now,
+            productId: ccCurrentProduct.id,
+            productTitle: ccCurrentProduct.title,
+            productImg: ccCurrentProduct.img,
+            text,
+            from: 'user',
+            read: true,
+            time: 'Just now'
+        });
+        thread.push({
+            id: now + 1,
+            productId: ccCurrentProduct.id,
+            productTitle: ccCurrentProduct.title,
+            productImg: ccCurrentProduct.img,
+            text: `Thanks! CIRVIO admins received your message about "${ccCurrentProduct.title}" and will handle the next step safely.`,
+            from: 'cirvio',
+            read: false,
+            time: 'Just now'
+        });
+        CirvioStore.setMessages(thread);
+        refreshMsgBadge();
+        showToast('Message sent to CIRVIO admin');
+        ccClose();
+    } catch (err) {
+        showToast(err.message || 'Could not send message');
+    } finally {
+        sendBtn.disabled = false;
+    }
 }
 
 /* ---------- PWA: install prompt ---------- */

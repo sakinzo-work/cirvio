@@ -102,7 +102,7 @@ async function showApp() {
     ensureSettingsPanel();
     ensureEmployeePanel();
     applyRolePermissions();
-    await Promise.all([loadStats(), loadUsers(), loadListings(), loadPurchases(), loadClientOrigins()]);
+    await Promise.all([loadStats(), loadUsers(), loadListings(), loadPurchases(), loadMessages(), loadClientOrigins()]);
 }
 
 (async function init() {
@@ -444,6 +444,27 @@ async function loadPurchases() {
           <td>${row.seller ? esc(row.seller.name) : '-'}</td>
           <td>${inr(row.price * row.qty)}</td>
         </tr>`).join('');
+}
+
+/* ---------- product messages ---------- */
+async function loadMessages() {
+    const table = document.querySelector('#messagesTable tbody');
+    if (!table) return;
+    const { messages } = await api('/api/admin/messages');
+    table.innerHTML = messages.length ? messages.map((m) => {
+        const product = m.product || {};
+        const seller = product.seller || {};
+        const sender = m.sender || {};
+        return `
+        <tr>
+          <td>${fmtDate(m.createdAt)}</td>
+          <td class="pair-cell">${esc(sender.name || '-')}<span class="sub">${esc(sender.email || '')}</span></td>
+          <td class="pair-cell">${esc(product.title || m.productTitle || '-')}<span class="sub">${esc(product.category || '')}</span></td>
+          <td class="pair-cell">${esc(seller.name || '-')}<span class="sub">${esc(seller.email || '')}</span></td>
+          <td>${esc(product.location || '-')}</td>
+          <td>${esc(m.text || '')}</td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="6" class="sub">No product messages yet.</td></tr>';
 }
 
 /* ---------- allowed frontend URLs ---------- */

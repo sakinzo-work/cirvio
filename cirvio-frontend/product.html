@@ -921,7 +921,7 @@
         <div class="spec-row"><span>Category</span><span>${product.cat}</span></div>
         <div class="spec-row"><span>Condition</span><span>${product.cond}</span></div>
         <div class="spec-row"><span>Listing type</span><span>${product.type === 'sell' ? 'For Sale' : (product.type === 'donate' ? 'Donation' : 'Free')}</span></div>
-        <div class="spec-row"><span>Pickup location</span><span>${product.loc}</span></div>
+        <div class="spec-row"><span>Pickup details</span><span>${product.loc}</span></div>
         <div class="spec-row"><span>Posted</span><span>${product.time}</span></div>
         <div class="spec-row"><span>Seller</span><span>${product.seller}</span></div>
       `;
@@ -993,13 +993,22 @@
             document.getElementById('offerPanel').classList.toggle('open');
         });
 
-        document.getElementById('offerSendBtn').addEventListener('click', () => {
+        document.getElementById('offerSendBtn').addEventListener('click', async () => {
             const amt = document.getElementById('offerAmount').value;
             if (!amt) { showToast('Enter an offer amount'); return; }
+            const offerText = `I'd like to offer ₹${amt} for "${product.title}".`;
+            try {
+                if (window.CirvioAPI) {
+                    await CirvioAPI.sendMessage(product.id, offerText);
+                }
+            } catch (err) {
+                showToast(err.message || 'Could not send offer');
+                return;
+            }
             const thread = CirvioStore.getMessages();
             const now = Date.now();
-            thread.push({ id: now, productId: product.id, productTitle: product.title, productImg: product.img, text: `I'd like to offer ₹${amt} for "${product.title}".`, from: 'user', read: true, time: 'Just now' });
-            thread.push({ id: now + 1, productId: product.id, productTitle: product.title, productImg: product.img, text: `Thanks! We've sent your ₹${amt} offer to ${product.seller} and will let you know here once they respond.`, from: 'cirvio', read: false, time: 'Just now' });
+            thread.push({ id: now, productId: product.id, productTitle: product.title, productImg: product.img, text: offerText, from: 'user', read: true, time: 'Just now' });
+            thread.push({ id: now + 1, productId: product.id, productTitle: product.title, productImg: product.img, text: `Thanks! CIRVIO admins received your ₹${amt} offer and will handle the next step safely.`, from: 'cirvio', read: false, time: 'Just now' });
             CirvioStore.setMessages(thread);
             refreshMsgBadge();
             showToast('Offer of ₹' + amt + ' sent via CIRVIO');

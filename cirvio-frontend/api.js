@@ -70,7 +70,7 @@ function normalizeProduct(product) {
         cond: product.cond || product.condition || 'Good',
         orig: product.orig || product.originalPrice || 0,
         desc: product.desc || product.description || '',
-        loc: product.loc || product.location || seller.city || '',
+        loc: product.loc || product.location || 'Pickup handled by CIRVIO admin',
         seller: typeof seller === 'string' ? seller : (seller.name || product.sellerName || 'CIRVIO Seller'),
         sellerId: typeof seller === 'object' ? seller._id : product.seller,
         img,
@@ -229,6 +229,13 @@ const CirvioAPI = {
                 items: items.map(item => ({ productId: item.id || item.productId, qty: item.qty || 1 })),
                 deliveryAddress
             })
+        });
+    },
+    async sendMessage(productId, text) {
+        await this.ensureSession();
+        return this.request('/api/messages', {
+            method: 'POST',
+            body: JSON.stringify({ productId, text })
         });
     }
 };

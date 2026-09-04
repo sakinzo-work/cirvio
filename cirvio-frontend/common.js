@@ -588,6 +588,7 @@ function ccEnsureModal() {
           <div class="cc-product-price" id="ccProductPrice"></div>
         </div>
       </div>
+      <div class="cc-thread" id="ccThread"></div>
       <textarea id="ccText" class="cc-textarea" placeholder="Type your product message to CIRVIO admin..."></textarea>
       <button class="btn btn-terracotta" id="ccSend" style="width:100%;justify-content:center;">Send to CIRVIO</button>
     </div>
@@ -606,7 +607,7 @@ function ccEnsureModal() {
 function ccOpen(product, presetText, threadId = '') {
     ccEnsureModal();
     ccCurrentProduct = product || null;
-    ccCurrentThreadId = threadId || '';
+    ccCurrentThreadId = threadId || findLatestThreadIdForProduct(product?.id);
     const prodBox = document.getElementById('ccProduct');
     if (product) {
         document.getElementById('ccProductImg').src = product.img || '';
@@ -620,11 +621,70 @@ function ccOpen(product, presetText, threadId = '') {
     }
     const ta = document.getElementById('ccText');
     ta.value = presetText || '';
+    document.getElementById('ccSend').textContent = ccCurrentThreadId ? 'Send Reply' : 'Send to CIRVIO';
+    renderContactThread();
+    markThreadRead(ccCurrentThreadId);
     document.getElementById('ccOverlay').classList.add('open');
     document.body.style.overflow = 'hidden';
     setTimeout(() => ta.focus(), 60);
 }
-window.CirvioContact = { open: ccOpen };
+
+function findLatestThreadIdForProduct(productId) {
+    if (!productId) return '';
+    const latest = CirvioStore.getMessages().slice().reverse().find((m) => m.threadId && String(m.productId) === String(productId));
+    return latest ? latest.threadId : '';
+}
+
+function renderContactThread() {
+    const box = document.getElementById('ccThread');
+    if (!box) return;
+    const messages = CirvioStore.getMessages()
+        .filter((m) => (ccCurrentThreadId && m.threadId === ccCurrentThreadId) || (!ccCurrentThreadId && ccCurrentProduct && String(m.productId) === String(ccCurrentProduct.id)))
+        .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    if (!messages.length) {
+        box.innerHTML = '<div class="cc-empty-thread">Start a product chat with CIRVIO admin.</div>';
+        return;
+    }
+    box.innerHTML = messages.map((m) => `
+      <div class="cc-bubble ${m.from === 'cirvio' ? 'from-admin' : 'from-user'}">
+        <strong>${m.from === 'cirvio' ? 'CIRVIO Admin' : 'You'}</strong>
+        <p>${botEsc(m.text || '')}</p>
+        <small>${botEsc(m.time || 'Just now')}</small>
+      </div>
+    `).join('');
+    box.scrollTop = box.scrollHeight;
+}
+
+function markThreadRead(threadId) {
+    if (!threadId) return;
+    const messages = CirvioStore.getMessages();
+    let changed = false;
+    messages.forEach((m) => {
+        if (m.threadId === threadId && m.from === 'cirvio' && !m.read) {
+            m.read = true;
+            changed = true;
+        }
+    });
+    if (changed) {
+        CirvioStore.setMessages(messages);
+        refreshMsgBadge();
+        window.dispatchEvent(new CustomEvent('cirvio:messages-synced', { detail: { messages } }));
+    }
+}
+
+function openContactThreadFromMessage(message) {
+    if (!message) return;
+    const product = {
+        id: message.productId,
+        title: message.productTitle || 'Selected product',
+        img: message.productImg || '',
+        price: '',
+        seller: 'Seller'
+    };
+    ccOpen(product, '', message.threadId || findLatestThreadIdForProduct(message.productId));
+}
+
+window.CirvioContact = { open: ccOpen, openThread: openContactThreadFromMessage };
 
 function ccClose() {
     const ov = document.getElementById('ccOverlay');
@@ -677,6 +737,7 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
     CirvioStore.setMessages(combined);
     refreshMsgBadge();
     window.dispatchEvent(new CustomEvent('cirvio:messages-synced', { detail: { messages: combined } }));
+    if (document.getElementById('ccOverlay')?.classList.contains('open')) renderContactThread();
     if (newAdminReply) showToast(`CIRVIO Admin replied about "${newAdminReply.productTitle || 'your product'}"`);
 }
 
@@ -717,6 +778,7 @@ async function ccSend() {
         }
         if (saved?.message) {
             mergeBackendMessages([saved.message]);
+            ccCurrentThreadId = saved.message._id || ccCurrentThreadId;
         } else {
             const now = Date.now();
             thread.push({
@@ -732,8 +794,10 @@ async function ccSend() {
             CirvioStore.setMessages(thread);
             refreshMsgBadge();
         }
+        ta.value = '';
+        renderContactThread();
+        markThreadRead(ccCurrentThreadId);
         showToast('Message sent to CIRVIO admin');
-        ccClose();
     } catch (err) {
         showToast(err.message || 'Could not send message');
     } finally {

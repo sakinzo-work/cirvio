@@ -2385,6 +2385,26 @@ footer {
     font-size: .88rem;
 }
 
+.message-thread-card {
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.message-thread-card:hover {
+    border-color: var(--terracotta);
+    box-shadow: var(--shadow-soft);
+    transform: translateY(-1px);
+}
+
+.message-thread-card.unread {
+    border-color: var(--terracotta);
+    background: #fff8ef;
+}
+
+.message-reply-btn {
+    margin-top: 8px;
+}
+
 .modal-img {
     background: var(--cream);
     position: relative;
@@ -3329,6 +3349,65 @@ footer {
     font-size: .76rem;
     color: #8a856f;
     margin-top: 2px;
+}
+
+.cc-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    max-height: 280px;
+    overflow-y: auto;
+    margin: 14px 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fffaf0;
+}
+
+.cc-empty-thread {
+    color: #8a856f;
+    font-size: .82rem;
+    text-align: center;
+    padding: 14px 8px;
+}
+
+.cc-bubble {
+    max-width: 86%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #fff;
+}
+
+.cc-bubble.from-user {
+    align-self: flex-end;
+    background: var(--olive-deep);
+    color: var(--ivory);
+    border-color: var(--olive-deep);
+    border-bottom-right-radius: 4px;
+}
+
+.cc-bubble.from-admin {
+    align-self: flex-start;
+    background: #fff;
+    color: var(--charcoal);
+    border-bottom-left-radius: 4px;
+}
+
+.cc-bubble strong,
+.cc-bubble small {
+    display: block;
+    font-size: .7rem;
+}
+
+.cc-bubble p {
+    margin: 4px 0;
+    line-height: 1.45;
+    font-size: .84rem;
+}
+
+.cc-bubble small {
+    opacity: .68;
 }
 
 .cc-textarea {

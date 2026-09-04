@@ -588,18 +588,43 @@
                 return;
             }
             empty.style.display = 'none';
-            list.innerHTML = messages.map((m) => `
-                <div class="message-card ${m.from === 'cirvio' ? 'from-cirvio' : 'from-user'}">
-                    ${m.productImg ? `<img src="${m.productImg}" alt="">` : '<div class="message-icon">C</div>'}
+            const grouped = [];
+            const seen = new Set();
+            messages.forEach((m) => {
+                const key = m.threadId || m.backendKey || m.id;
+                if (seen.has(key)) return;
+                seen.add(key);
+                const threadMessages = messages.filter((x) => (m.threadId && x.threadId === m.threadId) || (!m.threadId && x.id === m.id));
+                const ordered = threadMessages.slice().sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                grouped.push({ key, first: ordered[0], latest: ordered[ordered.length - 1], count: ordered.length });
+            });
+            list.innerHTML = grouped.map(({ first, latest, count }) => `
+                <div class="message-card message-thread-card ${latest.from === 'cirvio' && !latest.read ? 'unread' : ''}" data-thread-id="${first.threadId || ''}" data-product-id="${first.productId || ''}">
+                    ${first.productImg ? `<img src="${first.productImg}" alt="">` : '<div class="message-icon">C</div>'}
                     <div>
-                        <strong>${m.from === 'cirvio' ? 'CIRVIO Admin' : 'You to CIRVIO Admin'}</strong>
-                        ${m.productTitle ? `<span>${m.productTitle}</span>` : ''}
-                        <p>${m.text}</p>
-                        <small>${m.time || 'Just now'}</small>
+                        <strong>${latest.from === 'cirvio' ? 'CIRVIO Admin replied' : 'You to CIRVIO Admin'}</strong>
+                        ${first.productTitle ? `<span>${first.productTitle}</span>` : ''}
+                        <p>${latest.text}</p>
+                        <small>${count} message${count === 1 ? '' : 's'} · ${latest.time || 'Just now'}</small>
+                        <button class="btn btn-outline btn-sm message-reply-btn" type="button">Open Chat</button>
                     </div>
                 </div>
             `).join('');
         }
+
+        document.getElementById('messagesList').addEventListener('click', (e) => {
+            const card = e.target.closest('.message-thread-card');
+            if (!card) return;
+            const messages = CirvioStore.getMessages();
+            const message = messages.slice().reverse().find((m) => {
+                if (card.dataset.threadId) return m.threadId === card.dataset.threadId;
+                return String(m.productId || '') === String(card.dataset.productId || '');
+            });
+            if (message && window.CirvioContact) {
+                CirvioContact.openThread(message);
+                renderMessages();
+            }
+        });
 
         /* ---------- tabs ---------- */
         const tabButtons = document.querySelectorAll('.profile-tab');

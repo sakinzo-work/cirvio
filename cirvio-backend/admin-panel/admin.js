@@ -90,11 +90,19 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 /* ---------- tabs ---------- */
 document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        activateTab(btn.dataset.tab);
     });
+});
+
+function activateTab(tab) {
+    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+    const panel = document.getElementById('tab-' + tab);
+    if (panel) panel.classList.add('active');
+}
+
+document.querySelectorAll('[data-jump-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.jumpTab));
 });
 
 /* ---------- boot ---------- */
@@ -218,6 +226,12 @@ async function loadStats() {
     const dispatchPending = document.getElementById('statDispatchPending');
     if (paymentPending) paymentPending.textContent = s.paymentPendingOrders || 0;
     if (dispatchPending) dispatchPending.textContent = s.dispatchPendingOrders || 0;
+    const opsPendingListings = document.getElementById('opsPendingListings');
+    const opsPaymentPending = document.getElementById('opsPaymentPending');
+    const opsDispatchPending = document.getElementById('opsDispatchPending');
+    if (opsPendingListings) opsPendingListings.textContent = s.pendingProducts || 0;
+    if (opsPaymentPending) opsPaymentPending.textContent = s.paymentPendingOrders || 0;
+    if (opsDispatchPending) opsDispatchPending.textContent = s.dispatchPendingOrders || 0;
 }
 
 /* ---------- users ---------- */

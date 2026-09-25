@@ -11,7 +11,7 @@ const productSchema = new mongoose.Schema(
         description: { type: String, default: '' },
         location: { type: String, required: true },
         college: { type: String, default: '' },
-        images: [{ type: String }], // uploaded file URLs
+        images: [{ type: String }], // base64 data URLs stored with the listing
 
         seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 

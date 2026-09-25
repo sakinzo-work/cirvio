@@ -1,36 +1,20 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const multer = require('multer');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
-const uploadDir = path.join(__dirname, '..', 'uploads', 'products');
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-        cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-    }
-});
 
 const upload = multer({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024, files: 4 },
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024, files: 4 },
     fileFilter: (req, file, cb) => {
-        if (!/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) {
-            return cb(new Error('Only JPG, PNG, WEBP or GIF images are allowed'));
+        if (!/^image\/(jpeg|png|webp)$/.test(file.mimetype)) {
+            return cb(new Error('Only JPG, PNG or WEBP images are allowed'));
         }
         cb(null, true);
     }
 });
-
-function absoluteUrl(req, relativePath) {
-    return `${req.protocol}://${req.get('host')}${relativePath}`;
-}
 
 function normalizeListingType(type) {
     return ['sell', 'donate', 'free'].includes(type) ? type : 'sell';
@@ -38,6 +22,14 @@ function normalizeListingType(type) {
 
 function listingStatusOnCreate() {
     return process.env.AUTO_APPROVE_LISTINGS === 'true' ? 'approved' : 'pending';
+}
+
+function normalizeImages(images = []) {
+    if (!Array.isArray(images)) return [];
+    return images
+        .map((image) => String(image || '').trim())
+        .filter((image) => /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(image) || /^https?:\/\//i.test(image))
+        .slice(0, 4);
 }
 
 function publicProduct(product) {
@@ -93,7 +85,7 @@ router.post('/uploads', protect, (req, res) => {
         if (!files.length) {
             return res.status(400).json({ message: 'Please select at least one image' });
         }
-        const images = files.map((file) => absoluteUrl(req, `/uploads/products/${file.filename}`));
+        const images = files.map((file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`);
         res.status(201).json({ images });
     });
 });
@@ -118,8 +110,12 @@ router.get('/:id', async (req, res) => {
 router.post('/', protect, async (req, res) => {
     try {
         const { title, category, condition, type, price, originalPrice, description, location, college, images } = req.body;
+        const listingImages = normalizeImages(images);
         if (!title || !category || !condition || !location) {
             return res.status(400).json({ message: 'title, category, condition and location are required' });
+        }
+        if (!listingImages.length) {
+            return res.status(400).json({ message: 'Please add at least one listing image' });
         }
         const listingType = normalizeListingType(type);
         const listingPrice = listingType === 'sell' ? Number(price) || 0 : 0;
@@ -136,7 +132,7 @@ router.post('/', protect, async (req, res) => {
             description: String(description || '').trim(),
             location: String(location).trim(),
             college: String(college || '').trim(),
-            images: Array.isArray(images) ? images : [],
+            images: listingImages,
             seller: req.user._id,
             status: listingStatusOnCreate()
         });
@@ -156,7 +152,7 @@ router.put('/:id', protect, async (req, res) => {
     }
     const editable = ['title', 'category', 'condition', 'price', 'originalPrice', 'description', 'location', 'college', 'images'];
     editable.forEach((f) => {
-        if (req.body[f] !== undefined) product[f] = req.body[f];
+        if (req.body[f] !== undefined) product[f] = f === 'images' ? normalizeImages(req.body[f]) : req.body[f];
     });
     // any edit sends it back for re-review
     product.status = 'pending';

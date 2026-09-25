@@ -36,8 +36,30 @@
     <section id="tab-dashboard" class="tab-panel active">
       <div class="panel-head">
         <div>
-          <h2>Dashboard</h2>
-          <p>Review marketplace activity, listing approvals and recent orders.</p>
+          <h2>Operations Dashboard</h2>
+          <p>Daily control room for approvals, manual payments, dispatch and support chats.</p>
+        </div>
+      </div>
+
+      <div class="ops-overview">
+        <div class="ops-copy">
+          <span class="ops-kicker">Today focus</span>
+          <h3>Move every listing from review to delivery without losing track.</h3>
+          <p>Images are now stored with listings, orders start in manual payment mode, and dispatch can be updated by staff from Purchases.</p>
+        </div>
+        <div class="ops-queue">
+          <button class="ops-queue-card" data-jump-tab="listings">
+            <span>Needs review</span>
+            <strong id="opsPendingListings">-</strong>
+          </button>
+          <button class="ops-queue-card" data-jump-tab="purchases">
+            <span>Collect payment</span>
+            <strong id="opsPaymentPending">-</strong>
+          </button>
+          <button class="ops-queue-card" data-jump-tab="purchases">
+            <span>Dispatch queue</span>
+            <strong id="opsDispatchPending">-</strong>
+          </button>
         </div>
       </div>
 

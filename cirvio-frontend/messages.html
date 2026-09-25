@@ -51,7 +51,7 @@
                     <img id="chatProductImg" src="cirvio-logo-header.png" alt="" onerror="this.onerror=null;this.src='cirvio-logo-header.png';">
                     <div>
                         <h1 id="chatProductTitle">Product chat</h1>
-                        <p id="chatParties">Buyer · Seller · Admin</p>
+                        <p id="chatParties">Product chat - Buyer, Seller, CIRVIO Admin</p>
                     </div>
                     <nav class="chat-room-actions" aria-label="Message actions">
                         <a href="index.html" class="chat-action-btn" aria-label="Back to home" title="Back to home">
@@ -60,6 +60,9 @@
                         <a href="profile.html" class="chat-action-btn" aria-label="Settings" title="Settings">
                             <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 .9-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6.9h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
                         </a>
+                        <button class="chat-action-btn chat-delete-btn" id="chatDeleteBtn" type="button" aria-label="Delete chat" title="Delete chat">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
+                        </button>
                     </nav>
                 </header>
                 <div class="chat-messages" id="chatMessages"></div>
@@ -101,6 +104,7 @@
         const roomEl = document.getElementById('chatRoom');
         const messagesEl = document.getElementById('chatMessages');
         const userStripEl = document.getElementById('chatUserStrip');
+        const deleteBtn = document.getElementById('chatDeleteBtn');
 
         function escChat(value) {
             return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -215,7 +219,8 @@
             roomEl.hidden = false;
             document.body.classList.add('chat-open');
             document.getElementById('chatProductTitle').textContent = thread.productTitle;
-            document.getElementById('chatParties').textContent = 'Buyer · Seller · CIRVIO Admin';
+            const shortId = thread.productId ? `Product ID ${String(thread.productId).slice(-6).toUpperCase()} - ` : '';
+            document.getElementById('chatParties').textContent = `${shortId}Buyer, Seller, CIRVIO Admin`;
             const productImg = document.getElementById('chatProductImg');
             productImg.onerror = () => {
                 productImg.onerror = null;
@@ -226,6 +231,41 @@
             productImg.src = thread.productImg || chatLogo;
             renderMessages(thread);
             renderThreadList();
+        }
+
+        function removeThreadFromLocal(threadId) {
+            const messages = CirvioStore.getMessages().filter((m) => {
+                const key = m.threadId || m.backendKey || String(m.id);
+                return key !== threadId;
+            });
+            CirvioStore.setMessages(messages);
+            refreshMsgBadge();
+            window.dispatchEvent(new CustomEvent('cirvio:messages-synced', { detail: { messages } }));
+        }
+
+        async function deleteActiveThread() {
+            if (!activeThreadId) return;
+            const thread = groupThreads().find((t) => t.id === activeThreadId);
+            if (!thread) return;
+            if (!window.confirm(`Delete chat for "${thread.productTitle}"?`)) return;
+            try {
+                deleteBtn.disabled = true;
+                if (window.CirvioAPI && validBackendId(thread.id)) {
+                    await CirvioAPI.deleteMessage(thread.id);
+                }
+                removeThreadFromLocal(thread.id);
+                activeThreadId = '';
+                roomEl.hidden = true;
+                emptyEl.hidden = false;
+                document.body.classList.remove('chat-open');
+                renderThreadList();
+                openFirstThreadOnDesktop();
+                showToast('Chat deleted');
+            } catch (err) {
+                showToast(err.message || 'Could not delete chat');
+            } finally {
+                deleteBtn.disabled = false;
+            }
         }
 
         function addLocalReply(thread, text) {
@@ -279,6 +319,7 @@
         document.getElementById('chatMobileBack').addEventListener('click', () => {
             document.body.classList.remove('chat-open');
         });
+        deleteBtn.addEventListener('click', deleteActiveThread);
 
         function isDesktopChat() {
             return window.matchMedia('(min-width: 761px)').matches;

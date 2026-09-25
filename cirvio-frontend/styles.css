@@ -3913,8 +3913,7 @@ footer {
     min-height: 0;
     height: 100vh;
     height: 100dvh;
-    display: grid;
-    grid-template-rows: minmax(0, 1fr);
+    display: block;
     overflow: hidden;
     border: none;
     border-radius: 0;
@@ -3922,12 +3921,31 @@ footer {
     box-shadow: none;
 }
 
+.chat-main::before,
+.chat-main::after,
+.chat-room::before,
+.chat-room::after {
+    content: none !important;
+    display: none !important;
+}
+
 .chat-empty {
-    grid-area: 1 / 1;
-    place-self: center;
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
     text-align: center;
-    max-width: 420px;
     padding: 28px;
+}
+
+.chat-empty[hidden],
+.chat-room[hidden] {
+    display: none !important;
+}
+
+.chat-empty > * {
+    max-width: 420px;
+    justify-self: center;
 }
 
 .chat-empty .message-icon {
@@ -3966,7 +3984,6 @@ footer {
 .chat-room {
     position: absolute;
     inset: 0;
-    grid-area: 1 / 1;
     min-height: 0;
     height: 100%;
     display: grid;
@@ -3983,8 +4000,8 @@ footer {
     grid-template-columns: 42px 58px minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
-    min-height: 78px;
-    padding: 10px 18px;
+    height: 78px;
+    padding: 8px 18px;
     background: rgba(255, 255, 255, .96);
     border-bottom: 1px solid var(--border);
     min-width: 0;
@@ -4035,6 +4052,26 @@ footer {
 
 .chat-room-actions {
     grid-column: 4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.chat-delete-btn {
+    border-color: rgba(178, 66, 47, .28);
+    color: #a94531;
+}
+
+.chat-delete-btn:hover,
+.chat-delete-btn:focus-visible {
+    background: rgba(178, 66, 47, .08);
+    border-color: rgba(178, 66, 47, .42);
+}
+
+.chat-delete-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
 }
 
 .chat-messages {
@@ -4272,7 +4309,7 @@ footer {
     }
 
     body.chat-open .chat-main {
-        display: grid;
+        display: block;
     }
 
     .chat-mobile-back {
@@ -4283,9 +4320,9 @@ footer {
 
     .chat-room-head {
         grid-template-columns: 38px 42px minmax(0, 1fr) auto;
-        min-height: 70px;
+        height: 66px;
         gap: 8px;
-        padding: 8px 10px;
+        padding: 7px 10px;
     }
 
     .chat-room-head img {

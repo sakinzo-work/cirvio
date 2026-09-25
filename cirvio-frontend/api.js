@@ -257,6 +257,12 @@ const CirvioAPI = {
             method: 'POST',
             body: JSON.stringify({ text })
         });
+    },
+    async deleteMessage(messageId) {
+        await this.ensureSession();
+        return this.request('/api/messages/' + encodeURIComponent(messageId), {
+            method: 'DELETE'
+        });
     }
 };
 

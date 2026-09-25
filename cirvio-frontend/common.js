@@ -712,7 +712,7 @@ function ccClose() {
 
 function messageEntryFromThread(thread, part, index = -1, existing = null) {
     const isRoot = index < 0;
-    const role = isRoot ? 'buyer' : (part.senderRole || 'buyer');
+    const role = isRoot ? 'buyer' : (part.senderRole === 'user' ? 'buyer' : (part.senderRole || 'buyer'));
     const fromAdmin = ['admin', 'employee'].includes(role);
     const fromSeller = role === 'seller';
     const sender = isRoot ? thread.sender : part.sender;

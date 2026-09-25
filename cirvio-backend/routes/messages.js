@@ -91,4 +91,22 @@ router.post('/:id/replies', protect, async (req, res) => {
     }
 });
 
+// DELETE /api/messages/:id — remove a product chat for an allowed participant.
+router.delete('/:id', protect, async (req, res) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid message is required' });
+
+        const message = await Message.findById(req.params.id);
+        if (!message) return res.status(404).json({ message: 'Message not found' });
+        if (!(await canAccessThread(message, req.user))) {
+            return res.status(403).json({ message: 'Not allowed to delete this chat' });
+        }
+
+        await message.deleteOne();
+        res.json({ message: 'Chat deleted' });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to delete chat', error: err.message });
+    }
+});
+
 module.exports = router;

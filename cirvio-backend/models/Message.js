@@ -26,4 +26,13 @@ const messageSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+messageSchema.pre('validate', function normalizeLegacyReplyRoles(next) {
+    if (Array.isArray(this.replies)) {
+        this.replies.forEach((reply) => {
+            if (reply.senderRole === 'user') reply.senderRole = 'buyer';
+        });
+    }
+    next();
+});
+
 module.exports = mongoose.model('Message', messageSchema);

@@ -9,6 +9,11 @@ const { protect, adminOnly, staffOnly } = require('../middleware/auth');
 const router = express.Router();
 router.use(protect, staffOnly); // every route below is CIRVIO staff-only
 const requireAdmin = [adminOnly];
+const ORDER_STATUSES = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+const PAYMENT_STATUSES = ['pending', 'collected', 'failed', 'refunded'];
+const PAYMENT_MODES = ['manual', 'cash', 'upi', 'bank-transfer', 'other'];
+const DISPATCH_STATUSES = ['not-dispatched', 'packed', 'picked-up', 'in-transit', 'delivered', 'returned'];
+const DISPATCH_MODES = ['pending', 'cirvio-runner', 'seller-drop', 'buyer-pickup', 'courier', 'other'];
 
 function splitOrigins(value = '') {
     return String(value)
@@ -97,7 +102,7 @@ router.put('/employees/:id/password', requireAdmin, async (req, res) => {
 
 // GET /api/admin/stats — top dashboard cards
 router.get('/stats', async (req, res) => {
-    const [totalUsers, totalProducts, pendingProducts, approvedProducts, soldProducts, totalOrders, revenueAgg] =
+    const [totalUsers, totalProducts, pendingProducts, approvedProducts, soldProducts, totalOrders, revenueAgg, paymentPendingOrders, dispatchPendingOrders] =
         await Promise.all([
             User.countDocuments(),
             Product.countDocuments(),
@@ -105,7 +110,9 @@ router.get('/stats', async (req, res) => {
             Product.countDocuments({ status: 'approved' }),
             Product.countDocuments({ status: 'sold' }),
             Order.countDocuments(),
-            Order.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }])
+            Order.aggregate([{ $match: { paymentStatus: 'collected' } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+            Order.countDocuments({ paymentStatus: { $ne: 'collected' }, status: { $ne: 'cancelled' } }),
+            Order.countDocuments({ dispatchStatus: { $nin: ['delivered', 'returned'] }, status: { $ne: 'cancelled' } })
         ]);
 
     res.json({
@@ -115,7 +122,9 @@ router.get('/stats', async (req, res) => {
         approvedProducts,
         soldProducts,
         totalOrders,
-        totalRevenue: revenueAgg[0] ? revenueAgg[0].total : 0
+        totalRevenue: revenueAgg[0] ? revenueAgg[0].total : 0,
+        paymentPendingOrders,
+        dispatchPendingOrders
     });
 });
 
@@ -217,6 +226,14 @@ router.get('/orders', async (req, res) => {
     res.json({ count: orders.length, orders });
 });
 
+async function populateOrder(id) {
+    return Order.findById(id)
+        .populate('buyer', 'name email college city phone')
+        .populate('items.seller', 'name email college city phone')
+        .populate('items.product', 'title category images status')
+        .populate('lastUpdatedBy', 'name email role');
+}
+
 // GET /api/admin/purchases — flattened rows: buyer + product + seller paired,
 // exactly what the dashboard "who bought what from whom" table needs.
 router.get('/purchases', async (req, res) => {
@@ -233,6 +250,18 @@ router.get('/purchases', async (req, res) => {
             rows.push({
                 orderId: order._id,
                 orderStatus: order.status,
+                paymentStatus: order.paymentStatus || 'pending',
+                paymentMode: order.paymentMode || 'manual',
+                paymentReference: order.paymentReference || '',
+                dispatchStatus: order.dispatchStatus || 'not-dispatched',
+                dispatchMode: order.dispatchMode || 'pending',
+                trackingId: order.trackingId || '',
+                dispatchPartner: order.dispatchPartner || '',
+                dispatchDate: order.dispatchDate,
+                deliveredAt: order.deliveredAt,
+                adminNotes: order.adminNotes || '',
+                deliveryAddress: order.deliveryAddress || '',
+                updatedAt: order.updatedAt,
                 date: order.createdAt,
                 buyer: order.buyer,
                 seller: item.seller,
@@ -294,11 +323,70 @@ router.post('/messages/:id/reply', async (req, res) => {
 // PUT /api/admin/orders/:id/status   body: { status }
 router.put('/orders/:id/status', async (req, res) => {
     const { status } = req.body;
-    const allowed = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'];
-    if (!allowed.includes(status)) return res.status(400).json({ message: 'Invalid status' });
-    const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    if (!ORDER_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid status' });
+    const update = { status, lastUpdatedBy: req.user._id };
+    if (status === 'shipped') update.dispatchStatus = 'in-transit';
+    if (status === 'delivered') {
+        update.dispatchStatus = 'delivered';
+        update.deliveredAt = new Date();
+    }
+    const order = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json({ order });
+});
+
+// PUT /api/admin/orders/:id/operations
+router.put('/orders/:id/operations', async (req, res) => {
+    const update = { lastUpdatedBy: req.user._id };
+    const {
+        status,
+        paymentStatus,
+        paymentMode,
+        paymentReference,
+        dispatchStatus,
+        dispatchMode,
+        trackingId,
+        dispatchPartner,
+        dispatchDate,
+        deliveredAt,
+        deliveryAddress,
+        adminNotes
+    } = req.body;
+
+    if (status !== undefined) {
+        if (!ORDER_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid order status' });
+        update.status = status;
+    }
+    if (paymentStatus !== undefined) {
+        if (!PAYMENT_STATUSES.includes(paymentStatus)) return res.status(400).json({ message: 'Invalid payment status' });
+        update.paymentStatus = paymentStatus;
+    }
+    if (paymentMode !== undefined) {
+        if (!PAYMENT_MODES.includes(paymentMode)) return res.status(400).json({ message: 'Invalid payment mode' });
+        update.paymentMode = paymentMode;
+    }
+    if (dispatchStatus !== undefined) {
+        if (!DISPATCH_STATUSES.includes(dispatchStatus)) return res.status(400).json({ message: 'Invalid dispatch status' });
+        update.dispatchStatus = dispatchStatus;
+        if (dispatchStatus === 'in-transit' && !status) update.status = 'shipped';
+        if (dispatchStatus === 'delivered' && !status) update.status = 'delivered';
+    }
+    if (dispatchMode !== undefined) {
+        if (!DISPATCH_MODES.includes(dispatchMode)) return res.status(400).json({ message: 'Invalid dispatch mode' });
+        update.dispatchMode = dispatchMode;
+    }
+
+    if (paymentReference !== undefined) update.paymentReference = String(paymentReference).trim();
+    if (trackingId !== undefined) update.trackingId = String(trackingId).trim();
+    if (dispatchPartner !== undefined) update.dispatchPartner = String(dispatchPartner).trim();
+    if (deliveryAddress !== undefined) update.deliveryAddress = String(deliveryAddress).trim();
+    if (adminNotes !== undefined) update.adminNotes = String(adminNotes).trim();
+    if (dispatchDate !== undefined) update.dispatchDate = dispatchDate ? new Date(dispatchDate) : null;
+    if (deliveredAt !== undefined) update.deliveredAt = deliveredAt ? new Date(deliveredAt) : null;
+
+    const order = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json({ order: await populateOrder(order._id) });
 });
 
 module.exports = router;

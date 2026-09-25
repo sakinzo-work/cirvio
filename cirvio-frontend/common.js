@@ -427,8 +427,10 @@ function cartEnsureDrawer() {
     <div class="cd-body" id="cdBody"></div>
     <div class="cd-foot" id="cdFoot">
       <div class="cd-total-row"><span>Subtotal</span><span id="cdSubtotal">₹0</span></div>
+      <textarea class="cd-address" id="cdAddress" placeholder="Delivery / pickup address for CIRVIO team"></textarea>
+      <div class="cd-manual-note">No online payment gateway. Admin will confirm payment manually and update dispatch.</div>
       <button class="btn btn-terracotta cd-place-btn" id="cdPlaceBtn" style="width:100%;justify-content:center;">Place Order</button>
-      <div class="cd-secure"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Safe &amp; secure checkout via CIRVIO</div>
+      <div class="cd-secure"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Manual checkout via CIRVIO operations</div>
     </div>
     <div class="cd-success" id="cdSuccess">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.6 2.6L16 9.5"/></svg>
@@ -526,7 +528,8 @@ async function cartPlaceOrder() {
     const count = items.reduce((s, it) => s + it.qty, 0);
     if (window.CirvioAPI) {
         try {
-            await CirvioAPI.checkout(items);
+            const address = (document.getElementById('cdAddress')?.value || '').trim();
+            await CirvioAPI.checkout(items, address);
         } catch (err) {
             showToast(err.message || 'Could not place order');
             return;
@@ -535,7 +538,7 @@ async function cartPlaceOrder() {
     CirvioStore.setCart([]);
     refreshCartBadge();
     document.getElementById('cdSuccessMsg').textContent =
-        `${count} item${count > 1 ? 's' : ''} for ₹${total} — CIRVIO will connect you with each seller to arrange pickup or delivery.`;
+        `${count} item${count > 1 ? 's' : ''} for Rs ${total} placed. Payment is pending manual confirmation; CIRVIO admin will update dispatch status.`;
     document.getElementById('cdFoot').style.display = 'none';
     document.getElementById('cdBody').innerHTML = '';
     document.getElementById('cdSuccess').classList.add('show');

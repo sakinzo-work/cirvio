@@ -58,6 +58,10 @@ router.post('/', protect, async (req, res) => {
             buyer: req.user._id,
             items: orderItems,
             totalAmount,
+            paymentStatus: 'pending',
+            paymentMode: 'manual',
+            dispatchStatus: 'not-dispatched',
+            dispatchMode: 'pending',
             deliveryAddress: deliveryAddress || ''
         });
 

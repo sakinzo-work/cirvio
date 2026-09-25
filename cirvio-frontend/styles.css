@@ -2728,6 +2728,32 @@ footer {
     color: var(--terracotta-deep);
 }
 
+.cd-address {
+    width: 100%;
+    min-height: 78px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    padding: 11px 12px;
+    margin-bottom: 10px;
+    color: var(--olive-deep);
+    font: inherit;
+    font-size: .86rem;
+}
+
+.cd-manual-note {
+    border: 1px solid rgba(200, 117, 79, .25);
+    border-radius: 10px;
+    background: rgba(200, 117, 79, .08);
+    color: var(--terracotta-deep);
+    padding: 9px 11px;
+    margin-bottom: 12px;
+    font-size: .78rem;
+    line-height: 1.45;
+    font-weight: 700;
+}
+
 .cd-place-btn {
     margin-bottom: 12px;
 }

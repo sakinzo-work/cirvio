@@ -37,6 +37,7 @@ if (TOKEN && ADMIN_SESSION_API_BASE && ADMIN_SESSION_API_BASE !== API_BASE) {
 let CURRENT_USER = null;
 const ADMIN_PRODUCTS = new Map();
 const ADMIN_MESSAGES = new Map();
+const ADMIN_PURCHASES = new Map();
 let adminMessagePollStarted = false;
 
 const loginScreen = document.getElementById('loginScreen');
@@ -213,6 +214,10 @@ async function loadStats() {
     document.getElementById('statSold').textContent = s.soldProducts;
     document.getElementById('statOrders').textContent = s.totalOrders;
     document.getElementById('statRevenue').textContent = inr(s.totalRevenue);
+    const paymentPending = document.getElementById('statPaymentPending');
+    const dispatchPending = document.getElementById('statDispatchPending');
+    if (paymentPending) paymentPending.textContent = s.paymentPendingOrders || 0;
+    if (dispatchPending) dispatchPending.textContent = s.dispatchPendingOrders || 0;
 }
 
 /* ---------- users ---------- */
@@ -426,6 +431,8 @@ function closeListingImages() {
 /* ---------- purchases (buyer + product + seller, paired) ---------- */
 async function loadPurchases() {
     const { purchases } = await api('/api/admin/purchases');
+    ADMIN_PURCHASES.clear();
+    purchases.forEach((row) => ADMIN_PURCHASES.set(String(row.orderId), row));
 
     const rowHtml = (row) => `
         <tr>
@@ -435,7 +442,10 @@ async function loadPurchases() {
           <td class="pair-cell">${row.seller ? esc(row.seller.name) : '-'}<span class="sub">${row.seller ? esc(row.seller.email) : ''}</span></td>
           <td>${row.qty}</td>
           <td>${inr(row.price * row.qty)}</td>
-          <td><span class="badge badge-approved">${row.orderStatus}</span></td>
+          <td><span class="badge badge-${paymentBadge(row.paymentStatus)}">${labelStatus(row.paymentStatus)}</span><span class="sub">${labelStatus(row.paymentMode)}</span></td>
+          <td><span class="badge badge-${dispatchBadge(row.dispatchStatus)}">${labelStatus(row.dispatchStatus)}</span><span class="sub">${esc(row.trackingId || row.dispatchPartner || row.dispatchMode || '')}</span></td>
+          <td><span class="badge badge-${orderBadge(row.orderStatus)}">${labelStatus(row.orderStatus)}</span></td>
+          <td><button class="row-btn btn-view" onclick="openOrderOps('${row.orderId}')">Update</button></td>
         </tr>`;
 
     document.querySelector('#purchasesTable tbody').innerHTML = purchases.map(rowHtml).join('');
@@ -447,6 +457,149 @@ async function loadPurchases() {
           <td>${row.seller ? esc(row.seller.name) : '-'}</td>
           <td>${inr(row.price * row.qty)}</td>
         </tr>`).join('');
+}
+
+function labelStatus(value) {
+    return String(value || '-').replace(/-/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+function paymentBadge(status) {
+    if (status === 'collected') return 'approved';
+    if (status === 'failed' || status === 'refunded') return 'rejected';
+    return 'pending';
+}
+
+function dispatchBadge(status) {
+    if (status === 'delivered') return 'approved';
+    if (status === 'returned') return 'rejected';
+    if (['picked-up', 'in-transit', 'packed'].includes(status)) return 'sold';
+    return 'pending';
+}
+
+function orderBadge(status) {
+    if (status === 'delivered') return 'approved';
+    if (status === 'cancelled') return 'rejected';
+    if (status === 'shipped') return 'sold';
+    return 'pending';
+}
+
+function selectOptions(options, value) {
+    return options.map((option) => `<option value="${option}" ${option === value ? 'selected' : ''}>${labelStatus(option)}</option>`).join('');
+}
+
+function dateInputValue(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+}
+
+function ensureOrderOpsModal() {
+    if (document.getElementById('orderOpsModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'orderOpsModal';
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+      <div class="ops-dialog" role="dialog" aria-label="Update order operations">
+        <div class="image-dialog-head">
+          <div>
+            <h3 id="opsTitle">Update order</h3>
+            <p id="opsMeta"></p>
+          </div>
+          <button class="row-btn btn-delete" id="opsClose">Close</button>
+        </div>
+        <div class="ops-body">
+          <div id="opsParties" class="ops-parties"></div>
+          <div class="ops-grid">
+            <label>Order status<select id="opsOrderStatus"></select></label>
+            <label>Payment status<select id="opsPaymentStatus"></select></label>
+            <label>Payment mode<select id="opsPaymentMode"></select></label>
+            <label>Payment reference<input id="opsPaymentReference" placeholder="Cash receipt / UPI ref"></label>
+            <label>Dispatch status<select id="opsDispatchStatus"></select></label>
+            <label>Dispatch mode<select id="opsDispatchMode"></select></label>
+            <label>Dispatch partner<input id="opsDispatchPartner" placeholder="Runner / courier name"></label>
+            <label>Tracking ID<input id="opsTrackingId" placeholder="Tracking / handover ID"></label>
+            <label>Dispatch date<input id="opsDispatchDate" type="date"></label>
+            <label>Delivered date<input id="opsDeliveredAt" type="date"></label>
+          </div>
+          <label class="ops-wide">Delivery / pickup address<textarea id="opsDeliveryAddress" placeholder="Address shared by buyer"></textarea></label>
+          <label class="ops-wide">Admin notes<textarea id="opsAdminNotes" placeholder="Internal notes for payment, pickup, dispatch, seller coordination"></textarea></label>
+          <div class="ops-actions">
+            <span id="opsStatus" class="sub"></span>
+            <button class="row-btn btn-approve" id="opsSave">Save Update</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('opsClose').addEventListener('click', closeOrderOps);
+    document.getElementById('opsSave').addEventListener('click', saveOrderOps);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeOrderOps();
+    });
+}
+
+let activeOrderOpsId = '';
+function openOrderOps(orderId) {
+    const row = ADMIN_PURCHASES.get(String(orderId));
+    if (!row) return;
+    activeOrderOpsId = String(orderId);
+    ensureOrderOpsModal();
+    document.getElementById('opsTitle').textContent = `Order ${String(orderId).slice(-6).toUpperCase()}`;
+    document.getElementById('opsMeta').textContent = `${fmtDate(row.date)} | ${esc(row.title)} | ${inr(row.price * row.qty)}`;
+    document.getElementById('opsParties').innerHTML = `
+      <div class="identity-card"><span class="role-pill buyer">Buyer</span><strong>${esc(row.buyer?.name || '-')}</strong><span class="sub">${esc(row.buyer?.email || '')}</span><span class="sub">${esc(row.buyer?.phone || row.buyer?.city || '')}</span></div>
+      <div class="identity-card"><span class="role-pill seller">Seller</span><strong>${esc(row.seller?.name || '-')}</strong><span class="sub">${esc(row.seller?.email || '')}</span><span class="sub">${esc(row.seller?.phone || row.seller?.city || '')}</span></div>
+      <div class="identity-card"><span class="role-pill">Product</span><strong>${esc(row.title || '-')}</strong><span class="sub">Qty ${row.qty} | ${inr(row.price * row.qty)}</span></div>
+    `;
+    document.getElementById('opsOrderStatus').innerHTML = selectOptions(['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'], row.orderStatus || 'placed');
+    document.getElementById('opsPaymentStatus').innerHTML = selectOptions(['pending', 'collected', 'failed', 'refunded'], row.paymentStatus || 'pending');
+    document.getElementById('opsPaymentMode').innerHTML = selectOptions(['manual', 'cash', 'upi', 'bank-transfer', 'other'], row.paymentMode || 'manual');
+    document.getElementById('opsDispatchStatus').innerHTML = selectOptions(['not-dispatched', 'packed', 'picked-up', 'in-transit', 'delivered', 'returned'], row.dispatchStatus || 'not-dispatched');
+    document.getElementById('opsDispatchMode').innerHTML = selectOptions(['pending', 'cirvio-runner', 'seller-drop', 'buyer-pickup', 'courier', 'other'], row.dispatchMode || 'pending');
+    document.getElementById('opsPaymentReference').value = row.paymentReference || '';
+    document.getElementById('opsDispatchPartner').value = row.dispatchPartner || '';
+    document.getElementById('opsTrackingId').value = row.trackingId || '';
+    document.getElementById('opsDispatchDate').value = dateInputValue(row.dispatchDate);
+    document.getElementById('opsDeliveredAt').value = dateInputValue(row.deliveredAt);
+    document.getElementById('opsDeliveryAddress').value = row.deliveryAddress || '';
+    document.getElementById('opsAdminNotes').value = row.adminNotes || '';
+    document.getElementById('opsStatus').textContent = '';
+    document.getElementById('orderOpsModal').classList.add('open');
+}
+
+function closeOrderOps() {
+    const modal = document.getElementById('orderOpsModal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function saveOrderOps() {
+    if (!activeOrderOpsId) return;
+    const status = document.getElementById('opsStatus');
+    status.textContent = 'Saving...';
+    const payload = {
+        status: document.getElementById('opsOrderStatus').value,
+        paymentStatus: document.getElementById('opsPaymentStatus').value,
+        paymentMode: document.getElementById('opsPaymentMode').value,
+        paymentReference: document.getElementById('opsPaymentReference').value,
+        dispatchStatus: document.getElementById('opsDispatchStatus').value,
+        dispatchMode: document.getElementById('opsDispatchMode').value,
+        dispatchPartner: document.getElementById('opsDispatchPartner').value,
+        trackingId: document.getElementById('opsTrackingId').value,
+        dispatchDate: document.getElementById('opsDispatchDate').value,
+        deliveredAt: document.getElementById('opsDeliveredAt').value,
+        deliveryAddress: document.getElementById('opsDeliveryAddress').value,
+        adminNotes: document.getElementById('opsAdminNotes').value
+    };
+    try {
+        await api(`/api/admin/orders/${activeOrderOpsId}/operations`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        });
+        status.textContent = 'Saved';
+        await Promise.all([loadPurchases(), loadStats()]);
+        setTimeout(closeOrderOps, 450);
+    } catch (err) {
+        status.textContent = err.message;
+    }
 }
 
 /* ---------- product messages ---------- */
@@ -793,3 +946,4 @@ window.deleteProduct = deleteProduct;
 window.viewListingImages = viewListingImages;
 window.handleMessageRowClick = handleMessageRowClick;
 window.openMessageReply = openMessageReply;
+window.openOrderOps = openOrderOps;

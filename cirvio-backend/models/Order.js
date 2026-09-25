@@ -25,7 +25,34 @@ const orderSchema = new mongoose.Schema(
             enum: ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'],
             default: 'placed'
         },
-        deliveryAddress: { type: String, default: '' }
+        paymentStatus: {
+            type: String,
+            enum: ['pending', 'collected', 'failed', 'refunded'],
+            default: 'pending'
+        },
+        paymentMode: {
+            type: String,
+            enum: ['manual', 'cash', 'upi', 'bank-transfer', 'other'],
+            default: 'manual'
+        },
+        paymentReference: { type: String, default: '', trim: true },
+        dispatchStatus: {
+            type: String,
+            enum: ['not-dispatched', 'packed', 'picked-up', 'in-transit', 'delivered', 'returned'],
+            default: 'not-dispatched'
+        },
+        dispatchMode: {
+            type: String,
+            enum: ['pending', 'cirvio-runner', 'seller-drop', 'buyer-pickup', 'courier', 'other'],
+            default: 'pending'
+        },
+        trackingId: { type: String, default: '', trim: true },
+        dispatchPartner: { type: String, default: '', trim: true },
+        dispatchDate: { type: Date },
+        deliveredAt: { type: Date },
+        adminNotes: { type: String, default: '', trim: true, maxlength: 3000 },
+        lastUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        deliveryAddress: { type: String, default: '', trim: true }
     },
     { timestamps: true }
 );

@@ -796,30 +796,13 @@ async function sendMessageReply() {
 /* ---------- allowed frontend URLs ---------- */
 function ensureSettingsPanel() {
     if (document.getElementById('tab-settings')) return;
-    if (!document.getElementById('clientOriginsStyle')) {
-        const style = document.createElement('style');
-        style.id = 'clientOriginsStyle';
-        style.textContent = `
-.settings-card{max-width:720px;background:var(--panel,#fff);border:1px solid var(--border,#e6e0d4);border-radius:8px;padding:18px}
-.settings-card label{display:block;font-weight:700;margin-bottom:8px}
-.settings-card textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--border,#e6e0d4);border-radius:8px;padding:12px;font:inherit}
-.origin-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-.origin-pill{border:1px solid var(--border,#e6e0d4);border-radius:999px;padding:6px 10px;color:var(--muted,#6f6a5b);background:rgba(255,255,255,.7);font-size:.8rem}`;
-        document.head.appendChild(style);
-    }
     const nav = document.querySelector('.sidebar-nav') || document.querySelector('nav');
     if (nav) {
         const btn = document.createElement('button');
         btn.className = 'nav-btn';
         btn.dataset.tab = 'settings';
-        btn.dataset.adminOnly = 'true';
-        btn.textContent = 'Client URLs';
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('tab-settings').classList.add('active');
-        });
+        btn.textContent = 'Settings';
+        btn.addEventListener('click', () => activateTab('settings'));
         nav.appendChild(btn);
     }
 
@@ -827,23 +810,73 @@ function ensureSettingsPanel() {
     const section = document.createElement('section');
     section.id = 'tab-settings';
     section.className = 'tab-panel';
-    section.dataset.adminOnly = 'true';
     section.innerHTML = `
       <div class="panel-head">
         <div>
-          <h2>Allowed Client URLs</h2>
-          <p>Add every frontend URL that should be allowed to call this backend.</p>
+          <h2>Staff Settings</h2>
+          <p>Manage your own staff profile. Admin-only platform settings are separated below.</p>
         </div>
       </div>
-      <div class="settings-card">
-        <label for="clientOriginsInput">Frontend URLs</label>
-        <textarea id="clientOriginsInput" rows="7" placeholder="https://your-frontend.com&#10;http://localhost:5500"></textarea>
-        <p class="sub">One URL per line. URLs from CLIENT_ORIGIN / CLIENT_ORIGINS in .env are always included.</p>
-        <div id="envOriginsBox" class="origin-list"></div>
-        <button class="row-btn btn-approve" id="saveClientOriginsBtn">Save URLs</button>
-        <span id="clientOriginsStatus" class="sub"></span>
+      <div class="settings-layout">
+        <section class="settings-card">
+          <div class="settings-card-head">
+            <span class="role-pill ${isAdmin() ? 'seller' : 'buyer'}">${esc(CURRENT_USER?.role || 'staff')}</span>
+            <div>
+              <h3>My staff profile</h3>
+              <p>These details are private to the CIRVIO operations panel.</p>
+            </div>
+          </div>
+          <div class="staff-settings-form">
+            <label>Name<input id="staffName" value="${esc(CURRENT_USER?.name || '')}" placeholder="Your name"></label>
+            <label>Phone<input id="staffPhone" value="${esc(CURRENT_USER?.phone || '')}" placeholder="Phone"></label>
+            <label>City<input id="staffCity" value="${esc(CURRENT_USER?.city || '')}" placeholder="City"></label>
+            <label>College / Team<input id="staffCollege" value="${esc(CURRENT_USER?.college || '')}" placeholder="Team or campus"></label>
+          </div>
+          <div class="settings-actions">
+            <button class="row-btn btn-approve" id="saveStaffProfileBtn">Save Profile</button>
+            <span id="staffProfileStatus" class="sub"></span>
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-head">
+            <span class="role-pill">Secure</span>
+            <div>
+              <h3>Password</h3>
+              <p>Change only your own admin/employee login password.</p>
+            </div>
+          </div>
+          <div class="staff-settings-form two">
+            <label>Current password<input id="staffCurrentPassword" type="password" autocomplete="current-password"></label>
+            <label>New password<input id="staffNewPassword" type="password" autocomplete="new-password"></label>
+          </div>
+          <div class="settings-actions">
+            <button class="row-btn btn-view" id="changeStaffPasswordBtn">Update Password</button>
+            <span id="staffPasswordStatus" class="sub"></span>
+          </div>
+        </section>
+
+        <section class="settings-card admin-settings-card" data-admin-only>
+          <div class="settings-card-head">
+            <span class="role-pill seller">Admin</span>
+            <div>
+              <h3>Frontend URLs</h3>
+              <p>Only admins can edit the browser origins allowed to call this backend.</p>
+            </div>
+          </div>
+          <label for="clientOriginsInput">Allowed frontend URLs</label>
+          <textarea id="clientOriginsInput" rows="7" placeholder="https://your-frontend.com&#10;http://localhost:5500"></textarea>
+          <p class="sub">One URL per line. URLs from CLIENT_ORIGIN / CLIENT_ORIGINS in .env are always included.</p>
+          <div id="envOriginsBox" class="origin-list"></div>
+          <div class="settings-actions">
+            <button class="row-btn btn-approve" id="saveClientOriginsBtn">Save URLs</button>
+            <span id="clientOriginsStatus" class="sub"></span>
+          </div>
+        </section>
       </div>`;
     appMain.appendChild(section);
+    document.getElementById('saveStaffProfileBtn').addEventListener('click', saveStaffProfile);
+    document.getElementById('changeStaffPasswordBtn').addEventListener('click', changeStaffPassword);
     document.getElementById('saveClientOriginsBtn').addEventListener('click', saveClientOrigins);
 }
 
@@ -855,13 +888,8 @@ function ensureEmployeePanel() {
         btn.className = 'nav-btn';
         btn.dataset.tab = 'employees';
         btn.dataset.adminOnly = 'true';
-        btn.textContent = 'CIRVIO Employees';
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('tab-employees').classList.add('active');
-        });
+        btn.textContent = 'Employees';
+        btn.addEventListener('click', () => activateTab('employees'));
         nav.appendChild(btn);
     }
 
@@ -873,27 +901,84 @@ function ensureEmployeePanel() {
     section.innerHTML = `
       <div class="panel-head">
         <div>
-          <h2>CIRVIO Employees</h2>
-          <p>Create staff logins for people who work on listings, users and orders.</p>
+          <h2>Employee Management</h2>
+          <p>Create employee logins and control who can work on reviews, messages and orders.</p>
         </div>
       </div>
-      <div class="settings-card">
-        <div class="employee-form">
-          <input id="empName" placeholder="Employee name">
-          <input id="empEmail" type="email" placeholder="Employee email / ID">
-          <input id="empPassword" type="password" placeholder="Password">
-          <input id="empPhone" placeholder="Phone">
-          <input id="empCity" placeholder="City">
-          <button class="row-btn btn-approve" id="createEmployeeBtn">Create Employee</button>
-        </div>
-        <span id="employeeStatus" class="sub"></span>
-        <table id="employeesTable">
-          <thead><tr><th>Name</th><th>Email / ID</th><th>Status</th><th>Joined</th><th>Action</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="employee-layout">
+        <section class="settings-card employee-create-card">
+          <div class="settings-card-head">
+            <span class="role-pill seller">New</span>
+            <div>
+              <h3>Create employee login</h3>
+              <p>Employee accounts get operations access, not admin-only settings.</p>
+            </div>
+          </div>
+          <div class="employee-form">
+            <label>Name<input id="empName" placeholder="Employee name"></label>
+            <label>Email / ID<input id="empEmail" type="email" placeholder="employee@cirvio"></label>
+            <label>Password<input id="empPassword" type="password" placeholder="Minimum 6 characters"></label>
+            <label>Phone<input id="empPhone" placeholder="Phone"></label>
+            <label>City<input id="empCity" placeholder="City"></label>
+          </div>
+          <div class="settings-actions">
+            <button class="row-btn btn-approve" id="createEmployeeBtn">Create Employee</button>
+            <span id="employeeStatus" class="sub"></span>
+          </div>
+        </section>
+
+        <section class="settings-card employee-list-card">
+          <div class="settings-card-head">
+            <span class="role-pill">Logins</span>
+            <div>
+              <h3>Employee log</h3>
+              <p>Active and suspended employee IDs are kept separate from admin settings.</p>
+            </div>
+          </div>
+          <div class="table-wrap employee-table-wrap">
+            <table id="employeesTable">
+              <thead><tr><th>Name</th><th>Email / ID</th><th>Status</th><th>Joined</th><th>Action</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
       </div>`;
     appMain.appendChild(section);
     document.getElementById('createEmployeeBtn').addEventListener('click', createEmployee);
+}
+
+async function saveStaffProfile() {
+    const status = document.getElementById('staffProfileStatus');
+    status.textContent = 'Saving...';
+    const payload = {
+        name: document.getElementById('staffName').value.trim(),
+        phone: document.getElementById('staffPhone').value.trim(),
+        city: document.getElementById('staffCity').value.trim(),
+        college: document.getElementById('staffCollege').value.trim()
+    };
+    try {
+        const data = await api('/api/auth/me', { method: 'PUT', body: JSON.stringify(payload) });
+        CURRENT_USER = data.user;
+        localStorage.setItem('cirvio_profile', JSON.stringify(data.user));
+        status.textContent = 'Saved';
+    } catch (err) {
+        status.textContent = err.message;
+    }
+}
+
+async function changeStaffPassword() {
+    const status = document.getElementById('staffPasswordStatus');
+    const currentPassword = document.getElementById('staffCurrentPassword').value;
+    const newPassword = document.getElementById('staffNewPassword').value;
+    status.textContent = 'Updating...';
+    try {
+        await api('/api/auth/password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) });
+        document.getElementById('staffCurrentPassword').value = '';
+        document.getElementById('staffNewPassword').value = '';
+        status.textContent = 'Password updated';
+    } catch (err) {
+        status.textContent = err.message;
+    }
 }
 
 async function createEmployee() {

@@ -649,6 +649,10 @@ function findLatestThreadIdForProduct(productId) {
     return latest ? latest.threadId : '';
 }
 
+function isBackendObjectId(value) {
+    return /^[a-f\d]{24}$/i.test(String(value || ''));
+}
+
 function renderContactThread() {
     const box = document.getElementById('ccThread');
     if (!box) return;
@@ -791,8 +795,8 @@ async function ccSend() {
     const thread = CirvioStore.getMessages();
     try {
         let saved = null;
-        if (window.CirvioAPI) {
-            saved = ccCurrentThreadId
+        if (window.CirvioAPI && (isBackendObjectId(ccCurrentThreadId) || isBackendObjectId(ccCurrentProduct.id))) {
+            saved = isBackendObjectId(ccCurrentThreadId)
                 ? await CirvioAPI.replyToMessage(ccCurrentThreadId, text)
                 : await CirvioAPI.sendMessage(ccCurrentProduct.id, text);
         }

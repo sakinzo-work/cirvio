@@ -39,6 +39,7 @@ const ADMIN_PRODUCTS = new Map();
 const ADMIN_MESSAGES = new Map();
 const ADMIN_PURCHASES = new Map();
 let adminMessagePollStarted = false;
+let activeTab = 'dashboard';
 
 const loginScreen = document.getElementById('loginScreen');
 const adminApp = document.getElementById('adminApp');
@@ -95,15 +96,22 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
 });
 
 function activateTab(tab) {
+    activeTab = tab;
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
     const panel = document.getElementById('tab-' + tab);
     if (panel) panel.classList.add('active');
+    applyActiveSearchFilter();
 }
 
-document.querySelectorAll('[data-jump-tab]').forEach((btn) => {
-    btn.addEventListener('click', () => activateTab(btn.dataset.jumpTab));
-});
+function bindJumpActions(root = document) {
+    root.querySelectorAll('[data-jump-tab]').forEach((btn) => {
+        if (btn.dataset.jumpBound) return;
+        btn.dataset.jumpBound = 'true';
+        btn.addEventListener('click', () => activateTab(btn.dataset.jumpTab));
+    });
+}
+bindJumpActions();
 
 /* ---------- boot ---------- */
 async function showApp() {
@@ -112,6 +120,7 @@ async function showApp() {
     ensurePasswordEye();
     ensureSettingsPanel();
     ensureEmployeePanel();
+    updateAdminChrome();
     applyRolePermissions();
     await Promise.all([loadStats(), loadUsers(), loadListings(), loadPurchases(), loadMessages(), loadClientOrigins()]);
     startAdminMessagePoll();
@@ -136,6 +145,32 @@ const isAdmin = () => CURRENT_USER && CURRENT_USER.role === 'admin';
 const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : inr(p.price));
 const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const initials = (name = 'Admin') => String(name || 'Admin').trim().split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase() || 'A';
+const titleCase = (value = '') => String(value || '').replace(/-/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+function updateAdminChrome() {
+    const user = CURRENT_USER || {};
+    const name = user.name || 'Admin';
+    const role = titleCase(user.role || 'staff');
+    const userInitials = initials(name);
+    [
+        ['adminNameTop', name],
+        ['adminRoleTop', role],
+        ['sidebarUserName', name],
+        ['sidebarUserRole', role]
+    ].forEach(([id, text]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    });
+    ['adminAvatarTop', 'sidebarAvatar'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = userInitials;
+    });
+    const today = document.getElementById('adminToday');
+    if (today) {
+        today.textContent = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+}
 
 function listingActions(p) {
     const viewed = !!p.reviewViewedAt;
@@ -210,7 +245,123 @@ function applyRolePermissions() {
     });
 }
 
+function setupAdminToolbar() {
+    document.querySelectorAll('[data-export-table]').forEach((btn) => {
+        if (btn.dataset.exportBound) return;
+        btn.dataset.exportBound = 'true';
+        btn.addEventListener('click', () => exportTable(btn.dataset.exportTable));
+    });
+    document.querySelectorAll('[data-focus-search]').forEach((btn) => {
+        if (btn.dataset.focusBound) return;
+        btn.dataset.focusBound = 'true';
+        btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.dataset.focusSearch);
+            if (input) {
+                input.focus();
+                showAdminNotice('Type to filter this table');
+            }
+        });
+    });
+    document.querySelectorAll('[data-review-queue]').forEach((btn) => {
+        if (btn.dataset.reviewBound) return;
+        btn.dataset.reviewBound = 'true';
+        btn.addEventListener('click', () => {
+            activateTab('listings');
+            const pendingBtn = document.querySelector('.filter-btn[data-status="pending"]');
+            if (pendingBtn) pendingBtn.click();
+        });
+    });
+}
+
+function setupSearchFilters() {
+    const globalSearch = document.getElementById('globalSearchInput');
+    if (globalSearch && !globalSearch.dataset.searchBound) {
+        globalSearch.dataset.searchBound = 'true';
+        globalSearch.addEventListener('input', applyActiveSearchFilter);
+    }
+    document.querySelectorAll('.table-search input').forEach((input) => {
+        if (input.dataset.searchBound) return;
+        input.dataset.searchBound = 'true';
+        input.addEventListener('input', applyActiveSearchFilter);
+    });
+}
+
+function setupNotificationButton() {
+    const btn = document.getElementById('adminNotificationBtn');
+    if (!btn || btn.dataset.notificationBound) return;
+    btn.dataset.notificationBound = 'true';
+    btn.addEventListener('click', () => {
+        activateTab('messages');
+        showAdminNotice('Message queue opened');
+    });
+}
+
+function filterTable(table, query) {
+    const terms = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach((row) => {
+        if (row.classList.contains('empty-row')) return;
+        const text = row.textContent.toLowerCase();
+        const match = !terms.length || terms.every((term) => text.includes(term));
+        row.classList.toggle('table-row-hidden', !match);
+    });
+}
+
+function applyActiveSearchFilter() {
+    const globalSearch = document.getElementById('globalSearchInput');
+    const panel = document.getElementById('tab-' + activeTab) || document.querySelector('.tab-panel.active');
+    if (!panel) return;
+    const panelSearch = panel.querySelector('.table-search input');
+    const query = `${globalSearch ? globalSearch.value : ''} ${panelSearch ? panelSearch.value : ''}`.trim();
+    panel.querySelectorAll('table').forEach((table) => filterTable(table, query));
+}
+
+function exportTable(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const rows = [...table.querySelectorAll('tr')].filter((row) => row.offsetParent !== null && !row.classList.contains('empty-row'));
+    if (rows.length <= 1) {
+        showAdminNotice('No rows available to export');
+        return;
+    }
+    const csv = rows.map((row) => [...row.children].map((cell) => {
+        const text = cell.textContent.replace(/\s+/g, ' ').trim();
+        return `"${text.replace(/"/g, '""')}"`;
+    }).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cirvio-${tableId}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showAdminNotice('CSV export downloaded');
+}
+
+function emptyRow(colspan, message) {
+    return `<tr class="empty-row"><td colspan="${colspan}" class="empty-state">${esc(message)}</td></tr>`;
+}
+
+function updateMessageBadges(count) {
+    const safeCount = Number(count || 0);
+    const navBadge = document.getElementById('messageNavBadge');
+    const notificationBtn = document.getElementById('adminNotificationBtn');
+    if (navBadge) {
+        navBadge.textContent = safeCount;
+        navBadge.classList.toggle('is-zero', safeCount === 0);
+    }
+    if (notificationBtn) {
+        notificationBtn.dataset.count = String(safeCount);
+        notificationBtn.classList.toggle('is-clear', safeCount === 0);
+    }
+}
+
 ensurePasswordEye();
+setupAdminToolbar();
+setupSearchFilters();
+setupNotificationButton();
 
 /* ---------- dashboard ---------- */
 async function loadStats() {
@@ -237,10 +388,26 @@ async function loadStats() {
 /* ---------- users ---------- */
 async function loadUsers() {
     const { users } = await api('/api/admin/users');
+    const activeUsers = users.filter((u) => u.status === 'active').length;
+    const suspendedUsers = users.filter((u) => u.status === 'suspended').length;
+    const employees = users.filter((u) => u.role === 'employee');
+    const activeEmployees = employees.filter((u) => u.status === 'active').length;
+    const suspendedEmployees = employees.filter((u) => u.status === 'suspended').length;
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    setText('usersTotalMetric', users.length);
+    setText('usersActiveMetric', activeUsers);
+    setText('usersSuspendedMetric', suspendedUsers);
+    setText('employeesTotalMetric', employees.length);
+    setText('employeesActiveMetric', activeEmployees);
+    setText('employeesSuspendedMetric', suspendedEmployees);
+    setText('employeesPendingMetric', users.filter((u) => u.status === 'pending').length);
     const tbody = document.querySelector('#usersTable tbody');
-    tbody.innerHTML = users.map((u) => `
+    tbody.innerHTML = users.length ? users.map((u) => `
         <tr>
-          <td>${esc(u.name)}</td>
+          <td><div class="user-cell"><span class="mini-avatar">${esc(initials(u.name))}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.role)}</span></div></div></td>
           <td>${esc(u.email)}<span class="sub">${esc(u.role)}</span></td>
           <td>${esc(u.college || '-')}</td>
           <td>${esc(u.city || '-')}</td>
@@ -254,14 +421,13 @@ async function loadUsers() {
               <button class="row-btn btn-delete" onclick="deleteUser('${u._id}')">Delete</button>
             `}
           </td>
-        </tr>`).join('');
+        </tr>`).join('') : emptyRow(9, 'No users found.');
 
     const empBody = document.querySelector('#employeesTable tbody');
     if (empBody) {
-        const employees = users.filter((u) => u.role === 'employee');
         empBody.innerHTML = employees.length ? employees.map((u) => `
           <tr>
-          <td>${esc(u.name)}</td>
+          <td><div class="user-cell"><span class="mini-avatar">${esc(initials(u.name))}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.email)}</span></div></div></td>
           <td>${esc(u.email)}</td>
             <td><span class="badge badge-${u.status}">${u.status}</span></td>
             <td>${fmtDate(u.createdAt)}</td>
@@ -270,8 +436,9 @@ async function loadUsers() {
               <button class="row-btn btn-approve" onclick="resetEmployeePassword('${u._id}')">Reset Password</button>
               <button class="row-btn btn-delete" onclick="deleteUser('${u._id}')">Delete</button>
             </td>
-          </tr>`).join('') : '<tr><td colspan="5" class="sub">No CIRVIO employees yet.</td></tr>';
+          </tr>`).join('') : emptyRow(5, 'No CIRVIO employees yet.');
     }
+    applyActiveSearchFilter();
 }
 
 async function toggleUserStatus(id, currentStatus) {
@@ -303,7 +470,7 @@ async function loadListings() {
     ADMIN_PRODUCTS.clear();
     products.forEach((p) => ADMIN_PRODUCTS.set(String(p._id), p));
     const tbody = document.querySelector('#listingsTable tbody');
-    tbody.innerHTML = products.map((p) => `
+    tbody.innerHTML = products.length ? products.map((p) => `
         <tr>
           <td>${listingBookCell(p)}</td>
           <td>${listingImagesCell(p)}</td>
@@ -313,10 +480,10 @@ async function loadListings() {
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
           <td>${listingActions(p)}</td>
-        </tr>`).join('');
+        </tr>`).join('') : emptyRow(8, 'No listings found for this filter.');
     const latestBody = document.querySelector('#latestListingsTable tbody');
     if (latestBody) {
-        latestBody.innerHTML = products.slice(0, 8).map((p) => `
+        latestBody.innerHTML = products.length ? products.slice(0, 8).map((p) => `
         <tr>
           <td>${listingBookCell(p)}</td>
           <td>${listingImagesCell(p)}</td>
@@ -325,8 +492,9 @@ async function loadListings() {
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
           <td>${listingActions(p)}</td>
-        </tr>`).join('');
+        </tr>`).join('') : emptyRow(7, 'No latest listings yet.');
     }
+    applyActiveSearchFilter();
 }
 
 async function approveProduct(id) {
@@ -462,15 +630,16 @@ async function loadPurchases() {
           <td><button class="row-btn btn-view" onclick="openOrderOps('${row.orderId}')">Update</button></td>
         </tr>`;
 
-    document.querySelector('#purchasesTable tbody').innerHTML = purchases.map(rowHtml).join('');
-    document.querySelector('#recentPurchasesTable tbody').innerHTML = purchases.slice(0, 6).map((row) => `
+    document.querySelector('#purchasesTable tbody').innerHTML = purchases.length ? purchases.map(rowHtml).join('') : emptyRow(10, 'No purchases yet.');
+    document.querySelector('#recentPurchasesTable tbody').innerHTML = purchases.length ? purchases.slice(0, 6).map((row) => `
         <tr>
           <td>${fmtDate(row.date)}</td>
           <td>${row.buyer ? esc(row.buyer.name) : '-'}</td>
           <td>${esc(row.title)}</td>
           <td>${row.seller ? esc(row.seller.name) : '-'}</td>
           <td>${inr(row.price * row.qty)}</td>
-        </tr>`).join('');
+        </tr>`).join('') : emptyRow(5, 'No recent purchases yet.');
+    applyActiveSearchFilter();
 }
 
 function labelStatus(value) {
@@ -624,6 +793,8 @@ async function loadMessages({ notify = false } = {}) {
     const { messages } = await api('/api/admin/messages');
     ADMIN_MESSAGES.clear();
     messages.forEach((m) => ADMIN_MESSAGES.set(String(m._id), m));
+    const needsReplyCount = messages.filter((m) => !(m.replies || []).some((reply) => ['admin', 'employee'].includes(reply.senderRole))).length;
+    updateMessageBadges(needsReplyCount);
     if (notify) {
         const changed = messages.find((m) => {
             const old = previous.get(String(m._id));
@@ -645,7 +816,7 @@ async function loadMessages({ notify = false } = {}) {
         const replies = m.replies || [];
         const lastReply = replies[replies.length - 1];
         return `
-        <tr class="message-row" onclick="handleMessageRowClick(event,'${m._id}')" ondblclick="openMessageReply('${m._id}')">
+        <tr class="message-row ${String(m._id) === activeMessageId ? 'active-row' : ''}" data-message-id="${m._id}" onclick="handleMessageRowClick(event,'${m._id}')" ondblclick="openMessageReply('${m._id}')">
           <td>${fmtDate(m.createdAt)}</td>
           <td>
             <div class="identity-card">
@@ -669,8 +840,16 @@ async function loadMessages({ notify = false } = {}) {
             <strong>${esc(m.text || '')}</strong>
             <span class="sub">${replies.length ? `${replies.length} repl${replies.length === 1 ? 'y' : 'ies'} | Last: ${esc(lastReply.text || '')}` : 'No reply yet'}</span>
           </td>
+          <td class="message-action-cell"><button class="row-btn btn-view" onclick="event.stopPropagation(); openMessageReply('${m._id}')">Reply</button></td>
         </tr>`;
-    }).join('') : '<tr><td colspan="6" class="sub">No product messages yet.</td></tr>';
+    }).join('') : emptyRow(7, 'No product messages yet.');
+    if (messages.length) {
+        const panelMessageId = ADMIN_MESSAGES.has(activeMessageId) ? activeMessageId : String(messages[0]._id);
+        renderMessageSidePanel(panelMessageId);
+    } else {
+        renderMessageSidePanel('');
+    }
+    applyActiveSearchFilter();
 }
 
 function startAdminMessagePoll() {
@@ -701,8 +880,91 @@ function showAdminNotice(text) {
 }
 
 function handleMessageRowClick(event, id) {
+    renderMessageSidePanel(id);
     const isTouch = window.matchMedia('(pointer: coarse), (max-width: 760px)').matches;
     if (isTouch) openMessageReply(id);
+}
+
+function renderMessageSidePanel(id) {
+    const panel = document.getElementById('messageSidePanel');
+    if (!panel) return;
+    if (!id || !ADMIN_MESSAGES.has(String(id))) {
+        activeMessageId = '';
+        panel.innerHTML = `
+          <div class="chat-empty">
+            <span class="page-icon">M</span>
+            <strong>Select a conversation</strong>
+            <p>Open a product enquiry to reply from the side panel.</p>
+          </div>`;
+        document.querySelectorAll('.message-row').forEach((row) => row.classList.remove('active-row'));
+        return;
+    }
+    activeMessageId = String(id);
+    const message = ADMIN_MESSAGES.get(activeMessageId);
+    const product = message.product || {};
+    const seller = product.seller || {};
+    const sender = message.sender || {};
+    const thread = [{ text: message.text, senderRole: 'buyer', createdAt: message.createdAt }, ...(message.replies || [])];
+    document.querySelectorAll('.message-row').forEach((row) => {
+        row.classList.toggle('active-row', row.dataset.messageId === activeMessageId);
+    });
+    panel.innerHTML = `
+      <div class="chat-header">
+        <div class="chat-contact">
+          <span class="avatar">${esc(initials(sender.name || 'Buyer'))}</span>
+          <div>
+            <strong>${esc(sender.name || 'Buyer')}</strong>
+            <span class="sub">${esc(sender.email || sender.phone || '')}</span>
+          </div>
+        </div>
+        <button class="row-btn btn-view" id="sideOpenFullReply">Full Reply</button>
+      </div>
+      <div class="chat-product">
+        <span class="product-mini">P</span>
+        <div class="identity-card">
+          <strong>${esc(product.title || message.productTitle || 'Product enquiry')}</strong>
+          <span class="sub">${esc(product.location || 'No product address')} | Seller: ${esc(seller.name || '-')}</span>
+        </div>
+      </div>
+      <div class="chat-date"><span>${fmtDate(message.createdAt)}</span></div>
+      <div class="chat-thread">
+        ${thread.map((part) => `
+          <div class="reply-bubble ${['admin', 'employee'].includes(part.senderRole) ? 'from-admin' : 'from-buyer'}">
+            <strong>${['admin', 'employee'].includes(part.senderRole) ? 'CIRVIO Admin' : (part.senderRole === 'seller' ? 'Seller' : 'Buyer')}</strong>
+            <p>${esc(part.text || '')}</p>
+            <small>${fmtDate(part.createdAt)}</small>
+          </div>`).join('')}
+      </div>
+      <div class="chat-input">
+        <textarea id="sideReplyText" placeholder="Type admin reply..."></textarea>
+        <button class="row-btn btn-approve" id="sideReplySend">Send</button>
+        <span id="sideReplyStatus" class="side-reply-status sub"></span>
+      </div>`;
+    document.getElementById('sideOpenFullReply').addEventListener('click', () => openMessageReply(activeMessageId));
+    document.getElementById('sideReplySend').addEventListener('click', sendSidePanelReply);
+}
+
+async function sendSidePanelReply() {
+    const textEl = document.getElementById('sideReplyText');
+    const status = document.getElementById('sideReplyStatus');
+    const text = textEl ? textEl.value.trim() : '';
+    if (!activeMessageId || !text) {
+        if (status) status.textContent = 'Reply text is required';
+        return;
+    }
+    if (status) status.textContent = 'Sending...';
+    try {
+        const { message } = await api(`/api/admin/messages/${activeMessageId}/reply`, {
+            method: 'POST',
+            body: JSON.stringify({ text })
+        });
+        ADMIN_MESSAGES.set(String(message._id), message);
+        activeMessageId = String(message._id);
+        await loadMessages();
+        showAdminNotice('Reply sent');
+    } catch (err) {
+        if (status) status.textContent = err.message;
+    }
 }
 
 function ensureMessageReplyModal() {
@@ -743,6 +1005,7 @@ function openMessageReply(id) {
     if (!message) return;
     ensureMessageReplyModal();
     activeMessageId = String(id);
+    renderMessageSidePanel(id);
     const product = message.product || {};
     const seller = product.seller || {};
     const sender = message.sender || {};
@@ -801,7 +1064,7 @@ function ensureSettingsPanel() {
         const btn = document.createElement('button');
         btn.className = 'nav-btn';
         btn.dataset.tab = 'settings';
-        btn.textContent = 'Settings';
+        btn.innerHTML = '<span class="nav-glyph">S</span>Settings';
         btn.addEventListener('click', () => activateTab('settings'));
         nav.appendChild(btn);
     }
@@ -888,7 +1151,7 @@ function ensureEmployeePanel() {
         btn.className = 'nav-btn';
         btn.dataset.tab = 'employees';
         btn.dataset.adminOnly = 'true';
-        btn.textContent = 'Employees';
+        btn.innerHTML = '<span class="nav-glyph">E</span>Employees';
         btn.addEventListener('click', () => activateTab('employees'));
         nav.appendChild(btn);
     }

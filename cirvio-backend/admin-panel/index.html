@@ -10,7 +10,13 @@
 
 <div id="loginScreen" class="login-screen">
   <form id="loginForm" class="login-card">
-    <h1>CIRVIO Admin</h1>
+    <div class="login-brand">
+      <span class="brand-mark"><span></span></span>
+      <div>
+        <h1>CIRVIO Admin</h1>
+        <p class="sub">Operations control room</p>
+      </div>
+    </div>
     <p class="sub">Sign in with your staff account</p>
     <input type="email" id="loginEmail" placeholder="Admin email" required>
     <input type="password" id="loginPassword" placeholder="Password" required>
@@ -21,97 +27,178 @@
 
 <div id="adminApp" class="admin-app hidden">
   <aside class="sidebar">
-    <div class="brand">CIRVIO <span>Operations</span></div>
+    <div class="brand">
+      <span class="brand-mark"><span></span></span>
+      <div>
+        <strong>CIRVIO</strong>
+        <span>Operations</span>
+      </div>
+    </div>
     <nav class="sidebar-nav">
-      <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="nav-btn" data-tab="users">Users</button>
-      <button class="nav-btn" data-tab="listings">Listings</button>
-      <button class="nav-btn" data-tab="purchases">Purchases</button>
-      <button class="nav-btn" data-tab="messages">Messages</button>
+      <button class="nav-btn active" data-tab="dashboard"><span class="nav-glyph">D</span>Dashboard</button>
+      <button class="nav-btn" data-tab="users"><span class="nav-glyph">U</span>Users</button>
+      <button class="nav-btn" data-tab="listings"><span class="nav-glyph">L</span>Listings</button>
+      <button class="nav-btn" data-tab="purchases"><span class="nav-glyph">P</span>Purchases</button>
+      <button class="nav-btn" data-tab="messages"><span class="nav-glyph">M</span>Messages <span id="messageNavBadge" class="nav-badge">0</span></button>
     </nav>
+    <div class="sidebar-user">
+      <span id="sidebarAvatar" class="avatar">A</span>
+      <div>
+        <strong id="sidebarUserName">Admin</strong>
+        <span id="sidebarUserRole">Staff</span>
+      </div>
+    </div>
     <button id="logoutBtn" class="logout-btn">Logout</button>
   </aside>
 
   <main class="main">
+    <header class="topbar">
+      <label class="global-search">
+        <span>Search</span>
+        <input id="globalSearchInput" type="search" placeholder="Search anything...">
+      </label>
+      <div class="topbar-actions">
+        <button id="adminNotificationBtn" class="icon-btn notification-btn" type="button" aria-label="Notifications" data-count="0"><span>!</span></button>
+        <div class="topbar-user">
+          <span id="adminAvatarTop" class="avatar">A</span>
+          <div>
+            <strong id="adminNameTop">Admin</strong>
+            <span id="adminRoleTop">Staff</span>
+          </div>
+        </div>
+        <div class="date-chip" id="adminToday">Today</div>
+      </div>
+    </header>
+
     <section id="tab-dashboard" class="tab-panel active">
       <div class="panel-head">
-        <div>
+        <div class="page-title">
+          <span class="page-icon">D</span>
+          <div>
           <h2>Operations Dashboard</h2>
           <p>Daily control room for approvals, manual payments, dispatch and support chats.</p>
+          </div>
         </div>
       </div>
 
       <div class="ops-overview">
         <div class="ops-copy">
-          <span class="ops-kicker">Today focus</span>
-          <h3>Move every listing from review to delivery without losing track.</h3>
-          <p>Images are now stored with listings, orders start in manual payment mode, and dispatch can be updated by staff from Purchases.</p>
+          <div class="ops-copy-text">
+            <span class="ops-kicker">Today focus</span>
+            <h3>Move every listing from review to delivery without losing track.</h3>
+            <p>Images are now stored with listings, orders start in manual payment mode, and dispatch can be updated by staff from Purchases.</p>
+          </div>
+          <div class="ops-hero-art" aria-hidden="true">
+            <span class="clipboard"></span>
+            <span class="parcel"></span>
+            <span class="check-orb"></span>
+          </div>
         </div>
         <div class="ops-queue">
-          <button class="ops-queue-card" data-jump-tab="listings">
-            <span>Needs review</span>
+          <button class="ops-queue-card queue-review" data-jump-tab="listings">
+            <span class="queue-icon">R</span>
+            <span><small>Needs review</small>Listings waiting for review</span>
             <strong id="opsPendingListings">-</strong>
           </button>
-          <button class="ops-queue-card" data-jump-tab="purchases">
-            <span>Collect payment</span>
+          <button class="ops-queue-card queue-payment" data-jump-tab="purchases">
+            <span class="queue-icon">P</span>
+            <span><small>Collect payment</small>Orders pending payment</span>
             <strong id="opsPaymentPending">-</strong>
           </button>
-          <button class="ops-queue-card" data-jump-tab="purchases">
-            <span>Dispatch queue</span>
+          <button class="ops-queue-card queue-dispatch" data-jump-tab="purchases">
+            <span class="queue-icon">D</span>
+            <span><small>Dispatch queue</small>Orders ready for dispatch</span>
             <strong id="opsDispatchPending">-</strong>
           </button>
         </div>
       </div>
 
-      <div class="stat-grid" id="statGrid">
-        <div class="stat-card"><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">-</span></div>
-        <div class="stat-card"><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">-</span></div>
-        <div class="stat-card"><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">-</span></div>
-        <div class="stat-card"><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">-</span></div>
-        <div class="stat-card"><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">-</span></div>
-        <div class="stat-card"><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">-</span></div>
-        <div class="stat-card"><span class="stat-label">Payment Pending</span><span class="stat-value" id="statPaymentPending">-</span></div>
-        <div class="stat-card"><span class="stat-label">Dispatch Pending</span><span class="stat-value" id="statDispatchPending">-</span></div>
-        <div class="stat-card wide"><span class="stat-label">Collected Revenue</span><span class="stat-value" id="statRevenue">-</span></div>
+      <div class="stat-grid dashboard-stats" id="statGrid">
+        <div class="stat-card tone-green"><span class="stat-icon">U</span><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-blue"><span class="stat-icon">L</span><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-amber"><span class="stat-icon">R</span><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-cyan"><span class="stat-icon">A</span><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-violet"><span class="stat-icon">S</span><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-teal"><span class="stat-icon">O</span><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-rose"><span class="stat-icon">P</span><span class="stat-label">Payment Pending</span><span class="stat-value" id="statPaymentPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-orange"><span class="stat-icon">D</span><span class="stat-label">Dispatch Pending</span><span class="stat-value" id="statDispatchPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-green wide"><span class="stat-icon">R</span><span class="stat-label">Collected Revenue</span><span class="stat-value" id="statRevenue">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
       </div>
 
-      <h3 class="section-title">Recent Purchases</h3>
-      <div class="table-wrap">
-        <table id="recentPurchasesTable">
-          <thead><tr><th>Date</th><th>Buyer</th><th>Product</th><th>Seller</th><th>Price</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="data-card">
+        <div class="card-title-row">
+          <h3 class="section-title">Recent Purchases</h3>
+          <button class="soft-btn" type="button" data-jump-tab="purchases">View All</button>
+        </div>
+        <div class="table-wrap compact-table">
+          <table id="recentPurchasesTable">
+            <thead><tr><th>Date</th><th>Buyer</th><th>Product</th><th>Seller</th><th>Price</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
-      <h3 class="section-title">Latest Listings</h3>
-      <div class="table-wrap">
-        <table id="latestListingsTable">
-          <thead><tr><th>Listing</th><th>Images</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="data-card">
+        <div class="card-title-row">
+          <h3 class="section-title">Latest Listings</h3>
+          <button class="soft-btn" type="button" data-jump-tab="listings">View Listings</button>
+        </div>
+        <div class="table-wrap">
+          <table id="latestListingsTable">
+            <thead><tr><th>Listing</th><th>Images</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
     <section id="tab-users" class="tab-panel">
       <div class="panel-head">
-        <div>
-          <h2>Users</h2>
-          <p>Manage student accounts, staff roles and account status.</p>
+        <div class="page-title">
+          <span class="page-icon">U</span>
+          <div>
+            <h2>Users</h2>
+            <p>Manage student accounts, staff roles and account status.</p>
+          </div>
+        </div>
+        <div class="page-actions">
+          <button class="soft-btn" type="button" data-export-table="usersTable">Export</button>
+          <button class="soft-btn" type="button" data-focus-search="usersSearchInput">Filter</button>
+          <button class="btn-primary action-primary" type="button" data-jump-tab="employees" data-admin-only>Add User</button>
         </div>
       </div>
-      <div class="table-wrap">
-        <table id="usersTable">
-          <thead><tr><th>Name</th><th>Email</th><th>College</th><th>City</th><th>Listings</th><th>Orders</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="stat-grid user-stats">
+        <div class="stat-card tone-teal"><span class="stat-icon">U</span><span class="stat-label">Total Users</span><span class="stat-value" id="usersTotalMetric">-</span></div>
+        <div class="stat-card tone-green"><span class="stat-icon">A</span><span class="stat-label">Active</span><span class="stat-value" id="usersActiveMetric">-</span></div>
+        <div class="stat-card tone-rose"><span class="stat-icon">S</span><span class="stat-label">Suspended</span><span class="stat-value" id="usersSuspendedMetric">-</span></div>
+        <div class="stat-card tone-blue"><span class="stat-icon">D</span><span class="stat-label">Deleted</span><span class="stat-value">0</span></div>
+      </div>
+      <div class="data-card">
+        <div class="table-toolbar">
+          <label>Show <select><option>10</option><option>25</option><option>50</option></select> entries</label>
+          <label class="table-search"><span>Search</span><input id="usersSearchInput" type="search" placeholder="Search users..."></label>
+        </div>
+        <div class="table-wrap">
+          <table id="usersTable">
+            <thead><tr><th>Name</th><th>Email</th><th>College</th><th>City</th><th>Listings</th><th>Orders</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
     <section id="tab-listings" class="tab-panel">
       <div class="panel-head">
-        <div>
-          <h2>Listings</h2>
-          <p>Inspect uploaded photos before approving items for the public marketplace.</p>
+        <div class="page-title">
+          <span class="page-icon">L</span>
+          <div>
+            <h2>Listings</h2>
+            <p>Inspect uploaded photos before approving items for the public marketplace.</p>
+          </div>
+        </div>
+        <div class="page-actions">
+          <button class="soft-btn" type="button" data-export-table="listingsTable">Export</button>
+          <button class="soft-btn" type="button" data-review-queue>Review Queue</button>
         </div>
       </div>
       <div class="filter-row">
@@ -121,41 +208,65 @@
         <button class="filter-btn" data-status="rejected">Rejected</button>
         <button class="filter-btn" data-status="sold">Sold</button>
       </div>
-      <div class="table-wrap">
-        <table id="listingsTable">
-          <thead><tr><th>Listing</th><th>Images</th><th>Category</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="data-card">
+        <div class="table-wrap">
+          <table id="listingsTable">
+            <thead><tr><th>Listing</th><th>Images</th><th>Category</th><th>Price</th><th>Seller</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
     <section id="tab-purchases" class="tab-panel">
       <div class="panel-head">
-        <div>
-          <h2>Purchases</h2>
-          <p>Track buyer, product and seller pairings for placed orders.</p>
+        <div class="page-title">
+          <span class="page-icon">P</span>
+          <div>
+            <h2>Purchases</h2>
+            <p>Track buyer, product and seller pairings for placed orders.</p>
+          </div>
+        </div>
+        <div class="page-actions purchases-actions">
+          <label class="control-pill">Date Range<select><option>All Dates</option><option>This Week</option><option>This Month</option></select></label>
+          <label class="table-search"><span>Search</span><input id="purchasesSearchInput" type="search" placeholder="Search..."></label>
+          <button class="soft-btn action-primary" type="button" data-export-table="purchasesTable">Export</button>
         </div>
       </div>
-      <div class="table-wrap">
-        <table id="purchasesTable">
-          <thead><tr><th>Date</th><th>Buyer</th><th>Product</th><th>Seller</th><th>Qty</th><th>Price</th><th>Payment</th><th>Dispatch</th><th>Order</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="data-card">
+        <div class="table-wrap purchase-table-wrap">
+          <table id="purchasesTable">
+            <thead><tr><th>Date</th><th>Buyer</th><th>Product</th><th>Seller</th><th>Qty</th><th>Price</th><th>Payment</th><th>Dispatch</th><th>Order</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
     <section id="tab-messages" class="tab-panel">
       <div class="panel-head">
-        <div>
-          <h2>Messages</h2>
-          <p>Product questions sent by users to CIRVIO admins.</p>
+        <div class="page-title">
+          <span class="page-icon">M</span>
+          <div>
+            <h2>Messages</h2>
+            <p>Product questions sent by users to CIRVIO admins.</p>
+          </div>
         </div>
       </div>
-      <div class="table-wrap">
-        <table id="messagesTable">
-          <thead><tr><th>Date</th><th>Buyer / Sender</th><th>Product</th><th>Seller</th><th>Product Address</th><th>Message</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="messages-layout">
+        <div class="table-wrap message-list-wrap">
+          <table id="messagesTable">
+            <thead><tr><th>Date</th><th>Buyer / Sender</th><th>Product</th><th>Seller</th><th>Product Address</th><th>Message</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <aside id="messageSidePanel" class="message-side-panel">
+          <div class="chat-empty">
+            <span class="page-icon">M</span>
+            <strong>Select a conversation</strong>
+            <p>Open a product enquiry to reply from the side panel.</p>
+          </div>
+        </aside>
       </div>
     </section>
   </main>

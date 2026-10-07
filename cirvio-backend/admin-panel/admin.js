@@ -40,6 +40,7 @@ const ADMIN_MESSAGES = new Map();
 const ADMIN_PURCHASES = new Map();
 let adminMessagePollStarted = false;
 let activeTab = 'dashboard';
+let activeMessageId = '';
 
 const loginScreen = document.getElementById('loginScreen');
 const adminApp = document.getElementById('adminApp');
@@ -271,6 +272,14 @@ function setupAdminToolbar() {
             if (pendingBtn) pendingBtn.click();
         });
     });
+    const refreshMessagesBtn = document.getElementById('refreshMessagesBtn');
+    if (refreshMessagesBtn && !refreshMessagesBtn.dataset.refreshBound) {
+        refreshMessagesBtn.dataset.refreshBound = 'true';
+        refreshMessagesBtn.addEventListener('click', async () => {
+            await loadMessages();
+            showAdminNotice('Messages refreshed');
+        });
+    }
 }
 
 function setupSearchFilters() {
@@ -284,6 +293,11 @@ function setupSearchFilters() {
         input.dataset.searchBound = 'true';
         input.addEventListener('input', applyActiveSearchFilter);
     });
+    const messageSearch = document.getElementById('messagesSearchInput');
+    if (messageSearch && !messageSearch.dataset.searchBound) {
+        messageSearch.dataset.searchBound = 'true';
+        messageSearch.addEventListener('input', filterMessageInbox);
+    }
 }
 
 function setupNotificationButton() {
@@ -296,6 +310,21 @@ function setupNotificationButton() {
     });
 }
 
+function setupSidebarToggle() {
+    const btn = document.getElementById('sidebarToggle');
+    if (!btn || btn.dataset.sidebarBound) return;
+    btn.dataset.sidebarBound = 'true';
+    const saved = localStorage.getItem('cirvio_admin_sidebar_collapsed') === 'true';
+    adminApp.classList.toggle('sidebar-collapsed', saved);
+    btn.setAttribute('aria-expanded', String(!saved));
+    btn.addEventListener('click', () => {
+        const collapsed = !adminApp.classList.contains('sidebar-collapsed');
+        adminApp.classList.toggle('sidebar-collapsed', collapsed);
+        btn.setAttribute('aria-expanded', String(!collapsed));
+        localStorage.setItem('cirvio_admin_sidebar_collapsed', String(collapsed));
+    });
+}
+
 function filterTable(table, query) {
     const terms = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
     const rows = table.querySelectorAll('tbody tr');
@@ -304,6 +333,15 @@ function filterTable(table, query) {
         const text = row.textContent.toLowerCase();
         const match = !terms.length || terms.every((term) => text.includes(term));
         row.classList.toggle('table-row-hidden', !match);
+    });
+}
+
+function filterMessageInbox() {
+    const input = document.getElementById('messagesSearchInput');
+    const terms = String(input ? input.value : '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    document.querySelectorAll('.message-thread').forEach((row) => {
+        const text = row.textContent.toLowerCase();
+        row.classList.toggle('table-row-hidden', terms.length && !terms.every((term) => text.includes(term)));
     });
 }
 
@@ -362,6 +400,7 @@ ensurePasswordEye();
 setupAdminToolbar();
 setupSearchFilters();
 setupNotificationButton();
+setupSidebarToggle();
 
 /* ---------- dashboard ---------- */
 async function loadStats() {
@@ -787,8 +826,8 @@ async function saveOrderOps() {
 
 /* ---------- product messages ---------- */
 async function loadMessages({ notify = false } = {}) {
-    const table = document.querySelector('#messagesTable tbody');
-    if (!table) return;
+    const inbox = document.getElementById('messageInboxList');
+    if (!inbox) return;
     const previous = new Map(ADMIN_MESSAGES);
     const { messages } = await api('/api/admin/messages');
     ADMIN_MESSAGES.clear();
@@ -809,40 +848,37 @@ async function loadMessages({ notify = false } = {}) {
             showAdminNotice(`New message from ${sender.name || 'buyer'}`);
         }
     }
-    table.innerHTML = messages.length ? messages.map((m) => {
+    const countLabel = document.getElementById('messageInboxCount');
+    if (countLabel) countLabel.textContent = `${messages.length} conversation${messages.length === 1 ? '' : 's'}`;
+    inbox.innerHTML = messages.length ? messages.map((m) => {
         const product = m.product || {};
         const seller = product.seller || {};
         const sender = m.sender || {};
         const replies = m.replies || [];
         const lastReply = replies[replies.length - 1];
+        const lastText = lastReply ? lastReply.text : m.text;
+        const needsReply = !replies.some((reply) => ['admin', 'employee'].includes(reply.senderRole));
         return `
-        <tr class="message-row ${String(m._id) === activeMessageId ? 'active-row' : ''}" data-message-id="${m._id}" onclick="handleMessageRowClick(event,'${m._id}')" ondblclick="openMessageReply('${m._id}')">
-          <td>${fmtDate(m.createdAt)}</td>
-          <td>
-            <div class="identity-card">
-              <span class="role-pill buyer">Buyer</span>
-              <strong>${esc(sender.name || '-')}</strong>
-              <span class="sub">${esc(sender.email || '')}</span>
-              <span class="sub">${esc(sender.phone || sender.city || sender.college || '')}</span>
-            </div>
-          </td>
-          <td class="pair-cell">${esc(product.title || m.productTitle || '-')}<span class="sub">${esc(product.category || '')}</span></td>
-          <td>
-            <div class="identity-card">
-              <span class="role-pill seller">Seller</span>
-              <strong>${esc(seller.name || '-')}</strong>
-              <span class="sub">${esc(seller.email || '')}</span>
-              <span class="sub">${esc(seller.phone || seller.city || seller.college || '')}</span>
-            </div>
-          </td>
-          <td>${esc(product.location || '-')}</td>
-          <td class="message-text">
-            <strong>${esc(m.text || '')}</strong>
-            <span class="sub">${replies.length ? `${replies.length} repl${replies.length === 1 ? 'y' : 'ies'} | Last: ${esc(lastReply.text || '')}` : 'No reply yet'}</span>
-          </td>
-          <td class="message-action-cell"><button class="row-btn btn-view" onclick="event.stopPropagation(); openMessageReply('${m._id}')">Reply</button></td>
-        </tr>`;
-    }).join('') : emptyRow(7, 'No product messages yet.');
+        <button class="message-thread ${String(m._id) === activeMessageId ? 'active-row' : ''}" data-message-id="${m._id}" type="button" onclick="handleMessageRowClick(event,'${m._id}')">
+          <span class="avatar">${esc(initials(sender.name || 'Buyer'))}</span>
+          <span class="message-thread-main">
+            <span class="thread-top">
+              <strong>${esc(sender.name || 'Buyer')}</strong>
+              <small>${fmtDate(m.updatedAt || m.createdAt)}</small>
+            </span>
+            <span class="thread-product">${esc(product.title || m.productTitle || 'Product enquiry')}</span>
+            <span class="thread-preview">${esc(lastText || 'No message text')}</span>
+            <span class="thread-meta">${esc(sender.email || sender.phone || '')}${seller.name ? ` | Seller: ${esc(seller.name)}` : ''}</span>
+          </span>
+          ${needsReply ? '<span class="thread-unread">New</span>' : ''}
+        </button>`;
+    }).join('') : `
+      <div class="chat-empty inbox-empty">
+        <span class="page-icon">M</span>
+        <strong>No messages yet</strong>
+        <p>New product enquiries will appear here.</p>
+      </div>`;
+    filterMessageInbox();
     if (messages.length) {
         const panelMessageId = ADMIN_MESSAGES.has(activeMessageId) ? activeMessageId : String(messages[0]._id);
         renderMessageSidePanel(panelMessageId);
@@ -850,6 +886,12 @@ async function loadMessages({ notify = false } = {}) {
         renderMessageSidePanel('');
     }
     applyActiveSearchFilter();
+}
+
+function messageParticipantLabel(role) {
+    if (['admin', 'employee'].includes(role)) return 'CIRVIO Admin';
+    if (role === 'seller') return 'Seller';
+    return 'Buyer';
 }
 
 function startAdminMessagePoll() {
@@ -881,8 +923,6 @@ function showAdminNotice(text) {
 
 function handleMessageRowClick(event, id) {
     renderMessageSidePanel(id);
-    const isTouch = window.matchMedia('(pointer: coarse), (max-width: 760px)').matches;
-    if (isTouch) openMessageReply(id);
 }
 
 function renderMessageSidePanel(id) {
@@ -896,7 +936,7 @@ function renderMessageSidePanel(id) {
             <strong>Select a conversation</strong>
             <p>Open a product enquiry to reply from the side panel.</p>
           </div>`;
-        document.querySelectorAll('.message-row').forEach((row) => row.classList.remove('active-row'));
+        document.querySelectorAll('.message-thread').forEach((row) => row.classList.remove('active-row'));
         return;
     }
     activeMessageId = String(id);
@@ -905,7 +945,7 @@ function renderMessageSidePanel(id) {
     const seller = product.seller || {};
     const sender = message.sender || {};
     const thread = [{ text: message.text, senderRole: 'buyer', createdAt: message.createdAt }, ...(message.replies || [])];
-    document.querySelectorAll('.message-row').forEach((row) => {
+    document.querySelectorAll('.message-thread').forEach((row) => {
         row.classList.toggle('active-row', row.dataset.messageId === activeMessageId);
     });
     panel.innerHTML = `
@@ -926,11 +966,11 @@ function renderMessageSidePanel(id) {
           <span class="sub">${esc(product.location || 'No product address')} | Seller: ${esc(seller.name || '-')}</span>
         </div>
       </div>
-      <div class="chat-date"><span>${fmtDate(message.createdAt)}</span></div>
       <div class="chat-thread">
+        <div class="chat-date"><span>${fmtDate(message.createdAt)}</span></div>
         ${thread.map((part) => `
           <div class="reply-bubble ${['admin', 'employee'].includes(part.senderRole) ? 'from-admin' : 'from-buyer'}">
-            <strong>${['admin', 'employee'].includes(part.senderRole) ? 'CIRVIO Admin' : (part.senderRole === 'seller' ? 'Seller' : 'Buyer')}</strong>
+            <strong>${messageParticipantLabel(part.senderRole)}</strong>
             <p>${esc(part.text || '')}</p>
             <small>${fmtDate(part.createdAt)}</small>
           </div>`).join('')}
@@ -942,6 +982,8 @@ function renderMessageSidePanel(id) {
       </div>`;
     document.getElementById('sideOpenFullReply').addEventListener('click', () => openMessageReply(activeMessageId));
     document.getElementById('sideReplySend').addEventListener('click', sendSidePanelReply);
+    const threadEl = panel.querySelector('.chat-thread');
+    if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
 }
 
 async function sendSidePanelReply() {
@@ -999,7 +1041,6 @@ function ensureMessageReplyModal() {
     });
 }
 
-let activeMessageId = '';
 function openMessageReply(id) {
     const message = ADMIN_MESSAGES.get(String(id));
     if (!message) return;
@@ -1019,7 +1060,7 @@ function openMessageReply(id) {
     const parts = [{ text: message.text, senderRole: 'buyer', createdAt: message.createdAt }, ...(message.replies || [])];
     document.getElementById('messageReplyThread').innerHTML = parts.map((part) => `
       <div class="reply-bubble ${['admin', 'employee'].includes(part.senderRole) ? 'from-admin' : 'from-buyer'}">
-        <strong>${['admin', 'employee'].includes(part.senderRole) ? 'CIRVIO Admin' : (part.senderRole === 'seller' ? 'Seller' : 'Buyer')}</strong>
+        <strong>${messageParticipantLabel(part.senderRole)}</strong>
         <p>${esc(part.text || '')}</p>
         <small>${fmtDate(part.createdAt)}</small>
       </div>`).join('');
@@ -1064,7 +1105,7 @@ function ensureSettingsPanel() {
         const btn = document.createElement('button');
         btn.className = 'nav-btn';
         btn.dataset.tab = 'settings';
-        btn.innerHTML = '<span class="nav-glyph">S</span>Settings';
+        btn.innerHTML = '<span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2 3.4-.2-.1a1.8 1.8 0 0 0-2 .4l-.3.3h-3.8l-.3-.3a1.8 1.8 0 0 0-2-.4l-.2.1-2-3.4.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.6-1.1H6v-3.8h.2a1.8 1.8 0 0 0 1.6-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1 2-3.4.2.1a1.8 1.8 0 0 0 2-.4l.3-.3h3.8l.3.3a1.8 1.8 0 0 0 2 .4l.2-.1 2 3.4-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.6 1.1h.2v3.8h-.2a1.8 1.8 0 0 0-1.8 1.1Z"/></svg></span><span class="nav-label">Settings</span>';
         btn.addEventListener('click', () => activateTab('settings'));
         nav.appendChild(btn);
     }
@@ -1151,7 +1192,7 @@ function ensureEmployeePanel() {
         btn.className = 'nav-btn';
         btn.dataset.tab = 'employees';
         btn.dataset.adminOnly = 'true';
-        btn.innerHTML = '<span class="nav-glyph">E</span>Employees';
+        btn.innerHTML = '<span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 8h3M20.5 6.5v3"/></svg></span><span class="nav-label">Employees</span>';
         btn.addEventListener('click', () => activateTab('employees'));
         nav.appendChild(btn);
     }

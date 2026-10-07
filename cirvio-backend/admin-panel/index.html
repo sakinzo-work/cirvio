@@ -11,7 +11,7 @@
 <div id="loginScreen" class="login-screen">
   <form id="loginForm" class="login-card">
     <div class="login-brand">
-      <span class="brand-mark"><span></span></span>
+      <img class="login-logo" src="cirvio-logo-footer.png" alt="CIRVIO">
       <div>
         <h1>CIRVIO Admin</h1>
         <p class="sub">Operations control room</p>
@@ -28,18 +28,17 @@
 <div id="adminApp" class="admin-app hidden">
   <aside class="sidebar">
     <div class="brand">
-      <span class="brand-mark"><span></span></span>
-      <div>
-        <strong>CIRVIO</strong>
-        <span>Operations</span>
-      </div>
+      <img class="brand-logo" src="cirvio-logo-header.png" alt="CIRVIO Operations">
+      <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
     </div>
     <nav class="sidebar-nav">
-      <button class="nav-btn active" data-tab="dashboard"><span class="nav-glyph">D</span>Dashboard</button>
-      <button class="nav-btn" data-tab="users"><span class="nav-glyph">U</span>Users</button>
-      <button class="nav-btn" data-tab="listings"><span class="nav-glyph">L</span>Listings</button>
-      <button class="nav-btn" data-tab="purchases"><span class="nav-glyph">P</span>Purchases</button>
-      <button class="nav-btn" data-tab="messages"><span class="nav-glyph">M</span>Messages <span id="messageNavBadge" class="nav-badge">0</span></button>
+      <button class="nav-btn active" data-tab="dashboard"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm9 7h7V4h-7v16ZM4 20h7v-5H4v5Z"/></svg></span><span class="nav-label">Dashboard</span></button>
+      <button class="nav-btn" data-tab="users"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0"/><path d="M3 21c0-4 3.6-7 9-7s9 3 9 7"/><path d="M17 4a3 3 0 0 1 0 6"/></svg></span><span class="nav-label">Users</span></button>
+      <button class="nav-btn" data-tab="listings"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M8 4v13a3 3 0 0 0 3 3"/><path d="M9 8h6M9 12h5"/></svg></span><span class="nav-label">Listings</span></button>
+      <button class="nav-btn" data-tab="purchases"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M6 7h15l-2 9H8L6 7Z"/><path d="M6 7 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg></span><span class="nav-label">Purchases</span></button>
+      <button class="nav-btn" data-tab="messages"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5Z"/><path d="M8 9h8M8 13h5"/></svg></span><span class="nav-label">Messages</span><span id="messageNavBadge" class="nav-badge">0</span></button>
     </nav>
     <div class="sidebar-user">
       <span id="sidebarAvatar" class="avatar">A</span>
@@ -254,11 +253,21 @@
         </div>
       </div>
       <div class="messages-layout">
-        <div class="table-wrap message-list-wrap">
-          <table id="messagesTable">
-            <thead><tr><th>Date</th><th>Buyer / Sender</th><th>Product</th><th>Seller</th><th>Product Address</th><th>Message</th><th>Actions</th></tr></thead>
-            <tbody></tbody>
-          </table>
+        <div class="message-inbox">
+          <div class="message-inbox-head">
+            <div>
+              <strong>Inbox</strong>
+              <span id="messageInboxCount">0 conversations</span>
+            </div>
+            <button class="icon-btn" id="refreshMessagesBtn" type="button" aria-label="Refresh messages">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+            </button>
+          </div>
+          <label class="message-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input id="messagesSearchInput" type="search" placeholder="Search chats...">
+          </label>
+          <div id="messageInboxList" class="message-inbox-list"></div>
         </div>
         <aside id="messageSidePanel" class="message-side-panel">
           <div class="chat-empty">

@@ -7,6 +7,30 @@
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+<svg class="icon-sprite" aria-hidden="true" focusable="false">
+  <symbol id="icon-dashboard" viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm9 7h7V4h-7v16ZM4 20h7v-5H4v5Z"/></symbol>
+  <symbol id="icon-users" viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0"/><path d="M3 21c0-4 3.6-7 9-7s9 3 9 7"/><path d="M17 4a3 3 0 0 1 0 6"/></symbol>
+  <symbol id="icon-listings" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M8 4v13a3 3 0 0 0 3 3"/><path d="M9 8h6M9 12h5"/></symbol>
+  <symbol id="icon-purchases" viewBox="0 0 24 24"><path d="M6 7h15l-2 9H8L6 7Z"/><path d="M6 7 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></symbol>
+  <symbol id="icon-messages" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5Z"/><path d="M8 9h8M8 13h5"/></symbol>
+  <symbol id="icon-review" viewBox="0 0 24 24"><path d="M8 4h9a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4h3Z"/><path d="M9 4a3 3 0 0 1 6 0"/><path d="M9 12l2 2 4-5"/></symbol>
+  <symbol id="icon-payment" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></symbol>
+  <symbol id="icon-dispatch" viewBox="0 0 24 24"><path d="M3 7h11v10H3V7Z"/><path d="M14 11h4l3 3v3h-7v-6Z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></symbol>
+  <symbol id="icon-active" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></symbol>
+  <symbol id="icon-suspended" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M6.5 6.5l11 11"/></symbol>
+  <symbol id="icon-deleted" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></symbol>
+  <symbol id="icon-approved" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="icon-sold" viewBox="0 0 24 24"><path d="M20 12 12 20 4 12V4h8l8 8Z"/><circle cx="8" cy="8" r="1.5"/></symbol>
+  <symbol id="icon-orders" viewBox="0 0 24 24"><path d="M12 3 4 7l8 4 8-4-8-4Z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></symbol>
+  <symbol id="icon-revenue" viewBox="0 0 24 24"><path d="M4 7h16v12H4V7Z"/><path d="M16 7V5H6a2 2 0 0 0-2 2"/><path d="M16 13h4"/><circle cx="8" cy="13" r="1.5"/></symbol>
+  <symbol id="icon-product" viewBox="0 0 24 24"><path d="M6 4h9a3 3 0 0 1 3 3v13H9a3 3 0 0 1-3-3V4Z"/><path d="M9 9h6M9 13h5"/></symbol>
+  <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+  <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></symbol>
+  <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-1.9-1.1L14.3 3h-4.6l-.4 2.9A7.8 7.8 0 0 0 7.5 7l-2.4-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.1l-2 1.5 2 3.4 2.4-1c.6.5 1.2.8 1.9 1.1l.4 2.9h4.6l.4-2.9c.7-.3 1.3-.6 1.9-1.1l2.4 1 2-3.4-2-1.5c0-.3.1-.7.1-1.1Z"/></symbol>
+  <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2"/></symbol>
+  <symbol id="icon-employee" viewBox="0 0 24 24"><circle cx="10" cy="8" r="4"/><path d="M3 21a7 7 0 0 1 14 0"/><path d="M19 8v6M16 11h6"/></symbol>
+</svg>
 
 <div id="loginScreen" class="login-screen">
   <form id="loginForm" class="login-card">
@@ -34,14 +58,14 @@
       </button>
     </div>
     <nav class="sidebar-nav">
-      <button class="nav-btn active" data-tab="dashboard"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm9 7h7V4h-7v16ZM4 20h7v-5H4v5Z"/></svg></span><span class="nav-label">Dashboard</span></button>
-      <button class="nav-btn" data-tab="users"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0"/><path d="M3 21c0-4 3.6-7 9-7s9 3 9 7"/><path d="M17 4a3 3 0 0 1 0 6"/></svg></span><span class="nav-label">Users</span></button>
-      <button class="nav-btn" data-tab="listings"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M8 4v13a3 3 0 0 0 3 3"/><path d="M9 8h6M9 12h5"/></svg></span><span class="nav-label">Listings</span></button>
-      <button class="nav-btn" data-tab="purchases"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M6 7h15l-2 9H8L6 7Z"/><path d="M6 7 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg></span><span class="nav-label">Purchases</span></button>
-      <button class="nav-btn" data-tab="messages"><span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5Z"/><path d="M8 9h8M8 13h5"/></svg></span><span class="nav-label">Messages</span><span id="messageNavBadge" class="nav-badge">0</span></button>
+      <button class="nav-btn active" data-tab="dashboard"><span class="nav-glyph"><svg class="ui-icon"><use href="#icon-dashboard"></use></svg></span><span class="nav-label">Dashboard</span></button>
+      <button class="nav-btn" data-tab="users"><span class="nav-glyph"><svg class="ui-icon"><use href="#icon-users"></use></svg></span><span class="nav-label">Users</span></button>
+      <button class="nav-btn" data-tab="listings"><span class="nav-glyph"><svg class="ui-icon"><use href="#icon-listings"></use></svg></span><span class="nav-label">Listings</span></button>
+      <button class="nav-btn" data-tab="purchases"><span class="nav-glyph"><svg class="ui-icon"><use href="#icon-purchases"></use></svg></span><span class="nav-label">Purchases</span></button>
+      <button class="nav-btn" data-tab="messages"><span class="nav-glyph"><svg class="ui-icon"><use href="#icon-messages"></use></svg></span><span class="nav-label">Messages</span><span id="messageNavBadge" class="nav-badge">0</span></button>
     </nav>
     <div class="sidebar-user">
-      <span id="sidebarAvatar" class="avatar">A</span>
+      <span id="sidebarAvatar" class="avatar"><svg class="ui-icon"><use href="#icon-user"></use></svg></span>
       <div>
         <strong id="sidebarUserName">Admin</strong>
         <span id="sidebarUserRole">Staff</span>
@@ -53,13 +77,13 @@
   <main class="main">
     <header class="topbar">
       <label class="global-search">
-        <span>Search</span>
+        <svg class="field-icon"><use href="#icon-search"></use></svg>
         <input id="globalSearchInput" type="search" placeholder="Search anything...">
       </label>
       <div class="topbar-actions">
-        <button id="adminNotificationBtn" class="icon-btn notification-btn" type="button" aria-label="Notifications" data-count="0"><span>!</span></button>
+        <button id="adminNotificationBtn" class="icon-btn notification-btn" type="button" aria-label="Notifications" data-count="0"><svg class="ui-icon"><use href="#icon-bell"></use></svg></button>
         <div class="topbar-user">
-          <span id="adminAvatarTop" class="avatar">A</span>
+          <span id="adminAvatarTop" class="avatar"><svg class="ui-icon"><use href="#icon-user"></use></svg></span>
           <div>
             <strong id="adminNameTop">Admin</strong>
             <span id="adminRoleTop">Staff</span>
@@ -72,7 +96,7 @@
     <section id="tab-dashboard" class="tab-panel active">
       <div class="panel-head">
         <div class="page-title">
-          <span class="page-icon">D</span>
+          <span class="page-icon"><svg class="ui-icon"><use href="#icon-dashboard"></use></svg></span>
           <div>
           <h2>Operations Dashboard</h2>
           <p>Daily control room for approvals, manual payments, dispatch and support chats.</p>
@@ -95,17 +119,17 @@
         </div>
         <div class="ops-queue">
           <button class="ops-queue-card queue-review" data-jump-tab="listings">
-            <span class="queue-icon">R</span>
+            <span class="queue-icon"><svg class="ui-icon"><use href="#icon-review"></use></svg></span>
             <span><small>Needs review</small>Listings waiting for review</span>
             <strong id="opsPendingListings">-</strong>
           </button>
           <button class="ops-queue-card queue-payment" data-jump-tab="purchases">
-            <span class="queue-icon">P</span>
+            <span class="queue-icon"><svg class="ui-icon"><use href="#icon-payment"></use></svg></span>
             <span><small>Collect payment</small>Orders pending payment</span>
             <strong id="opsPaymentPending">-</strong>
           </button>
           <button class="ops-queue-card queue-dispatch" data-jump-tab="purchases">
-            <span class="queue-icon">D</span>
+            <span class="queue-icon"><svg class="ui-icon"><use href="#icon-dispatch"></use></svg></span>
             <span><small>Dispatch queue</small>Orders ready for dispatch</span>
             <strong id="opsDispatchPending">-</strong>
           </button>
@@ -113,15 +137,15 @@
       </div>
 
       <div class="stat-grid dashboard-stats" id="statGrid">
-        <div class="stat-card tone-green"><span class="stat-icon">U</span><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-blue"><span class="stat-icon">L</span><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-amber"><span class="stat-icon">R</span><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-cyan"><span class="stat-icon">A</span><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-violet"><span class="stat-icon">S</span><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-teal"><span class="stat-icon">O</span><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-rose"><span class="stat-icon">P</span><span class="stat-label">Payment Pending</span><span class="stat-value" id="statPaymentPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-orange"><span class="stat-icon">D</span><span class="stat-label">Dispatch Pending</span><span class="stat-value" id="statDispatchPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-green wide"><span class="stat-icon">R</span><span class="stat-label">Collected Revenue</span><span class="stat-value" id="statRevenue">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-green"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-users"></use></svg></span><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-blue"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-listings"></use></svg></span><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-amber"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-review"></use></svg></span><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-cyan"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-approved"></use></svg></span><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-violet"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-sold"></use></svg></span><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-teal"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-orders"></use></svg></span><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-rose"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-payment"></use></svg></span><span class="stat-label">Payment Pending</span><span class="stat-value" id="statPaymentPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-orange"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-dispatch"></use></svg></span><span class="stat-label">Dispatch Pending</span><span class="stat-value" id="statDispatchPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-green wide"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-revenue"></use></svg></span><span class="stat-label">Collected Revenue</span><span class="stat-value" id="statRevenue">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
       </div>
 
       <div class="data-card">
@@ -154,7 +178,7 @@
     <section id="tab-users" class="tab-panel">
       <div class="panel-head">
         <div class="page-title">
-          <span class="page-icon">U</span>
+          <span class="page-icon"><svg class="ui-icon"><use href="#icon-users"></use></svg></span>
           <div>
             <h2>Users</h2>
             <p>Manage student accounts, staff roles and account status.</p>
@@ -167,15 +191,15 @@
         </div>
       </div>
       <div class="stat-grid user-stats">
-        <div class="stat-card tone-teal"><span class="stat-icon">U</span><span class="stat-label">Total Users</span><span class="stat-value" id="usersTotalMetric">-</span></div>
-        <div class="stat-card tone-green"><span class="stat-icon">A</span><span class="stat-label">Active</span><span class="stat-value" id="usersActiveMetric">-</span></div>
-        <div class="stat-card tone-rose"><span class="stat-icon">S</span><span class="stat-label">Suspended</span><span class="stat-value" id="usersSuspendedMetric">-</span></div>
-        <div class="stat-card tone-blue"><span class="stat-icon">D</span><span class="stat-label">Deleted</span><span class="stat-value">0</span></div>
+        <div class="stat-card tone-teal"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-users"></use></svg></span><span class="stat-label">Total Users</span><span class="stat-value" id="usersTotalMetric">-</span></div>
+        <div class="stat-card tone-green"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-active"></use></svg></span><span class="stat-label">Active</span><span class="stat-value" id="usersActiveMetric">-</span></div>
+        <div class="stat-card tone-rose"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-suspended"></use></svg></span><span class="stat-label">Suspended</span><span class="stat-value" id="usersSuspendedMetric">-</span></div>
+        <div class="stat-card tone-blue"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-deleted"></use></svg></span><span class="stat-label">Deleted</span><span class="stat-value">0</span></div>
       </div>
       <div class="data-card">
         <div class="table-toolbar">
           <label>Show <select><option>10</option><option>25</option><option>50</option></select> entries</label>
-          <label class="table-search"><span>Search</span><input id="usersSearchInput" type="search" placeholder="Search users..."></label>
+          <label class="table-search"><svg class="field-icon"><use href="#icon-search"></use></svg><input id="usersSearchInput" type="search" placeholder="Search users..."></label>
         </div>
         <div class="table-wrap">
           <table id="usersTable">
@@ -189,7 +213,7 @@
     <section id="tab-listings" class="tab-panel">
       <div class="panel-head">
         <div class="page-title">
-          <span class="page-icon">L</span>
+          <span class="page-icon"><svg class="ui-icon"><use href="#icon-listings"></use></svg></span>
           <div>
             <h2>Listings</h2>
             <p>Inspect uploaded photos before approving items for the public marketplace.</p>
@@ -220,7 +244,7 @@
     <section id="tab-purchases" class="tab-panel">
       <div class="panel-head">
         <div class="page-title">
-          <span class="page-icon">P</span>
+          <span class="page-icon"><svg class="ui-icon"><use href="#icon-purchases"></use></svg></span>
           <div>
             <h2>Purchases</h2>
             <p>Track buyer, product and seller pairings for placed orders.</p>
@@ -228,7 +252,7 @@
         </div>
         <div class="page-actions purchases-actions">
           <label class="control-pill">Date Range<select><option>All Dates</option><option>This Week</option><option>This Month</option></select></label>
-          <label class="table-search"><span>Search</span><input id="purchasesSearchInput" type="search" placeholder="Search..."></label>
+          <label class="table-search"><svg class="field-icon"><use href="#icon-search"></use></svg><input id="purchasesSearchInput" type="search" placeholder="Search..."></label>
           <button class="soft-btn action-primary" type="button" data-export-table="purchasesTable">Export</button>
         </div>
       </div>
@@ -245,7 +269,7 @@
     <section id="tab-messages" class="tab-panel">
       <div class="panel-head">
         <div class="page-title">
-          <span class="page-icon">M</span>
+          <span class="page-icon"><svg class="ui-icon"><use href="#icon-messages"></use></svg></span>
           <div>
             <h2>Messages</h2>
             <p>Product questions sent by users to CIRVIO admins.</p>
@@ -260,18 +284,18 @@
               <span id="messageInboxCount">0 conversations</span>
             </div>
             <button class="icon-btn" id="refreshMessagesBtn" type="button" aria-label="Refresh messages">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
             </button>
           </div>
           <label class="message-search">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <svg class="field-icon"><use href="#icon-search"></use></svg>
             <input id="messagesSearchInput" type="search" placeholder="Search chats...">
           </label>
           <div id="messageInboxList" class="message-inbox-list"></div>
         </div>
         <aside id="messageSidePanel" class="message-side-panel">
           <div class="chat-empty">
-            <span class="page-icon">M</span>
+            <span class="page-icon"><svg class="ui-icon"><use href="#icon-messages"></use></svg></span>
             <strong>Select a conversation</strong>
             <p>Open a product enquiry to reply from the side panel.</p>
           </div>

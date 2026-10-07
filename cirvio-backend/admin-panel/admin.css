@@ -54,6 +54,26 @@ textarea {
   color-scheme: dark;
 }
 
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.ui-icon,
+.field-icon {
+  width: 1em;
+  height: 1em;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -559,6 +579,12 @@ button {
   box-shadow: 0 16px 36px -20px rgba(32, 231, 173, .95);
 }
 
+.avatar .ui-icon {
+  width: 19px;
+  height: 19px;
+  stroke-width: 2.35;
+}
+
 .logout-btn {
   position: relative;
   z-index: 1;
@@ -611,14 +637,14 @@ button {
 }
 
 .global-search span,
-.table-search span {
+.table-search span,
+.global-search .field-icon,
+.table-search .field-icon {
   position: absolute;
   left: 14px;
-  color: transparent;
+  color: var(--muted);
   width: 18px;
   height: 18px;
-  border: 2px solid var(--muted);
-  border-radius: 999px;
 }
 
 .global-search span::after,
@@ -676,14 +702,7 @@ button {
 }
 
 .notification-btn::before {
-  content: "";
-  position: absolute;
-  left: 12px;
-  top: 8px;
-  width: 13px;
-  height: 17px;
-  border: 2px solid var(--muted);
-  border-radius: 8px 8px 4px 4px;
+  display: none;
 }
 
 .notification-btn::after {
@@ -707,8 +726,11 @@ button {
   display: none;
 }
 
-.notification-btn span {
-  color: transparent;
+.notification-btn .ui-icon {
+  width: 18px;
+  height: 18px;
+  margin: auto;
+  color: var(--muted);
 }
 
 .topbar-user {
@@ -768,6 +790,13 @@ button {
   color: #eafff8;
   font-weight: 950;
   box-shadow: var(--glow);
+}
+
+.page-icon .ui-icon,
+.settings-card-head .role-pill:first-child .ui-icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.25;
 }
 
 .panel-head h2,
@@ -1060,7 +1089,6 @@ button {
   display: inline-grid;
   place-items: center;
   border-radius: var(--radius);
-  color: #fff;
   font-weight: 950;
   box-shadow: 0 14px 30px -18px currentColor;
 }
@@ -1068,7 +1096,14 @@ button {
 .queue-icon {
   width: 42px;
   height: 42px;
+  color: #fff;
   background: linear-gradient(135deg, var(--rose), #8c2447);
+}
+
+.queue-icon .ui-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.3;
 }
 
 .queue-payment .queue-icon {
@@ -1118,8 +1153,14 @@ button {
   width: 36px;
   height: 36px;
   margin-bottom: 8px;
-  background: currentColor;
-  color: #fff;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, .05);
+}
+
+.stat-icon .ui-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.35;
 }
 
 .stat-label {
@@ -1610,6 +1651,12 @@ tbody tr:last-child td {
   font-size: 12px;
 }
 
+.mini-avatar .ui-icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.4;
+}
+
 .message-search {
   display: flex;
   align-items: center;
@@ -1833,6 +1880,12 @@ tbody tr:last-child td {
   border: 1px solid rgba(230, 190, 66, .28);
   color: #ffeeb5;
   font-weight: 950;
+}
+
+.product-mini .ui-icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.2;
 }
 
 .chat-date {
@@ -2233,14 +2286,13 @@ tbody tr:last-child td {
 }
 
 .settings-card-head .role-pill:first-child {
-  width: auto;
-  height: auto;
-  min-height: 28px;
-  flex: 0 0 auto;
-  padding: 7px 11px;
-  border-radius: 999px;
-  box-shadow: none;
-  white-space: nowrap;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+  border-radius: var(--radius);
+  box-shadow: var(--glow);
 }
 
 .settings-card-head {

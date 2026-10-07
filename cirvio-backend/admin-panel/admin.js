@@ -146,14 +146,13 @@ const isAdmin = () => CURRENT_USER && CURRENT_USER.role === 'admin';
 const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : inr(p.price));
 const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-const initials = (name = 'Admin') => String(name || 'Admin').trim().split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase() || 'A';
 const titleCase = (value = '') => String(value || '').replace(/-/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+const iconSvg = (name) => `<svg class="ui-icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
 
 function updateAdminChrome() {
     const user = CURRENT_USER || {};
     const name = user.name || 'Admin';
     const role = titleCase(user.role || 'staff');
-    const userInitials = initials(name);
     [
         ['adminNameTop', name],
         ['adminRoleTop', role],
@@ -165,7 +164,7 @@ function updateAdminChrome() {
     });
     ['adminAvatarTop', 'sidebarAvatar'].forEach((id) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = userInitials;
+        if (el) el.innerHTML = iconSvg('user');
     });
     const today = document.getElementById('adminToday');
     if (today) {
@@ -446,7 +445,7 @@ async function loadUsers() {
     const tbody = document.querySelector('#usersTable tbody');
     tbody.innerHTML = users.length ? users.map((u) => `
         <tr>
-          <td><div class="user-cell"><span class="mini-avatar">${esc(initials(u.name))}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.role)}</span></div></div></td>
+          <td><div class="user-cell"><span class="mini-avatar">${iconSvg('user')}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.role)}</span></div></div></td>
           <td>${esc(u.email)}<span class="sub">${esc(u.role)}</span></td>
           <td>${esc(u.college || '-')}</td>
           <td>${esc(u.city || '-')}</td>
@@ -466,7 +465,7 @@ async function loadUsers() {
     if (empBody) {
         empBody.innerHTML = employees.length ? employees.map((u) => `
           <tr>
-          <td><div class="user-cell"><span class="mini-avatar">${esc(initials(u.name))}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.email)}</span></div></div></td>
+          <td><div class="user-cell"><span class="mini-avatar">${iconSvg('user')}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.email)}</span></div></div></td>
           <td>${esc(u.email)}</td>
             <td><span class="badge badge-${u.status}">${u.status}</span></td>
             <td>${fmtDate(u.createdAt)}</td>
@@ -860,7 +859,7 @@ async function loadMessages({ notify = false } = {}) {
         const needsReply = !replies.some((reply) => ['admin', 'employee'].includes(reply.senderRole));
         return `
         <button class="message-thread ${String(m._id) === activeMessageId ? 'active-row' : ''}" data-message-id="${m._id}" type="button" onclick="handleMessageRowClick(event,'${m._id}')">
-          <span class="avatar">${esc(initials(sender.name || 'Buyer'))}</span>
+          <span class="avatar">${iconSvg('user')}</span>
           <span class="message-thread-main">
             <span class="thread-top">
               <strong>${esc(sender.name || 'Buyer')}</strong>
@@ -874,7 +873,7 @@ async function loadMessages({ notify = false } = {}) {
         </button>`;
     }).join('') : `
       <div class="chat-empty inbox-empty">
-        <span class="page-icon">M</span>
+        <span class="page-icon">${iconSvg('messages')}</span>
         <strong>No messages yet</strong>
         <p>New product enquiries will appear here.</p>
       </div>`;
@@ -932,7 +931,7 @@ function renderMessageSidePanel(id) {
         activeMessageId = '';
         panel.innerHTML = `
           <div class="chat-empty">
-            <span class="page-icon">M</span>
+            <span class="page-icon">${iconSvg('messages')}</span>
             <strong>Select a conversation</strong>
             <p>Open a product enquiry to reply from the side panel.</p>
           </div>`;
@@ -951,7 +950,7 @@ function renderMessageSidePanel(id) {
     panel.innerHTML = `
       <div class="chat-header">
         <div class="chat-contact">
-          <span class="avatar">${esc(initials(sender.name || 'Buyer'))}</span>
+          <span class="avatar">${iconSvg('user')}</span>
           <div>
             <strong>${esc(sender.name || 'Buyer')}</strong>
             <span class="sub">${esc(sender.email || sender.phone || '')}</span>
@@ -960,7 +959,7 @@ function renderMessageSidePanel(id) {
         <button class="row-btn btn-view" id="sideOpenFullReply">Full Reply</button>
       </div>
       <div class="chat-product">
-        <span class="product-mini">P</span>
+        <span class="product-mini">${iconSvg('product')}</span>
         <div class="identity-card">
           <strong>${esc(product.title || message.productTitle || 'Product enquiry')}</strong>
           <span class="sub">${esc(product.location || 'No product address')} | Seller: ${esc(seller.name || '-')}</span>
@@ -1105,7 +1104,7 @@ function ensureSettingsPanel() {
         const btn = document.createElement('button');
         btn.className = 'nav-btn';
         btn.dataset.tab = 'settings';
-        btn.innerHTML = '<span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2 3.4-.2-.1a1.8 1.8 0 0 0-2 .4l-.3.3h-3.8l-.3-.3a1.8 1.8 0 0 0-2-.4l-.2.1-2-3.4.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.6-1.1H6v-3.8h.2a1.8 1.8 0 0 0 1.6-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1 2-3.4.2.1a1.8 1.8 0 0 0 2-.4l.3-.3h3.8l.3.3a1.8 1.8 0 0 0 2 .4l.2-.1 2 3.4-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.6 1.1h.2v3.8h-.2a1.8 1.8 0 0 0-1.8 1.1Z"/></svg></span><span class="nav-label">Settings</span>';
+        btn.innerHTML = `<span class="nav-glyph">${iconSvg('settings')}</span><span class="nav-label">Settings</span>`;
         btn.addEventListener('click', () => activateTab('settings'));
         nav.appendChild(btn);
     }
@@ -1124,7 +1123,7 @@ function ensureSettingsPanel() {
       <div class="settings-layout">
         <section class="settings-card">
           <div class="settings-card-head">
-            <span class="role-pill ${isAdmin() ? 'seller' : 'buyer'}">${esc(CURRENT_USER?.role || 'staff')}</span>
+            <span class="role-pill ${isAdmin() ? 'seller' : 'buyer'}">${iconSvg('user')}</span>
             <div>
               <h3>My staff profile</h3>
               <p>These details are private to the CIRVIO operations panel.</p>
@@ -1144,7 +1143,7 @@ function ensureSettingsPanel() {
 
         <section class="settings-card">
           <div class="settings-card-head">
-            <span class="role-pill">Secure</span>
+            <span class="role-pill">${iconSvg('lock')}</span>
             <div>
               <h3>Password</h3>
               <p>Change only your own admin/employee login password.</p>
@@ -1162,7 +1161,7 @@ function ensureSettingsPanel() {
 
         <section class="settings-card admin-settings-card" data-admin-only>
           <div class="settings-card-head">
-            <span class="role-pill seller">Admin</span>
+            <span class="role-pill seller">${iconSvg('settings')}</span>
             <div>
               <h3>Frontend URLs</h3>
               <p>Only admins can edit the browser origins allowed to call this backend.</p>
@@ -1192,7 +1191,7 @@ function ensureEmployeePanel() {
         btn.className = 'nav-btn';
         btn.dataset.tab = 'employees';
         btn.dataset.adminOnly = 'true';
-        btn.innerHTML = '<span class="nav-glyph"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 8h3M20.5 6.5v3"/></svg></span><span class="nav-label">Employees</span>';
+        btn.innerHTML = `<span class="nav-glyph">${iconSvg('employee')}</span><span class="nav-label">Employees</span>`;
         btn.addEventListener('click', () => activateTab('employees'));
         nav.appendChild(btn);
     }
@@ -1212,7 +1211,7 @@ function ensureEmployeePanel() {
       <div class="employee-layout">
         <section class="settings-card employee-create-card">
           <div class="settings-card-head">
-            <span class="role-pill seller">New</span>
+            <span class="role-pill seller">${iconSvg('employee')}</span>
             <div>
               <h3>Create employee login</h3>
               <p>Employee accounts get operations access, not admin-only settings.</p>
@@ -1233,7 +1232,7 @@ function ensureEmployeePanel() {
 
         <section class="settings-card employee-list-card">
           <div class="settings-card-head">
-            <span class="role-pill">Logins</span>
+            <span class="role-pill">${iconSvg('users')}</span>
             <div>
               <h3>Employee log</h3>
               <p>Active and suspended employee IDs are kept separate from admin settings.</p>

@@ -557,7 +557,7 @@
                 <a href="index.html#contact">Contact</a>
             </nav>
             <div class="mp-quick">
-                <a href="profile.html#saved" class="mp-quick-item" id="mpWishBtn">
+                <a href="saved.html" class="mp-quick-item" id="mpWishBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path
@@ -701,7 +701,7 @@
                                 <span id="sellerSince">Member since 2024</span>
                             </div>
                         </div>
-                        <a href="index.html#browse">View Listings</a>
+                        <a href="index.html#browse" id="sellerProfileLink">View Profile</a>
                     </div>
 
                     <div class="pd-section" style="margin-top:0;">
@@ -895,6 +895,8 @@
             document.getElementById('pdDesc').textContent = product.desc;
             document.getElementById('sellerAvatar').textContent = product.seller.trim().charAt(0).toUpperCase();
             document.getElementById('sellerName').textContent = product.seller;
+            const sellerProfileLink = document.getElementById('sellerProfileLink');
+            sellerProfileLink.href = product.sellerId ? `profile.html?user=${encodeURIComponent(product.sellerId)}` : 'index.html#browse';
             window.CirvioCurrentProduct = product;
 
             document.getElementById('pdPrice').textContent = product.price === 0

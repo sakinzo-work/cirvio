@@ -194,6 +194,17 @@ const CirvioAPI = {
         if (data.user) localStorage.setItem('cirvio_profile', JSON.stringify(data.user));
         return data;
     },
+    async publicProfile(userId) {
+        await this.ensureSession();
+        return this.request('/api/auth/users/' + encodeURIComponent(userId));
+    },
+    async rateProfile(userId, value) {
+        await this.ensureSession();
+        return this.request('/api/auth/users/' + encodeURIComponent(userId) + '/rating', {
+            method: 'POST',
+            body: JSON.stringify({ value })
+        });
+    },
     async deleteAccount(password) {
         await this.ensureSession();
         return this.request('/api/auth/me', {

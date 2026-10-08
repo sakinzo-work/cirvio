@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saved List - CIRVIO</title>
+    <meta name="description" content="Open your saved CIRVIO books, notes and study material in one place.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2E3624">
+</head>
+
+<body>
+    <div class="header-wrap">
+        <header class="header" id="siteHeader">
+            <a aria-label="CIRVIO home" class="logo" href="index.html#home">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO">
+            </a>
+            <nav class="nav-links">
+                <a data-nav="browse" href="index.html#browse">Browse</a>
+                <a data-nav="explore" href="explore.html">Explore</a>
+                <a data-nav="donate" href="index.html#donate">Donate</a>
+                <a data-nav="how" href="index.html#how">How it Works</a>
+                <a data-nav="about" href="index.html#about">About</a>
+            </nav>
+            <div class="header-search" style="position:relative;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search books, notes, calculators..." autocomplete="off">
+                <div class="loc">Mumbai</div>
+                <div class="search-suggest" id="searchSuggest"></div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="9" cy="21" r="1.6" /><circle cx="19" cy="21" r="1.6" /><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z" /></svg>
+                    <span class="badge-count" id="cartCount">0</span>
+                </button>
+                <button class="btn-icon" id="wishBtn" aria-label="Wishlist" title="Wishlist">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z" /></svg>
+                    <span class="badge-count" id="wishCount">0</span>
+                </button>
+                <button class="btn-icon" aria-label="Notifications" title="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+                    <span class="badge-count" id="notifCount">0</span>
+                </button>
+                <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></svg>
+                </a>
+                <div class="header-cta"><a href="sell.html" class="btn btn-terracotta btn-sm"><span>Sell</span></a></div>
+                <button class="btn-icon hamburger" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
+                </button>
+            </div>
+        </header>
+    </div>
+
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-panel">
+            <div class="mp-top">
+                <img class="logo-img" src="cirvio-logo-header.png" alt="CIRVIO">
+                <button class="btn-icon close-btn" id="closeMenuBtn" aria-label="Close menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+            </div>
+            <nav>
+                <a href="index.html#browse">Browse</a>
+                <a href="explore.html">Explore</a>
+                <a href="index.html#donate">Donate</a>
+                <a href="messages.html">Messages</a>
+                <a href="my-listings.html">My Listings</a>
+            </nav>
+        </div>
+    </div>
+
+    <section class="page-hero" style="padding-bottom:0;">
+        <div class="container">
+            <a class="back-home reveal show" href="profile.html">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                Back to Profile
+            </a>
+        </div>
+    </section>
+
+    <section style="padding-top:18px;">
+        <div class="container">
+            <div class="profile-tabs">
+                <a class="profile-tab-link" href="my-listings.html">My Listings</a>
+                <a class="profile-tab-link active" href="saved.html">Saved</a>
+                <a class="profile-tab-link" href="messages.html">Messages</a>
+                <a class="profile-tab-link" href="profile.html">Profile</a>
+            </div>
+            <div class="product-grid" id="savedGrid"></div>
+            <div class="empty-state" id="savedEmpty" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6">
+                    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z" />
+                </svg>
+                <p>Nothing saved yet</p>
+                <span>Tap the heart on any listing to save it here for later.</span>
+                <a class="btn btn-terracotta" href="explore.html">Browse Listings</a>
+            </div>
+        </div>
+    </section>
+
+    <nav class="bottom-nav">
+        <ul>
+            <li><a data-nav="home" href="index.html#home"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>Home</a></li>
+            <li><a data-nav="explore" href="explore.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>Explore</a></li>
+            <li><a href="sell.html"><span class="sell-fab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 5v14M5 12h14" /></svg></span></a></li>
+            <li><a href="messages.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.4" /></svg>Messages</a></li>
+            <li><a class="active" data-nav="profile" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></svg>Profile</a></li>
+        </ul>
+    </nav>
+
+    <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5" /></svg><span id="toastMsg">Saved changes</span></div>
+
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="common.js"></script>
+    <script>
+        const PRODUCTS = [];
+
+        function discountPct(p) {
+            if (!p.orig || p.price === 0) return null;
+            return Math.round(((p.orig - p.price) / p.orig) * 100);
+        }
+
+        function savedCard(p) {
+            const disc = discountPct(p);
+            let tag = '';
+            if (p.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
+            else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
+            return `
+                <a class="p-card" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
+                    <div class="p-thumb">
+                        ${tag}
+                        <button class="p-wish active" data-id="${p.id}" aria-label="Remove from wishlist">
+                            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                        </button>
+                        <img src="${p.img}" alt="${p.title}" loading="lazy">
+                    </div>
+                    <div class="p-body">
+                        <div class="p-cat">${p.cat || 'Study Material'}</div>
+                        <div class="p-title">${p.title || 'Saved item'}</div>
+                        <div class="p-price-row">
+                            <span class="p-price">${p.price === 0 ? 'Free' : 'Rs ' + (p.price || 0)}</span>
+                            ${p.orig ? `<span class="p-orig">Rs ${p.orig}</span>` : ''}
+                        </div>
+                        <div class="p-meta"><span class="cond">${p.cond || 'Good'}</span><span>${p.loc || 'Mumbai'}</span></div>
+                        <div class="p-foot"><span class="p-seller">${p.seller || 'CIRVIO Seller'}</span><span>${p.time || 'Just now'}</span></div>
+                    </div>
+                </a>`;
+        }
+
+        function renderSaved() {
+            const ids = CirvioStore.getWishlist().map(String);
+            const items = PRODUCTS.filter(p => ids.includes(String(p.id)));
+            const grid = document.getElementById('savedGrid');
+            const empty = document.getElementById('savedEmpty');
+            if (!items.length) {
+                grid.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                grid.innerHTML = items.map(savedCard).join('');
+            }
+        }
+
+        document.getElementById('savedGrid').addEventListener('click', (e) => {
+            const wishBtn = e.target.closest('.p-wish');
+            if (!wishBtn) return;
+            e.preventDefault();
+            const id = wishBtn.dataset.id;
+            CirvioStore.setWishlist(CirvioStore.getWishlist().filter(x => String(x) !== String(id)));
+            refreshWishBadge();
+            renderSaved();
+            showToast('Removed from saved list');
+        });
+
+        async function loadProducts() {
+            try {
+                const { products } = await CirvioAPI.getProducts();
+                PRODUCTS.splice(0, PRODUCTS.length, ...(products || []));
+                renderSaved();
+            } catch (err) {
+                console.warn('Could not load saved products:', err.message);
+                renderSaved();
+            }
+        }
+
+        if (CirvioAuth.requireLogin()) loadProducts();
+        initCirvioChrome('profile');
+    </script>
+</body>
+
+</html>

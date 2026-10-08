@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Account — CIRVIO</title>
-    <meta name="description" content="Manage your CIRVIO listings, wishlist, messages and profile settings.">
+    <title>Profile - CIRVIO</title>
+    <meta name="description" content="View and manage your CIRVIO public profile, trust rating and account settings.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -139,7 +139,7 @@
                 <a href='index.html#contact'>Contact</a>
             </nav>
             <div class="mp-quick">
-                <a class='mp-quick-item' href='profile.html#saved' id='mpWishBtn'>
+                <a class='mp-quick-item' href='saved.html' id='mpWishBtn'>
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path
@@ -218,6 +218,11 @@
                             </svg> Verified Student</span>
                         <span id="joinedBadge">Joined —</span>
                     </div>
+                    <div class="profile-actions">
+                        <a class="btn btn-ghost btn-sm" href="my-listings.html">My Listings</a>
+                        <a class="btn btn-ghost btn-sm" href="saved.html">Saved List</a>
+                        <a class="btn btn-ghost btn-sm" href="messages.html">Messages</a>
+                    </div>
                 </div>
                 <div class="profile-stats">
                     <div><strong id="statListings">0</strong><span>Listings</span></div>
@@ -227,11 +232,48 @@
                 </div>
             </div>
 
+            <div class="profile-trust-grid reveal show">
+                <div class="profile-trust-card">
+                    <h3>Public Trust Profile</h3>
+                    <p>Students can check this profile before buying, selling or donating. Add a rating when the exchange feels genuine and smooth.</p>
+                    <div class="trust-score">
+                        <strong id="trustAverage">5.0</strong>
+                        <div>
+                            <div class="trust-stars" id="trustStars" aria-label="Rate this user">
+                                <button class="trust-star" type="button" data-rate="1">★</button>
+                                <button class="trust-star" type="button" data-rate="2">★</button>
+                                <button class="trust-star" type="button" data-rate="3">★</button>
+                                <button class="trust-star" type="button" data-rate="4">★</button>
+                                <button class="trust-star" type="button" data-rate="5">★</button>
+                            </div>
+                            <div class="trust-meta" id="trustMeta">No ratings yet</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="profile-quick-grid">
+                    <a class="profile-quick-card" href="my-listings.html">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/><path d="M18 16l3 3-3 3"/></svg>
+                        <strong>My Listings</strong>
+                        <span>Manage items you uploaded.</span>
+                    </a>
+                    <a class="profile-quick-card" href="saved.html">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                        <strong>Saved List</strong>
+                        <span>Open saved items separately.</span>
+                    </a>
+                    <a class="profile-quick-card" href="messages.html">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.4a8.4 8.4 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5z"/></svg>
+                        <strong>Messages</strong>
+                        <span>Message alerts open here.</span>
+                    </a>
+                </div>
+            </div>
+
             <div class="profile-tabs" id="profileTabs">
-                <button class="profile-tab" data-tab="listings">My Listings</button>
-                <button class="profile-tab" data-tab="saved">Saved</button>
-                <button class="profile-tab" data-tab="messages">Messages</button>
-                <button class="profile-tab" data-tab="settings">Settings</button>
+                <a class="profile-tab-link" href="my-listings.html">My Listings</a>
+                <a class="profile-tab-link" href="saved.html">Saved</a>
+                <a class="profile-tab-link" href="messages.html">Messages</a>
+                <button class="profile-tab active" data-tab="settings">Settings</button>
             </div>
 
             <!-- LISTINGS -->
@@ -446,6 +488,10 @@
            homepage demo data can be shown here too)
         ============================================================ */
         const PRODUCTS = [];
+        const profileParams = new URLSearchParams(location.search);
+        const requestedUserId = profileParams.get('user') || '';
+        let profileSubject = null;
+        let profileIsPublic = false;
 
         function discountPct(p) {
             if (!p.orig || p.price === 0) return null;
@@ -454,7 +500,7 @@
 
         /* ---------- profile header ---------- */
         function loadProfileHeader() {
-            const p = CirvioStore.getProfile();
+            const p = profileSubject || CirvioStore.getProfile();
             const avatar = document.getElementById('profileAvatar');
             avatar.innerHTML = p.photo
                 ? `<img src="${p.photo}" alt="">`
@@ -464,13 +510,69 @@
             document.getElementById('joinedBadge').textContent = 'Joined ' + (p.joined || '—');
             document.getElementById('verifiedBadge').style.display = p.verified ? 'inline-flex' : 'none';
 
-            document.getElementById('setName').value = p.name || '';
-            document.getElementById('setCollege').value = p.college || '';
-            document.getElementById('setCourse').value = p.course || '';
-            document.getElementById('setCity').value = p.city || '';
-            document.getElementById('setEmail').value = p.email || '';
-            document.getElementById('setPhone').value = p.phone || '';
+            document.getElementById('setName').value = profileIsPublic ? '' : (p.name || '');
+            document.getElementById('setCollege').value = profileIsPublic ? '' : (p.college || '');
+            document.getElementById('setCourse').value = profileIsPublic ? '' : (p.course || '');
+            document.getElementById('setCity').value = profileIsPublic ? '' : (p.city || '');
+            document.getElementById('setEmail').value = profileIsPublic ? '' : (p.email || '');
+            document.getElementById('setPhone').value = profileIsPublic ? '' : (p.phone || '');
+            document.querySelector('.profile-actions').style.display = profileIsPublic ? 'none' : '';
+            document.getElementById('profileTabs').style.display = profileIsPublic ? 'none' : '';
         }
+
+        function ratingKey() {
+            const p = profileSubject || CirvioStore.getProfile();
+            return `cirvio_profile_rating_${p.id || p._id || p.email || 'me'}`;
+        }
+
+        function getTrustRating() {
+            try {
+                return JSON.parse(localStorage.getItem(ratingKey())) || { total: 0, count: 0, mine: 0 };
+            } catch {
+                return { total: 0, count: 0, mine: 0 };
+            }
+        }
+
+        function renderTrustRating() {
+            const localRating = getTrustRating();
+            const count = profileIsPublic ? Number(profileSubject?.trustRatingCount || 0) : localRating.count;
+            const avg = profileIsPublic
+                ? Number(profileSubject?.trustRatingAverage || 0)
+                : (localRating.count ? (localRating.total / localRating.count) : 0);
+            const mine = profileIsPublic ? Number(profileSubject?.myTrustRating || 0) : localRating.mine;
+            document.getElementById('trustAverage').textContent = avg.toFixed(1);
+            document.getElementById('trustMeta').textContent = count
+                ? `${count} trust rating${count === 1 ? '' : 's'} from CIRVIO users${mine ? ' - your rating is ' + mine : ''}`
+                : 'No ratings yet - be the first to rate this profile';
+            document.querySelectorAll('.trust-star').forEach((btn) => {
+                btn.classList.toggle('active', Number(btn.dataset.rate) <= Math.round(mine || avg || 0));
+            });
+        }
+
+        document.getElementById('trustStars').addEventListener('click', async (e) => {
+            const btn = e.target.closest('.trust-star');
+            if (!btn) return;
+            const value = Number(btn.dataset.rate);
+            if (profileIsPublic && window.CirvioAPI && profileSubject?.id) {
+                try {
+                    const data = await CirvioAPI.rateProfile(profileSubject.id, value);
+                    profileSubject = data.user || profileSubject;
+                    renderTrustRating();
+                    showToast('Trust rating saved');
+                } catch (err) {
+                    showToast(err.message || 'Could not save rating');
+                }
+                return;
+            }
+            const rating = getTrustRating();
+            if (rating.mine) rating.total -= rating.mine;
+            else rating.count += 1;
+            rating.mine = value;
+            rating.total += value;
+            localStorage.setItem(ratingKey(), JSON.stringify(rating));
+            renderTrustRating();
+            showToast('Trust rating saved');
+        });
 
         document.getElementById('profilePhotoInput').addEventListener('change', (e) => {
             const file = e.target.files && e.target.files[0];
@@ -774,10 +876,29 @@
         });
         window.addEventListener('cirvio:messages-synced', renderMessages);
 
+        async function loadPublicProfileIfNeeded() {
+            if (!requestedUserId || !window.CirvioAPI) return false;
+            const me = CirvioStore.getProfile();
+            if (String(requestedUserId) === String(me.id || me._id || '')) return false;
+            try {
+                const data = await CirvioAPI.publicProfile(requestedUserId);
+                profileSubject = data.user;
+                profileIsPublic = true;
+                document.getElementById('panel-settings').style.display = 'none';
+                loadProfileHeader();
+                renderTrustRating();
+                return true;
+            } catch (err) {
+                showToast(err.message || 'Could not load profile');
+                return false;
+            }
+        }
+
         /* ============================================================
            INIT
         ============================================================ */
         loadProfileHeader();
+        renderTrustRating();
         renderListings();
         renderSaved();
         renderMessages();
@@ -809,12 +930,19 @@
             }
         }
         if (CirvioAuth.requireLogin()) {
-            loadBackendSavedProducts();
-            loadBackendListings();
-            if (window.CirvioMessages) CirvioMessages.sync();
+            loadPublicProfileIfNeeded().then((isPublic) => {
+                if (!isPublic) {
+                    loadBackendSavedProducts();
+                    loadBackendListings();
+                    if (window.CirvioMessages) CirvioMessages.sync();
+                    const initialTab = (location.hash || '#settings').replace('#', '');
+                    if (initialTab === 'saved') window.location.replace('saved.html');
+                    else if (initialTab === 'listings') window.location.replace('my-listings.html');
+                    else if (initialTab === 'messages') window.location.replace('messages.html');
+                    else setActiveTab('settings');
+                }
+            });
         }
-        const initialTab = (location.hash || '#listings').replace('#', '');
-        setActiveTab(['listings', 'saved', 'messages', 'settings'].includes(initialTab) ? initialTab : 'listings');
 
         initCirvioChrome('profile');
     </script>

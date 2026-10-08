@@ -11,6 +11,14 @@ const userSchema = new mongoose.Schema(
         city: { type: String, default: '' },
         phone: { type: String, default: '' },
         photo: { type: String, default: '' },
+        trustRatings: [
+            {
+                user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+                value: { type: Number, min: 1, max: 5, required: true },
+                createdAt: { type: Date, default: Date.now },
+                updatedAt: { type: Date, default: Date.now }
+            }
+        ],
         role: { type: String, enum: ['user', 'employee', 'admin'], default: 'user' },
         verified: { type: Boolean, default: false },
         status: { type: String, enum: ['active', 'suspended'], default: 'active' }

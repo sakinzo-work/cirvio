@@ -18,6 +18,8 @@ function signToken(id) {
 }
 
 function sendUser(user) {
+    const ratings = Array.isArray(user.trustRatings) ? user.trustRatings : [];
+    const ratingTotal = ratings.reduce((sum, rating) => sum + Number(rating.value || 0), 0);
     return {
         id: user._id,
         name: user.name,
@@ -29,7 +31,28 @@ function sendUser(user) {
         photo: user.photo,
         role: user.role,
         verified: user.verified,
+        trustRatingAverage: ratings.length ? ratingTotal / ratings.length : 0,
+        trustRatingCount: ratings.length,
         createdAt: user.createdAt
+    };
+}
+
+function sendPublicUser(user, viewerId = '') {
+    const safe = sendUser(user);
+    const ratings = Array.isArray(user.trustRatings) ? user.trustRatings : [];
+    const ownRating = ratings.find((rating) => String(rating.user) === String(viewerId));
+    return {
+        id: safe.id,
+        name: safe.name,
+        college: safe.college,
+        course: safe.course,
+        city: safe.city,
+        photo: safe.photo,
+        verified: safe.verified,
+        trustRatingAverage: safe.trustRatingAverage,
+        trustRatingCount: safe.trustRatingCount,
+        myTrustRating: ownRating ? ownRating.value : 0,
+        createdAt: safe.createdAt
     };
 }
 
@@ -216,6 +239,43 @@ router.post('/phone/verify', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', protect, async (req, res) => {
     res.json({ user: sendUser(req.user) });
+});
+
+// GET /api/auth/users/:id - public student profile
+router.get('/users/:id', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user || user.status !== 'active') return res.status(404).json({ message: 'User not found' });
+        res.json({ user: sendPublicUser(user, req.user._id) });
+    } catch (err) {
+        res.status(404).json({ message: 'User not found' });
+    }
+});
+
+// POST /api/auth/users/:id/rating - rate a public profile once per logged-in user
+router.post('/users/:id/rating', protect, async (req, res) => {
+    try {
+        const value = Number(req.body.value);
+        if (!Number.isInteger(value) || value < 1 || value > 5) {
+            return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+        }
+        const user = await User.findById(req.params.id);
+        if (!user || user.status !== 'active') return res.status(404).json({ message: 'User not found' });
+        if (String(user._id) === String(req.user._id)) {
+            return res.status(400).json({ message: 'You cannot rate your own profile' });
+        }
+        const existing = (user.trustRatings || []).find((rating) => String(rating.user) === String(req.user._id));
+        if (existing) {
+            existing.value = value;
+            existing.updatedAt = new Date();
+        } else {
+            user.trustRatings.push({ user: req.user._id, value });
+        }
+        await user.save();
+        res.json({ user: sendPublicUser(user, req.user._id) });
+    } catch (err) {
+        res.status(500).json({ message: 'Could not save rating', error: err.message });
+    }
 });
 
 // PUT /api/auth/me — update own profile fields, including profile photo.

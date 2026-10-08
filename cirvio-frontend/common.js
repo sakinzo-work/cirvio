@@ -248,7 +248,7 @@ function renderNotificationPanel() {
     if (!list) return;
     const notifications = CirvioStore.getNotifications();
     list.innerHTML = notifications.length ? notifications.map(n => `
-        <a class="np-item ${n.read ? '' : 'unread'}" href="status.html">
+        <a class="np-item ${n.read ? '' : 'unread'}" href="${botEsc(n.link || 'status.html')}">
             <span>${n.title || 'CIRVIO update'}</span>
             <p>${n.text || 'Your listing status has changed.'}</p>
             <small>${n.createdAt ? new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Just now'}</small>
@@ -762,7 +762,26 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
     refreshMsgBadge();
     window.dispatchEvent(new CustomEvent('cirvio:messages-synced', { detail: { messages: combined } }));
     if (document.getElementById('ccOverlay')?.classList.contains('open')) renderContactThread();
-    if (newAdminReply) showToast(`New chat reply about "${newAdminReply.productTitle || 'your product'}"`);
+    if (newAdminReply) {
+        const notifications = CirvioStore.getNotifications();
+        const id = `message:${newAdminReply.backendKey || newAdminReply.id}`;
+        const exists = notifications.some(n => n.id === id);
+        if (!exists) {
+            notifications.unshift({
+                id,
+                type: 'message',
+                title: 'New message received',
+                text: `Message about "${newAdminReply.productTitle || 'your product'}". Open Messages to read it.`,
+                link: 'messages.html',
+                read: false,
+                createdAt: newAdminReply.createdAt || Date.now()
+            });
+            CirvioStore.setNotifications(notifications);
+            refreshNotificationBadge();
+            renderNotificationPanel();
+        }
+        showToast(`New message about "${newAdminReply.productTitle || 'your product'}"`);
+    }
 }
 
 let messagePollStarted = false;
@@ -965,14 +984,14 @@ function registerCirvioSW() {
 /* header wishlist icon → jump to profile's saved tab */
 function initWishHeaderLink() {
     const wishBtn = document.getElementById('wishBtn');
-    if (wishBtn) wishBtn.addEventListener('click', () => { window.location.href = 'profile.html#saved'; });
+    if (wishBtn) wishBtn.addEventListener('click', () => { window.location.href = 'saved.html'; });
     const mpWishBtn = document.getElementById('mpWishBtn');
-    if (mpWishBtn) mpWishBtn.addEventListener('click', (e) => { e.preventDefault(); window.location.href = 'profile.html#saved'; });
+    if (mpWishBtn) mpWishBtn.addEventListener('click', (e) => { e.preventDefault(); window.location.href = 'saved.html'; });
 }
 
 function initAuthLinks() {
     const loggedIn = !!localStorage.getItem('cirvio_token');
-    document.querySelectorAll('a[href^="profile.html"]').forEach(link => {
+    document.querySelectorAll('a[href^="profile.html"], a[href^="saved.html"], a[href^="my-listings.html"], a[href^="messages.html"]').forEach(link => {
         if (!loggedIn) {
             const next = encodeURIComponent(link.getAttribute('href') || 'profile.html');
             link.setAttribute('href', `login.html?next=${next}`);

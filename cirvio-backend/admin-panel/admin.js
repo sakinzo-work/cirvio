@@ -297,14 +297,6 @@ function setupAdminToolbar() {
             if (pendingBtn) pendingBtn.click();
         });
     });
-    const refreshMessagesBtn = document.getElementById('refreshMessagesBtn');
-    if (refreshMessagesBtn && !refreshMessagesBtn.dataset.refreshBound) {
-        refreshMessagesBtn.dataset.refreshBound = 'true';
-        refreshMessagesBtn.addEventListener('click', async () => {
-            await loadMessages();
-            showAdminNotice('Messages refreshed');
-        });
-    }
 }
 
 function setupSearchFilters() {
@@ -980,15 +972,8 @@ function renderMessageSidePanel(id) {
           <div>
             <strong>${esc(sender.name || 'Buyer')}</strong>
             <span class="sub">${esc(sender.email || sender.phone || '')}</span>
+            <span class="chat-topic">${iconSvg('product')} ${esc(product.title || message.productTitle || 'Product enquiry')} <small>${seller.name ? `Seller: ${esc(seller.name)}` : 'Seller: -'}</small></span>
           </div>
-        </div>
-        <button class="row-btn btn-view" id="sideOpenFullReply">Full Reply</button>
-      </div>
-      <div class="chat-product">
-        <span class="product-mini">${iconSvg('product')}</span>
-        <div class="identity-card">
-          <strong>${esc(product.title || message.productTitle || 'Product enquiry')}</strong>
-          <span class="sub">${esc(product.location || 'No product address')} | Seller: ${esc(seller.name || '-')}</span>
         </div>
       </div>
       <div class="chat-thread">
@@ -1005,7 +990,6 @@ function renderMessageSidePanel(id) {
         <button class="row-btn btn-approve" id="sideReplySend">Send</button>
         <span id="sideReplyStatus" class="side-reply-status sub"></span>
       </div>`;
-    document.getElementById('sideOpenFullReply').addEventListener('click', () => openMessageReply(activeMessageId));
     document.getElementById('sideReplySend').addEventListener('click', sendSidePanelReply);
     const threadEl = panel.querySelector('.chat-thread');
     if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;

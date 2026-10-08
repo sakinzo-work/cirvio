@@ -7,6 +7,7 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 const phoneOtps = new Map();
+let firebaseCertCache = { expiresAt: 0, certs: null };
 
 function signToken(id) {
     if (!process.env.JWT_SECRET) {
@@ -70,32 +71,76 @@ function allowedGoogleAudiences() {
         .filter(Boolean);
 }
 
+function firebaseProjectId() {
+    return process.env.FIREBASE_PROJECT_ID || 'cirvio';
+}
+
 function normalizePhone(phone = '') {
     return String(phone).replace(/[^\d+]/g, '');
 }
 
-function verifyGoogleToken(idToken) {
+function getJson(url) {
     return new Promise((resolve, reject) => {
-        const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
         https.get(url, (googleRes) => {
             let body = '';
             googleRes.on('data', chunk => { body += chunk; });
             googleRes.on('end', () => {
                 try {
-                    const payload = JSON.parse(body);
-                    if (googleRes.statusCode !== 200) return reject(new Error(payload.error_description || 'Invalid Google token'));
-                    const audiences = allowedGoogleAudiences();
-                    if (audiences.length && !audiences.includes(payload.aud)) {
-                        return reject(new Error('Google client ID mismatch'));
+                    const data = JSON.parse(body);
+                    if (googleRes.statusCode < 200 || googleRes.statusCode >= 300) {
+                        return reject(new Error(data.error_description || data.error || 'Token verification failed'));
                     }
-                    if (!payload.email_verified) return reject(new Error('Google email is not verified'));
-                    resolve(payload);
+                    resolve(data);
                 } catch (err) {
                     reject(err);
                 }
             });
         }).on('error', reject);
     });
+}
+
+async function getFirebaseCerts() {
+    if (firebaseCertCache.certs && firebaseCertCache.expiresAt > Date.now()) return firebaseCertCache.certs;
+    const certs = await getJson('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+    firebaseCertCache = { certs, expiresAt: Date.now() + 55 * 60 * 1000 };
+    return certs;
+}
+
+async function verifyFirebaseToken(idToken) {
+    const decoded = jwt.decode(idToken, { complete: true });
+    if (!decoded?.header?.kid) throw new Error('Invalid Firebase token');
+    const certs = await getFirebaseCerts();
+    const cert = certs[decoded.header.kid];
+    if (!cert) throw new Error('Firebase certificate not found');
+    const projectId = firebaseProjectId();
+    const payload = jwt.verify(idToken, cert, {
+        algorithms: ['RS256'],
+        audience: projectId,
+        issuer: `https://securetoken.google.com/${projectId}`
+    });
+    if (!payload.email) throw new Error('Firebase account has no email');
+    return {
+        email: payload.email,
+        email_verified: payload.email_verified !== false,
+        name: payload.name || payload.email.split('@')[0],
+        picture: payload.picture || '',
+        sub: payload.user_id || payload.sub
+    };
+}
+
+async function verifyGoogleToken(idToken) {
+    const decoded = jwt.decode(idToken);
+    if (decoded?.iss === `https://securetoken.google.com/${firebaseProjectId()}`) {
+        return verifyFirebaseToken(idToken);
+    }
+
+    const payload = await getJson(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+    const audiences = allowedGoogleAudiences();
+    if (audiences.length && !audiences.includes(payload.aud)) {
+        throw new Error('Google client ID mismatch');
+    }
+    if (!payload.email_verified) throw new Error('Google email is not verified');
+    return payload;
 }
 
 // POST /api/auth/register

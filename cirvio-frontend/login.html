@@ -696,11 +696,11 @@
         window.CirvioFirebaseGoogle = {
             async signIn() {
                 const result = await signInWithPopup(auth, provider);
-                const credential = GoogleAuthProvider.credentialFromResult(result);
-                if (!credential || !credential.idToken) {
+                const idToken = await result.user.getIdToken(true);
+                if (!idToken) {
                     throw new Error('Google did not return a login token. Please try again.');
                 }
-                return { idToken: credential.idToken };
+                return { idToken };
             }
         };
         window.dispatchEvent(new Event('cirvio:firebase-ready'));

@@ -365,14 +365,14 @@
                     <div class="settings-section security-section">
                         <div class="settings-section-head">
                             <div>
-                                <h3>Change Password</h3>
-                                <p class="form-sub">Keep your CIRVIO account safe with a fresh password.</p>
+                                <h3 id="passwordSectionTitle">Change Password</h3>
+                                <p class="form-sub" id="passwordSectionSub">Keep your CIRVIO account safe with a fresh password.</p>
                             </div>
                             <span class="security-chip">Secure</span>
                         </div>
                         <form id="passwordForm">
                             <div class="field-row">
-                                <div class="field-group">
+                                <div class="field-group" id="currentPasswordWrap">
                                     <label for="currentPassword">Current password</label>
                                     <input type="password" id="currentPassword" autocomplete="current-password" required>
                                 </div>
@@ -547,6 +547,21 @@
             document.querySelectorAll('.trust-star').forEach((btn) => {
                 btn.classList.toggle('active', Number(btn.dataset.rate) <= Math.round(mine || avg || 0));
             });
+        }
+
+        function configurePasswordForm() {
+            const p = CirvioStore.getProfile();
+            const setupMode = p.passwordSet === false;
+            const currentWrap = document.getElementById('currentPasswordWrap');
+            const currentInput = document.getElementById('currentPassword');
+            document.getElementById('passwordSectionTitle').textContent = setupMode ? 'Set Password' : 'Change Password';
+            document.getElementById('passwordSectionSub').textContent = setupMode
+                ? 'Add a CIRVIO password so this Google account can also login with email and password.'
+                : 'Keep your CIRVIO account safe with a fresh password.';
+            document.getElementById('passwordSubmit').textContent = setupMode ? 'Save Password' : 'Update Password';
+            currentWrap.style.display = setupMode ? 'none' : '';
+            currentInput.required = !setupMode;
+            currentInput.value = '';
         }
 
         document.getElementById('trustStars').addEventListener('click', async (e) => {
@@ -793,12 +808,13 @@
 
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const setupMode = CirvioStore.getProfile().passwordSet === false;
             const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             const btn = document.getElementById('passwordSubmit');
 
-            if (!currentPassword || !newPassword || !confirmPassword) {
+            if ((!setupMode && !currentPassword) || !newPassword || !confirmPassword) {
                 showToast('Fill all password fields');
                 return;
             }
@@ -813,15 +829,23 @@
 
             try {
                 btn.disabled = true;
-                btn.textContent = 'Updating...';
-                await CirvioAPI.changePassword(currentPassword, newPassword);
+                btn.textContent = setupMode ? 'Saving...' : 'Updating...';
+                const data = setupMode
+                    ? await CirvioAPI.setupPassword(newPassword)
+                    : await CirvioAPI.changePassword(currentPassword, newPassword);
+                if (data?.user) CirvioStore.setProfile(data.user);
+                if (setupMode) {
+                    CirvioStore.setNotifications(CirvioStore.getNotifications().filter(n => n.id !== 'password-setup'));
+                    refreshNotificationBadge();
+                }
                 e.target.reset();
-                showToast('Password updated successfully');
+                configurePasswordForm();
+                showToast(setupMode ? 'Password saved successfully' : 'Password updated successfully');
             } catch (err) {
-                showToast(err.message || 'Could not update password');
+                showToast(err.message || (setupMode ? 'Could not save password' : 'Could not update password'));
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Update Password';
+                btn.textContent = setupMode ? 'Save Password' : 'Update Password';
             }
         });
 
@@ -899,6 +923,7 @@
         ============================================================ */
         loadProfileHeader();
         renderTrustRating();
+        configurePasswordForm();
         renderListings();
         renderSaved();
         renderMessages();

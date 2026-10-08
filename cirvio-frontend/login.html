@@ -346,6 +346,72 @@
             font-size: .82rem;
         }
 
+        .setup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(37, 42, 36, .5);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 420;
+        }
+
+        .setup-overlay.open {
+            display: flex;
+        }
+
+        .setup-dialog {
+            width: min(460px, 100%);
+            background: var(--ivory);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 28px 70px -30px rgba(37, 42, 36, .58);
+            padding: 26px;
+            animation: authCard .22s ease both;
+        }
+
+        .setup-dialog-head {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            margin-bottom: 18px;
+        }
+
+        .setup-dialog-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: rgba(200, 117, 79, .14);
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+        }
+
+        .setup-dialog-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: var(--terracotta-deep);
+        }
+
+        .setup-dialog h3 {
+            font-size: 1.55rem;
+            margin-bottom: 4px;
+        }
+
+        .setup-dialog p {
+            color: #716b59;
+            font-size: .9rem;
+        }
+
+        .setup-actions {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
         @keyframes authRise {
             from {
                 opacity: 0;
@@ -565,10 +631,42 @@
                 </div>
 
                 <div class="auth-note" id="statusText"></div>
-                <p class="auth-fineprint">By continuing, you agree to CIRVIO account safety checks. Google and phone login require production credentials before deployment.</p>
+                <p class="auth-fineprint">By continuing, you agree to CIRVIO account safety checks. Google login uses your verified Google email and keeps one CIRVIO account per email.</p>
             </section>
         </div>
     </main>
+
+    <div class="setup-overlay" id="passwordSetupOverlay" role="dialog" aria-modal="true" aria-labelledby="passwordSetupTitle">
+        <div class="setup-dialog">
+            <div class="setup-dialog-head">
+                <div class="setup-dialog-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2l7 4v6c0 4.4-2.9 8.5-7 10-4.1-1.5-7-5.6-7-10V6l7-4z" />
+                        <path d="M9.5 12.5l1.8 1.8 3.8-4.2" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 id="passwordSetupTitle">Set a password</h3>
+                    <p>Google login is ready. Add a CIRVIO password too, so you can log in with either Google or email later.</p>
+                </div>
+            </div>
+            <form id="passwordSetupForm" novalidate>
+                <div class="field-group">
+                    <label for="setupPassword">New password</label>
+                    <input class="auth-input" id="setupPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Minimum 6 characters" required>
+                </div>
+                <div class="field-group">
+                    <label for="setupPasswordConfirm">Confirm password</label>
+                    <input class="auth-input" id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="6" required>
+                </div>
+                <div class="auth-note" id="setupStatusText"></div>
+                <div class="setup-actions">
+                    <button class="btn btn-terracotta" type="submit" id="setupPasswordSubmit">Save Password</button>
+                    <button class="btn btn-outline" type="button" id="setupLaterBtn">Later</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div class="toast" id="toast">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
@@ -577,22 +675,54 @@
         <span id="toastMsg">Welcome to CIRVIO</span>
     </div>
 
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="config.js"></script>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics.js';
+        import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+
+        const firebaseConfig = window.CIRVIO_FIREBASE_CONFIG;
+        const app = initializeApp(firebaseConfig);
+        try {
+            if (firebaseConfig.measurementId && location.protocol === 'https:') getAnalytics(app);
+        } catch (err) {
+            console.warn('Firebase analytics skipped:', err.message);
+        }
+
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
+        window.CirvioFirebaseGoogle = {
+            async signIn() {
+                const result = await signInWithPopup(auth, provider);
+                const credential = GoogleAuthProvider.credentialFromResult(result);
+                if (!credential || !credential.idToken) {
+                    throw new Error('Google did not return a login token. Please try again.');
+                }
+                return { idToken: credential.idToken };
+            }
+        };
+        window.dispatchEvent(new Event('cirvio:firebase-ready'));
+    </script>
     <script src="api.js"></script>
     <script src="common.js"></script>
     <script>
-        const GOOGLE_CLIENT_ID = window.CIRVIO_GOOGLE_CLIENT_ID || localStorage.getItem('cirvio_google_client_id') || '';
         const params = new URLSearchParams(location.search);
         const nextUrl = params.get('next') || 'index.html';
         let signupMode = false;
         let otpSent = false;
+        let googleLoginUser = null;
 
         const statusText = document.getElementById('statusText');
         const authTitle = document.getElementById('authTitle');
         const authSub = document.getElementById('authSub');
         const nameWrap = document.getElementById('nameWrap');
         const emailSubmit = document.getElementById('emailSubmit');
+        const googleBtn = document.getElementById('googleBtn');
+        const passwordSetupOverlay = document.getElementById('passwordSetupOverlay');
+        const setupStatusText = document.getElementById('setupStatusText');
+        const setupPasswordSubmit = document.getElementById('setupPasswordSubmit');
 
         function setStatus(message, type = '') {
             statusText.textContent = message || '';
@@ -602,6 +732,36 @@
         function finishLogin(user) {
             setStatus(`Welcome, ${user.name || 'student'}. Redirecting...`, 'ok');
             setTimeout(() => { window.location.assign(nextUrl); }, 650);
+        }
+
+        function addPasswordSetupNotification() {
+            const notifications = CirvioStore.getNotifications();
+            const exists = notifications.some(n => n.id === 'password-setup');
+            if (!exists) {
+                notifications.unshift({
+                    id: 'password-setup',
+                    type: 'security',
+                    title: 'Set your CIRVIO password',
+                    text: 'Add a password so your Google account can also login with email and password.',
+                    link: 'profile.html#settings',
+                    read: false,
+                    createdAt: Date.now()
+                });
+                CirvioStore.setNotifications(notifications);
+            }
+        }
+
+        function showPasswordSetup(user) {
+            googleLoginUser = user;
+            addPasswordSetupNotification();
+            setupStatusText.textContent = '';
+            setupStatusText.className = 'auth-note';
+            passwordSetupOverlay.classList.add('open');
+            setTimeout(() => document.getElementById('setupPassword').focus(), 80);
+        }
+
+        function hidePasswordSetup() {
+            passwordSetupOverlay.classList.remove('open');
         }
 
         function setMode(mode) {
@@ -658,23 +818,69 @@
             }
         });
 
-        document.getElementById('googleBtn').addEventListener('click', () => {
-            if (!GOOGLE_CLIENT_ID || !window.google) {
-                setStatus('Google login needs GOOGLE_CLIENT_ID in config.js and backend .env.', 'error');
+        googleBtn.addEventListener('click', async () => {
+            if (!window.CirvioFirebaseGoogle) {
+                setStatus('Google login is still loading. Please try again in a moment.', 'error');
                 return;
             }
-            google.accounts.id.initialize({
-                client_id: GOOGLE_CLIENT_ID,
-                callback: async (response) => {
-                    try {
-                        const data = await CirvioAPI.googleLogin(response.credential);
-                        finishLogin(data.user);
-                    } catch (err) {
-                        setStatus(err.message, 'error');
-                    }
+            try {
+                googleBtn.disabled = true;
+                setStatus('Opening Google login...', 'ok');
+                const googleResult = await window.CirvioFirebaseGoogle.signIn();
+                setStatus('Connecting your CIRVIO account...', 'ok');
+                const data = await CirvioAPI.googleLogin(googleResult.idToken);
+                if (data.needsPasswordSetup) {
+                    setStatus(`Welcome, ${data.user.name || 'student'}. Add a password to complete setup.`, 'ok');
+                    showPasswordSetup(data.user);
+                } else {
+                    finishLogin(data.user);
                 }
-            });
-            google.accounts.id.prompt();
+            } catch (err) {
+                const message = err.code === 'auth/popup-closed-by-user'
+                    ? 'Google login was closed before it finished.'
+                    : (err.message || 'Google login failed');
+                setStatus(message, 'error');
+            } finally {
+                googleBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('passwordSetupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('setupPassword').value;
+            const confirm = document.getElementById('setupPasswordConfirm').value;
+            if (password.length < 6) {
+                setupStatusText.textContent = 'Password must be at least 6 characters.';
+                setupStatusText.className = 'auth-note error';
+                return;
+            }
+            if (password !== confirm) {
+                setupStatusText.textContent = 'Passwords do not match.';
+                setupStatusText.className = 'auth-note error';
+                return;
+            }
+            try {
+                setupPasswordSubmit.disabled = true;
+                setupPasswordSubmit.textContent = 'Saving...';
+                const data = await CirvioAPI.setupPassword(password);
+                googleLoginUser = data.user || googleLoginUser;
+                const notifications = CirvioStore.getNotifications().filter(n => n.id !== 'password-setup');
+                CirvioStore.setNotifications(notifications);
+                setupStatusText.textContent = 'Password saved. Redirecting...';
+                setupStatusText.className = 'auth-note ok';
+                setTimeout(() => finishLogin(googleLoginUser || data.user || {}), 350);
+            } catch (err) {
+                setupStatusText.textContent = err.message || 'Could not save password.';
+                setupStatusText.className = 'auth-note error';
+            } finally {
+                setupPasswordSubmit.disabled = false;
+                setupPasswordSubmit.textContent = 'Save Password';
+            }
+        });
+
+        document.getElementById('setupLaterBtn').addEventListener('click', () => {
+            hidePasswordSetup();
+            finishLogin(googleLoginUser || CirvioStore.getProfile());
         });
 
         document.getElementById('phoneForm').addEventListener('submit', async (e) => {

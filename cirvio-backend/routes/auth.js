@@ -29,6 +29,8 @@ function sendUser(user) {
         city: user.city,
         phone: user.phone,
         photo: user.photo,
+        authProvider: user.authProvider,
+        passwordSet: user.passwordSet !== false,
         role: user.role,
         verified: user.verified,
         trustRatingAverage: ratings.length ? ratingTotal / ratings.length : 0,
@@ -56,9 +58,16 @@ function sendPublicUser(user, viewerId = '') {
     };
 }
 
-function issueSession(user, res, status = 200) {
+function issueSession(user, res, status = 200, extra = {}) {
     const token = signToken(user._id);
-    return res.status(status).json({ token, user: sendUser(user) });
+    return res.status(status).json({ token, user: sendUser(user), ...extra });
+}
+
+function allowedGoogleAudiences() {
+    return String(process.env.GOOGLE_CLIENT_IDS || process.env.GOOGLE_CLIENT_ID || '')
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
 }
 
 function normalizePhone(phone = '') {
@@ -75,7 +84,10 @@ function verifyGoogleToken(idToken) {
                 try {
                     const payload = JSON.parse(body);
                     if (googleRes.statusCode !== 200) return reject(new Error(payload.error_description || 'Invalid Google token'));
-                    if (payload.aud !== process.env.GOOGLE_CLIENT_ID) return reject(new Error('Google client ID mismatch'));
+                    const audiences = allowedGoogleAudiences();
+                    if (audiences.length && !audiences.includes(payload.aud)) {
+                        return reject(new Error('Google client ID mismatch'));
+                    }
                     if (!payload.email_verified) return reject(new Error('Google email is not verified'));
                     resolve(payload);
                 } catch (err) {
@@ -103,6 +115,9 @@ router.post('/register', async (req, res) => {
         if (exists) return res.status(409).json({ message: 'Email already registered' });
 
         const user = await User.create({ name, email, password, college, course, city, phone });
+        user.passwordSet = true;
+        user.authProvider = 'password';
+        await user.save();
         return issueSession(user, res, 201);
     } catch (err) {
         if (err.code === 11000) {
@@ -134,25 +149,49 @@ router.post('/login', async (req, res) => {
 // POST /api/auth/google
 router.post('/google', async (req, res) => {
     try {
-        if (!process.env.GOOGLE_CLIENT_ID) {
-            return res.status(503).json({ message: 'Google login is not configured' });
-        }
         const { idToken } = req.body;
         if (!idToken) return res.status(400).json({ message: 'Google ID token is required' });
 
         const googleUser = await verifyGoogleToken(idToken);
         const email = googleUser.email.toLowerCase();
         let user = await User.findOne({ email });
+        let isNewGoogleUser = false;
         if (!user) {
+            isNewGoogleUser = true;
             user = await User.create({
                 name: googleUser.name || email.split('@')[0],
                 email,
                 password: `google:${googleUser.sub}:${process.env.JWT_SECRET}`,
+                photo: googleUser.picture || '',
+                authProvider: 'google',
+                passwordSet: false,
                 verified: true
             });
+        } else {
+            let changed = false;
+            if (!user.verified && googleUser.email_verified) {
+                user.verified = true;
+                changed = true;
+            }
+            if (!user.photo && googleUser.picture) {
+                user.photo = googleUser.picture;
+                changed = true;
+            }
+            if (!user.authProvider) {
+                user.authProvider = 'password';
+                changed = true;
+            }
+            if (user.passwordSet === undefined) {
+                user.passwordSet = true;
+                changed = true;
+            }
+            if (changed) await user.save();
         }
         if (user.status === 'suspended') return res.status(403).json({ message: 'Account suspended' });
-        return issueSession(user, res);
+        return issueSession(user, res, 200, {
+            isNewUser: isNewGoogleUser,
+            needsPasswordSetup: user.passwordSet === false
+        });
     } catch (err) {
         res.status(401).json({ message: 'Google login failed', error: err.message });
     }
@@ -226,6 +265,8 @@ router.post('/phone/verify', async (req, res) => {
                 email,
                 password: `phone:${digits}:${process.env.JWT_SECRET}`,
                 phone,
+                authProvider: 'phone',
+                passwordSet: false,
                 verified: true
             });
         }
@@ -321,6 +362,30 @@ router.put('/password', protect, async (req, res) => {
         return res.json({ message: 'Password updated successfully' });
     } catch (err) {
         return res.status(500).json({ message: 'Password update failed', error: err.message });
+    }
+});
+
+// PUT /api/auth/password/setup - Google/phone users can add their first password
+router.put('/password/setup', protect, async (req, res) => {
+    try {
+        const newPassword = String(req.body.newPassword || '');
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
+        const user = await User.findById(req.user._id).select('+password');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (user.passwordSet !== false) {
+            return res.status(400).json({ message: 'Password is already set. Use change password instead.' });
+        }
+
+        user.password = newPassword;
+        user.passwordSet = true;
+        if (!user.authProvider || user.authProvider === 'phone') user.authProvider = 'password';
+        await user.save();
+        return res.json({ message: 'Password set successfully', user: sendUser(user) });
+    } catch (err) {
+        return res.status(500).json({ message: 'Password setup failed', error: err.message });
     }
 });
 

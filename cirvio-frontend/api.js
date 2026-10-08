@@ -185,6 +185,15 @@ const CirvioAPI = {
             body: JSON.stringify({ currentPassword, newPassword })
         });
     },
+    async setupPassword(newPassword) {
+        await this.ensureSession();
+        const data = await this.request('/api/auth/password/setup', {
+            method: 'PUT',
+            body: JSON.stringify({ newPassword })
+        });
+        if (data.user) localStorage.setItem('cirvio_profile', JSON.stringify(data.user));
+        return data;
+    },
     async updateProfile(payload) {
         await this.ensureSession();
         const data = await this.request('/api/auth/me', {

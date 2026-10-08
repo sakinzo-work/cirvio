@@ -11,6 +11,8 @@ const userSchema = new mongoose.Schema(
         city: { type: String, default: '' },
         phone: { type: String, default: '' },
         photo: { type: String, default: '' },
+        authProvider: { type: String, enum: ['password', 'google', 'phone'], default: 'password' },
+        passwordSet: { type: Boolean, default: true },
         trustRatings: [
             {
                 user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

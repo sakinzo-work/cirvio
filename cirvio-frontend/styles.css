@@ -4604,7 +4604,13 @@ footer {
 
     .message-bot {
         right: 16px;
-        bottom: 146px;
+        bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+
+    .message-bot-panel {
+        bottom: 64px;
+        max-height: min(420px, calc(100vh - 190px));
+        overflow-y: auto;
     }
 }
 

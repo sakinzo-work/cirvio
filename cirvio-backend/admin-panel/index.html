@@ -27,6 +27,8 @@
   <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
   <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
   <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></symbol>
+  <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20 15.2A8.5 8.5 0 0 1 8.8 4 8.5 8.5 0 1 0 20 15.2Z"/></symbol>
   <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-1.9-1.1L14.3 3h-4.6l-.4 2.9A7.8 7.8 0 0 0 7.5 7l-2.4-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.1l-2 1.5 2 3.4 2.4-1c.6.5 1.2.8 1.9 1.1l.4 2.9h4.6l.4-2.9c.7-.3 1.3-.6 1.9-1.1l2.4 1 2-3.4-2-1.5c0-.3.1-.7.1-1.1Z"/></symbol>
   <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2"/></symbol>
   <symbol id="icon-employee" viewBox="0 0 24 24"><circle cx="10" cy="8" r="4"/><path d="M3 21a7 7 0 0 1 14 0"/><path d="M19 8v6M16 11h6"/></symbol>
@@ -81,6 +83,7 @@
         <input id="globalSearchInput" type="search" placeholder="Search anything...">
       </label>
       <div class="topbar-actions">
+        <button id="themeToggleBtn" class="icon-btn theme-toggle" type="button" aria-label="Switch to light theme" aria-pressed="false"><svg class="ui-icon"><use href="#icon-sun"></use></svg></button>
         <button id="adminNotificationBtn" class="icon-btn notification-btn" type="button" aria-label="Notifications" data-count="0"><svg class="ui-icon"><use href="#icon-bell"></use></svg></button>
         <div class="topbar-user">
           <span id="adminAvatarTop" class="avatar"><svg class="ui-icon"><use href="#icon-user"></use></svg></span>

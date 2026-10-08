@@ -44,6 +44,30 @@ let activeMessageId = '';
 
 const loginScreen = document.getElementById('loginScreen');
 const adminApp = document.getElementById('adminApp');
+const ADMIN_THEME_KEY = 'cirvio_admin_theme';
+
+function setAdminTheme(theme) {
+    const cleanTheme = theme === 'light' ? 'light' : 'dark';
+    document.body.dataset.theme = cleanTheme;
+    localStorage.setItem(ADMIN_THEME_KEY, cleanTheme);
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+        const nextTheme = cleanTheme === 'light' ? 'dark' : 'light';
+        btn.setAttribute('aria-label', `Switch to ${nextTheme} theme`);
+        btn.setAttribute('aria-pressed', String(cleanTheme === 'light'));
+        btn.innerHTML = iconSvg(cleanTheme === 'light' ? 'moon' : 'sun');
+    }
+}
+
+function setupThemeToggle() {
+    const btn = document.getElementById('themeToggleBtn');
+    if (!btn || btn.dataset.themeBound) return;
+    btn.dataset.themeBound = 'true';
+    btn.addEventListener('click', () => {
+        const current = document.body.dataset.theme === 'light' ? 'light' : 'dark';
+        setAdminTheme(current === 'light' ? 'dark' : 'light');
+    });
+}
 
 async function api(path, options = {}) {
     const res = await fetch(API_BASE + path, {
@@ -118,6 +142,7 @@ bindJumpActions();
 async function showApp() {
     loginScreen.classList.add('hidden');
     adminApp.classList.remove('hidden');
+    setupThemeToggle();
     ensurePasswordEye();
     ensureSettingsPanel();
     ensureEmployeePanel();
@@ -148,6 +173,7 @@ const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const titleCase = (value = '') => String(value || '').replace(/-/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
 const iconSvg = (name) => `<svg class="ui-icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
+setAdminTheme(localStorage.getItem(ADMIN_THEME_KEY) || 'dark');
 
 function updateAdminChrome() {
     const user = CURRENT_USER || {};

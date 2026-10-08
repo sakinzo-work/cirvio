@@ -1020,6 +1020,45 @@ function markActiveNav(pageKey) {
     });
 }
 
+function setSiteMediaElement(el, url, type) {
+    if (!el || !url) return;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'img') {
+        el.src = url;
+        return;
+    }
+    if (tag === 'source') {
+        el.src = url;
+        const video = el.closest('video');
+        if (video) video.load();
+        return;
+    }
+    if (tag === 'video') {
+        if (type === 'poster') el.poster = url;
+        else el.src = url;
+        return;
+    }
+    if (type === 'background') {
+        el.style.backgroundImage = `linear-gradient(180deg, rgba(255, 249, 239, .94), rgba(249, 242, 226, .98)), url("${url}")`;
+        return;
+    }
+    el.style.backgroundImage = `url("${url}")`;
+}
+
+async function applySiteMedia() {
+    if (!window.CirvioAPI) return;
+    try {
+        const data = await CirvioAPI.request('/api/admin/site-media');
+        const media = data.media || {};
+        document.querySelectorAll('[data-site-media]').forEach((el) => {
+            const key = el.dataset.siteMedia;
+            setSiteMediaElement(el, media[key]?.url, el.dataset.siteMediaType || media[key]?.type);
+        });
+    } catch (err) {
+        console.warn('Could not load site media:', err.message);
+    }
+}
+
 /* ---------- boot ---------- */
 function initCirvioChrome(pageKey) {
     CirvioStore.processApprovals();
@@ -1040,6 +1079,7 @@ function initCirvioChrome(pageKey) {
     startMessagePoll();
     registerCirvioSW();
     startListingNotificationPoll();
+    applySiteMedia();
     if (pageKey) markActiveNav(pageKey);
 }
 

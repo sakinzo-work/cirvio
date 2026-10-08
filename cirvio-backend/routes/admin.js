@@ -1,4 +1,7 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
@@ -7,8 +10,32 @@ const Message = require('../models/Message');
 const { protect, adminOnly, staffOnly } = require('../middleware/auth');
 
 const router = express.Router();
-router.use(protect, staffOnly); // every route below is CIRVIO staff-only
 const requireAdmin = [adminOnly];
+const SITE_MEDIA_KEY = 'siteMedia';
+const SITE_MEDIA_SLOTS = {
+    homeHero1: { label: 'Homepage hero image 1', type: 'image', fallback: 'cirvio-hero-desk.jpeg' },
+    homeHero2: { label: 'Homepage hero image 2', type: 'image', fallback: 'cirvio-hero-doorstep.jpeg' },
+    homeHero3: { label: 'Homepage hero image 3', type: 'image', fallback: 'cirvio-hero-phone.jpeg' },
+    aboutVideo: { label: 'About section video', type: 'video', fallback: 'cirvio-about-video.mp4' },
+    aboutPoster: { label: 'About video poster', type: 'image', fallback: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=900&q=70' },
+    loginBackground: { label: 'Login page background', type: 'image', fallback: 'cirvio-hero-desk.jpeg' }
+};
+const uploadDir = path.join(__dirname, '..', 'uploads', 'site');
+fs.mkdirSync(uploadDir, { recursive: true });
+const siteMediaUpload = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, uploadDir),
+        filename: (req, file, cb) => {
+            const ext = path.extname(file.originalname || '').toLowerCase() || (file.mimetype.startsWith('video/') ? '.mp4' : '.jpg');
+            cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+        }
+    }),
+    limits: { fileSize: 80 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!/^(image|video)\//.test(file.mimetype)) return cb(new Error('Only image or video files are allowed'));
+        cb(null, true);
+    }
+});
 const ORDER_STATUSES = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 const PAYMENT_STATUSES = ['pending', 'collected', 'failed', 'refunded'];
 const PAYMENT_MODES = ['manual', 'cash', 'upi', 'bank-transfer', 'other'];
@@ -25,6 +52,40 @@ function splitOrigins(value = '') {
 function normalizeOrigins(origins) {
     return [...new Set((Array.isArray(origins) ? origins : splitOrigins(origins)).map(origin => String(origin).trim().replace(/\/$/, '')).filter(Boolean))];
 }
+
+function defaultSiteMedia() {
+    return Object.fromEntries(Object.entries(SITE_MEDIA_SLOTS).map(([key, slot]) => [key, {
+        type: slot.type,
+        label: slot.label,
+        url: slot.fallback
+    }]));
+}
+
+function normalizeSiteMedia(value = {}) {
+    const defaults = defaultSiteMedia();
+    const source = value && typeof value === 'object' ? value : {};
+    Object.entries(SITE_MEDIA_SLOTS).forEach(([key, slot]) => {
+        const current = source[key] && typeof source[key] === 'object' ? source[key] : {};
+        defaults[key] = {
+            type: current.type === 'video' || current.type === 'image' ? current.type : slot.type,
+            label: slot.label,
+            url: String(current.url || defaults[key].url || '').trim()
+        };
+    });
+    return defaults;
+}
+
+function uploadUrl(req, filename) {
+    return `${req.protocol}://${req.get('host')}/uploads/site/${filename}`;
+}
+
+// Public site media settings used by the frontend.
+router.get('/site-media', async (req, res) => {
+    const setting = await AppSetting.findOne({ key: SITE_MEDIA_KEY }).lean();
+    res.json({ media: normalizeSiteMedia(setting?.value?.media || setting?.value || {}) });
+});
+
+router.use(protect, staffOnly); // every route below is CIRVIO staff-only
 
 // GET /api/admin/client-origins — frontend URLs allowed by CORS
 router.get('/client-origins', async (req, res) => {
@@ -56,6 +117,31 @@ router.put('/client-origins', requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/employees — admin creates a CIRVIO employee login
+// PUT /api/admin/site-media   body: { media: { key: { type, url } } }
+router.put('/site-media', requireAdmin, async (req, res) => {
+    const media = normalizeSiteMedia(req.body.media || {});
+    const setting = await AppSetting.findOneAndUpdate(
+        { key: SITE_MEDIA_KEY },
+        { value: { media } },
+        { new: true, upsert: true }
+    );
+    res.json({ media: normalizeSiteMedia(setting.value.media) });
+});
+
+// POST /api/admin/site-media/upload   form-data: media=<image/video>
+router.post('/site-media/upload', requireAdmin, (req, res) => {
+    siteMediaUpload.single('media')(req, res, (err) => {
+        if (err) return res.status(400).json({ message: err.message || 'Upload failed' });
+        if (!req.file) return res.status(400).json({ message: 'Please select an image or video' });
+        res.status(201).json({
+            url: uploadUrl(req, req.file.filename),
+            type: req.file.mimetype.startsWith('video/') ? 'video' : 'image',
+            filename: req.file.filename,
+            mimeType: req.file.mimetype
+        });
+    });
+});
+
 router.post('/employees', requireAdmin, async (req, res) => {
     const { name, email, password, phone, city } = req.body;
     if (!name || !email || !password) {

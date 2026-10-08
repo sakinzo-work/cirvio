@@ -70,10 +70,11 @@ function setupThemeToggle() {
 }
 
 async function api(path, options = {}) {
+    const isFormData = options.body instanceof FormData;
     const res = await fetch(API_BASE + path, {
         ...options,
         headers: {
-            'Content-Type': 'application/json',
+            ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
             ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
             ...(options.headers || {})
         }
@@ -148,7 +149,7 @@ async function showApp() {
     ensureEmployeePanel();
     updateAdminChrome();
     applyRolePermissions();
-    await Promise.all([loadStats(), loadUsers(), loadListings(), loadPurchases(), loadMessages(), loadClientOrigins()]);
+    await Promise.all([loadStats(), loadUsers(), loadListings(), loadPurchases(), loadMessages(), loadClientOrigins(), loadSiteMedia()]);
     startAdminMessagePoll();
 }
 
@@ -173,6 +174,14 @@ const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const titleCase = (value = '') => String(value || '').replace(/-/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
 const iconSvg = (name) => `<svg class="ui-icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
+const SITE_MEDIA_SLOTS = [
+    ['homeHero1', 'Homepage hero image 1', 'image'],
+    ['homeHero2', 'Homepage hero image 2', 'image'],
+    ['homeHero3', 'Homepage hero image 3', 'image'],
+    ['aboutVideo', 'About section video', 'video'],
+    ['aboutPoster', 'About video poster', 'image'],
+    ['loginBackground', 'Login page background', 'image']
+];
 setAdminTheme(localStorage.getItem(ADMIN_THEME_KEY) || 'dark');
 
 function updateAdminChrome() {
@@ -1186,11 +1195,28 @@ function ensureSettingsPanel() {
             <span id="clientOriginsStatus" class="sub"></span>
           </div>
         </section>
+
+        <section class="settings-card site-media-card" data-admin-only>
+          <div class="settings-card-head">
+            <span class="role-pill seller">${iconSvg('product')}</span>
+            <div>
+              <h3>Website Media</h3>
+              <p>Upload or paste links for homepage photos, about video and login background.</p>
+            </div>
+          </div>
+          <div id="siteMediaGrid" class="site-media-grid"></div>
+          <div class="settings-actions">
+            <button class="row-btn btn-approve" id="saveSiteMediaBtn">Save Website Media</button>
+            <span id="siteMediaStatus" class="sub"></span>
+          </div>
+        </section>
       </div>`;
     appMain.appendChild(section);
     document.getElementById('saveStaffProfileBtn').addEventListener('click', saveStaffProfile);
     document.getElementById('changeStaffPasswordBtn').addEventListener('click', changeStaffPassword);
     document.getElementById('saveClientOriginsBtn').addEventListener('click', saveClientOrigins);
+    document.getElementById('saveSiteMediaBtn').addEventListener('click', saveSiteMedia);
+    buildSiteMediaInputs();
 }
 
 function ensureEmployeePanel() {
@@ -1346,6 +1372,99 @@ async function saveClientOrigins() {
         await loadClientOrigins();
     } catch (err) {
         status.textContent = err.message;
+    }
+}
+
+function buildSiteMediaInputs() {
+    const grid = document.getElementById('siteMediaGrid');
+    if (!grid || grid.dataset.built) return;
+    grid.dataset.built = 'true';
+    grid.innerHTML = SITE_MEDIA_SLOTS.map(([key, label, type]) => `
+      <div class="site-media-item" data-media-key="${key}" data-media-type="${type}">
+        <div class="site-media-preview" id="preview-${key}">${iconSvg(type === 'video' ? 'messages' : 'product')}</div>
+        <label>${esc(label)}
+          <input id="media-${key}" data-media-input="${key}" placeholder="Paste ${type} URL">
+        </label>
+        <div class="media-actions">
+          <label class="row-btn btn-view media-file-btn">Choose ${type}
+            <input id="file-${key}" data-media-file="${key}" type="file" accept="${type}/*">
+          </label>
+          <span class="sub" id="media-status-${key}"></span>
+        </div>
+      </div>`).join('');
+    grid.querySelectorAll('[data-media-file]').forEach((input) => {
+        input.addEventListener('change', () => uploadSiteMediaFile(input.dataset.mediaFile, input.files && input.files[0]));
+    });
+    grid.querySelectorAll('[data-media-input]').forEach((input) => {
+        input.addEventListener('input', () => updateSiteMediaPreview(input.dataset.mediaInput, input.value));
+    });
+}
+
+function updateSiteMediaPreview(key, url) {
+    const slot = SITE_MEDIA_SLOTS.find(([slotKey]) => slotKey === key);
+    const preview = document.getElementById(`preview-${key}`);
+    if (!slot || !preview) return;
+    const type = slot[2];
+    const cleanUrl = String(url || '').trim();
+    if (!cleanUrl) {
+        preview.innerHTML = iconSvg(type === 'video' ? 'messages' : 'product');
+        return;
+    }
+    preview.innerHTML = type === 'video'
+        ? `<video src="${esc(cleanUrl)}" controls muted preload="metadata"></video>`
+        : `<img src="${esc(cleanUrl)}" alt="${esc(slot[1])}">`;
+}
+
+async function uploadSiteMediaFile(key, file) {
+    if (!file) return;
+    const status = document.getElementById(`media-status-${key}`);
+    if (status) status.textContent = 'Uploading...';
+    const formData = new FormData();
+    formData.append('media', file);
+    try {
+        const data = await api('/api/admin/site-media/upload', { method: 'POST', body: formData });
+        const input = document.getElementById(`media-${key}`);
+        if (input) input.value = data.url;
+        updateSiteMediaPreview(key, data.url);
+        if (status) status.textContent = 'Uploaded';
+    } catch (err) {
+        if (status) status.textContent = err.message;
+    }
+}
+
+async function loadSiteMedia() {
+    const grid = document.getElementById('siteMediaGrid');
+    if (!grid) return;
+    buildSiteMediaInputs();
+    const data = await api('/api/admin/site-media');
+    SITE_MEDIA_SLOTS.forEach(([key]) => {
+        const input = document.getElementById(`media-${key}`);
+        const url = data.media?.[key]?.url || '';
+        if (input) input.value = url;
+        updateSiteMediaPreview(key, url);
+    });
+}
+
+async function saveSiteMedia() {
+    const status = document.getElementById('siteMediaStatus');
+    const media = {};
+    SITE_MEDIA_SLOTS.forEach(([key, label, type]) => {
+        media[key] = {
+            label,
+            type,
+            url: (document.getElementById(`media-${key}`)?.value || '').trim()
+        };
+    });
+    if (status) status.textContent = 'Saving...';
+    try {
+        await api('/api/admin/site-media', {
+            method: 'PUT',
+            body: JSON.stringify({ media })
+        });
+        if (status) status.textContent = 'Saved';
+        showAdminNotice('Website media updated');
+    } catch (err) {
+        if (status) status.textContent = err.message;
     }
 }
 

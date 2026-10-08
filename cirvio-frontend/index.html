@@ -748,7 +748,7 @@
     <section id="about" class="about-us">
         <div class="container about-wrap reveal">
             <div class="about-video">
-                <video data-site-media="aboutPoster" data-site-media-type="poster" controls preload="metadata"
+                <video data-site-media="aboutPoster" data-site-media-type="poster" controls muted playsinline preload="metadata"
                     poster="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=900&q=70">
                     <source data-site-media="aboutVideo" src="cirvio-about-video.mp4" type="video/mp4">
                     Your browser doesn't support embedded videos.
@@ -1276,7 +1276,30 @@
             }
         }
 
+        function initAboutVideoAutoplay() {
+            const aboutSection = document.getElementById('about');
+            const video = aboutSection ? aboutSection.querySelector('video') : null;
+            if (!aboutSection || !video) return;
+            video.muted = true;
+            video.playsInline = true;
+            let isVisible = false;
+            const playIfVisible = () => {
+                if (!isVisible) return;
+                video.play().catch(() => {
+                    // Browser may still block until the first user gesture.
+                });
+            };
+            const observer = new IntersectionObserver((entries) => {
+                isVisible = entries.some((entry) => entry.isIntersecting);
+                if (isVisible) playIfVisible();
+                else video.pause();
+            }, { threshold: 0.45 });
+            observer.observe(aboutSection);
+            video.addEventListener('loadedmetadata', playIfVisible);
+        }
+
         loadBackendProducts();
+        initAboutVideoAutoplay();
         initCirvioChrome('home');
     </script>
 </body>

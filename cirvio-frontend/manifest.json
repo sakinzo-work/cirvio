@@ -1,5 +1,5 @@
 {
-  "name": "CIRVIO — Buy, Sell & Donate Study Materials",
+  "name": "CIRVIO - Buy, Sell & Donate Study Materials",
   "short_name": "CIRVIO",
   "description": "CIRVIO is a student marketplace to buy, sell and donate books, notes, calculators and study materials.",
   "start_url": "index.html",
@@ -13,16 +13,8 @@
   "lang": "en-IN",
   "categories": ["shopping", "education", "lifestyle"],
   "icons": [
-    { "src": "icon-72.png", "sizes": "72x72", "type": "image/png", "purpose": "any" },
-    { "src": "icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
-    { "src": "icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
-    { "src": "icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any" },
-    { "src": "icon-152.png", "sizes": "152x152", "type": "image/png", "purpose": "any" },
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-384.png", "sizes": "384x384", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "cirvio-logo-header.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "cirvio-logo-footer.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "shortcuts": [
     {
@@ -30,21 +22,21 @@
       "short_name": "Sell",
       "description": "Post a new listing on CIRVIO",
       "url": "sell.html",
-      "icons": [{ "src": "icon-96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "cirvio-logo-header.png", "sizes": "512x512" }]
     },
     {
       "name": "Explore listings",
       "short_name": "Explore",
       "description": "Browse books, notes & study material by category",
       "url": "explore.html",
-      "icons": [{ "src": "icon-96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "cirvio-logo-header.png", "sizes": "512x512" }]
     },
     {
       "name": "Listing Status",
       "short_name": "Status",
       "description": "Check whether your listings are approved by CIRVIO",
       "url": "status.html",
-      "icons": [{ "src": "icon-96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "cirvio-logo-header.png", "sizes": "512x512" }]
     }
   ],
   "screenshots": []

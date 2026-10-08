@@ -3,7 +3,7 @@
    App-shell precache + runtime caching so the site installs as a
    PWA and keeps working (mostly) offline.
 ============================================================ */
-const CIRVIO_CACHE = 'cirvio-cache-v6';
+const CIRVIO_CACHE = 'cirvio-cache-v8';
 
 const APP_SHELL = [
     './',
@@ -13,6 +13,9 @@ const APP_SHELL = [
     'sell.html',
     'profile.html',
     'messages.html',
+    'my-listings.html',
+    'saved.html',
+    'legal.html',
     'status.html',
     'offline.html',
     'styles.css',
@@ -21,19 +24,7 @@ const APP_SHELL = [
     'common.js',
     'manifest.json',
     'cirvio-logo-header.png',
-    'cirvio-logo-footer.png',
-    'icon-72.png',
-    'icon-96.png',
-    'icon-128.png',
-    'icon-144.png',
-    'icon-152.png',
-    'icon-192.png',
-    'icon-384.png',
-    'icon-512.png',
-    'icon-maskable-192.png',
-    'icon-maskable-512.png',
-    'apple-touch-icon.png',
-    'favicon.ico'
+    'cirvio-logo-footer.png'
 ];
 
 self.addEventListener('install', (event) => {

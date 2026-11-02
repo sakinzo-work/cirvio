@@ -130,7 +130,7 @@
         const PRODUCTS = [];
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0) return null;
+            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -147,17 +147,17 @@
                         <button class="p-wish active" data-id="${p.id}" aria-label="Remove from wishlist">
                             <svg viewBox="0 0 24 24" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
                         </button>
-                        <img src="${p.img}" alt="${p.title}" loading="lazy">
+                        <img src="${escapeHTML(p.img)}" alt="${escapeHTML(p.title)}" loading="lazy">
                     </div>
                     <div class="p-body">
-                        <div class="p-cat">${p.cat || 'Study Material'}</div>
-                        <div class="p-title">${p.title || 'Saved item'}</div>
+                        <div class="p-cat">${escapeHTML(p.cat || 'Study Material')}</div>
+                        <div class="p-title">${escapeHTML(p.title || 'Saved item')}</div>
                         <div class="p-price-row">
                             <span class="p-price">${p.price === 0 ? 'Free' : 'Rs ' + (p.price || 0)}</span>
                             ${p.orig ? `<span class="p-orig">Rs ${p.orig}</span>` : ''}
                         </div>
-                        <div class="p-meta"><span class="cond">${p.cond || 'Good'}</span><span>${p.loc || 'Mumbai'}</span></div>
-                        <div class="p-foot"><span class="p-seller">${p.seller || 'CIRVIO Seller'}</span><span>${p.time || 'Just now'}</span></div>
+                        <div class="p-meta"><span class="cond">${escapeHTML(p.cond || 'Good')}</span><span>${escapeHTML(p.loc || 'Mumbai')}</span></div>
+                        <div class="p-foot"><span class="p-seller">${escapeHTML(p.seller || 'CIRVIO Seller')}</span><span>${escapeHTML(p.time || 'Just now')}</span></div>
                     </div>
                 </a>`;
         }
@@ -188,13 +188,17 @@
         });
 
         async function loadProducts() {
+            const grid = document.getElementById('savedGrid');
+            document.getElementById('savedEmpty').style.display = 'none';
+            showDataState(grid, { loading: true });
             try {
                 const { products } = await CirvioAPI.getProducts();
                 PRODUCTS.splice(0, PRODUCTS.length, ...(products || []));
+                grid.setAttribute('aria-busy', 'false');
                 renderSaved();
             } catch (err) {
                 console.warn('Could not load saved products:', err.message);
-                renderSaved();
+                showDataState(grid, { message: err.message, retry: loadProducts });
             }
         }
 

@@ -977,7 +977,7 @@
   <button class="cat-card" data-cat="${c.name}">
     <div class="ci"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg></div>
     <span>${c.name}</span>
-    <small>${c.count} items</small>
+    <small data-category-count="${c.name}">Loading...</small>
   </button>
 `).join('');
 
@@ -988,6 +988,12 @@
         const productGrid = document.getElementById('productGrid');
         let activeCat = "All";
         let visibleCount = 8;
+        let productsState = 'loading';
+        let productsError = '';
+        const resultCount = document.createElement('p');
+        resultCount.className = 'data-result-count';
+        resultCount.setAttribute('aria-live', 'polite');
+        productGrid.before(resultCount);
 
         const TAB_LIST = ["All", "School Books", "College Books", "Competitive Exams", "Notes", "Novels", "Calculators"];
         tabRow.innerHTML = TAB_LIST.map((t, i) => `<button class="tab-chip ${i === 0 ? 'active' : ''}" data-tab="${t}">${t}</button>`).join('') +
@@ -1000,7 +1006,7 @@
    </select>`;
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0) return null;
+            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -1018,29 +1024,29 @@
       <button class="p-wish ${isWish ? 'active' : ''}" data-id="${p.id}" aria-label="Save to wishlist">
         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
       </button>
-      <img src="${p.img}" alt="${p.title}" loading="lazy">
+      <img src="${escapeHTML(p.img)}" alt="${escapeHTML(p.title)}" loading="lazy">
       <div class="p-qv" data-id="${p.id}">Quick View</div>
     </div>
     <div class="p-body">
-      <div class="p-cat">${p.cat}</div>
-      <div class="p-title">${p.title}</div>
+      <div class="p-cat">${escapeHTML(p.cat)}</div>
+      <div class="p-title">${escapeHTML(p.title)}</div>
       <div class="p-price-row">
         <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
         ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
         ${disc ? `<span class="p-disc">${disc}% off</span>` : ''}
       </div>
       <div class="p-meta">
-        <span class="cond">${p.cond}</span>
-        <span>${p.loc}</span>
+        <span class="cond">${escapeHTML(p.cond)}</span>
+        <span>${escapeHTML(p.loc)}</span>
       </div>
       <div class="p-foot">
-        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${p.seller}</span>
-        <span>${p.time}</span>
+        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${escapeHTML(p.seller)}</span>
+        <span>${escapeHTML(p.time)}</span>
       </div>
     </div>
     <div class="p-card-actions">
       <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
-        data-id="${p.id}" data-title="${p.title.replace(/"/g, '&quot;')}" data-price="${p.price}" data-img="${p.img}">
+        data-id="${p.id}" data-title="${escapeHTML(p.title)}" data-price="${p.price}" data-img="${escapeHTML(p.img)}">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
         Add to Cart
       </button>
@@ -1050,7 +1056,7 @@
         }
 
         function getFiltered() {
-            let list = activeCat === "All" ? PRODUCTS.slice() : PRODUCTS.filter(p => p.cat === activeCat);
+            let list = activeCat === "All" ? PRODUCTS.slice() : PRODUCTS.filter(p => activeCat === 'Free & Donations' ? ['free', 'donate'].includes(p.type) : p.cat === activeCat);
             const q = (window.__cirvioSearchQ !== undefined ? window.__cirvioSearchQ : document.getElementById('searchInput').value).trim().toLowerCase();
             if (q) list = list.filter(p => p.title.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
             const sort = document.getElementById('sortSelect') ? document.getElementById('sortSelect').value : 'relevant';
@@ -1061,8 +1067,16 @@
         }
 
         function renderProducts() {
+            if (productsState !== 'ready') {
+                resultCount.textContent = '';
+                document.getElementById('loadMoreBtn').style.display = 'none';
+                showDataState(productGrid, { loading: productsState === 'loading', message: productsError, retry: productsState === 'error' ? loadBackendProducts : null });
+                return;
+            }
+            productGrid.setAttribute('aria-busy', 'false');
             const list = getFiltered();
             const shown = list.slice(0, visibleCount);
+            resultCount.textContent = `Showing ${shown.length} of ${list.length} listing${list.length === 1 ? '' : 's'}`;
             productGrid.innerHTML = shown.length
                 ? shown.map(productCard).join('')
                 : `<div style="grid-column:1/-1;text-align:center;padding:50px 0;color:#8a856f;">
@@ -1262,15 +1276,25 @@
         ============================================================ */
         async function loadBackendProducts() {
             if (!window.CirvioAPI) return;
+            productsState = 'loading';
+            productsError = '';
+            renderProducts();
             try {
-                const query = window.__cirvioSearchQ ? `?q=${encodeURIComponent(window.__cirvioSearchQ)}` : '';
-                const { products } = await CirvioAPI.getProducts(query);
+                const { products } = await CirvioAPI.getProducts();
                 PRODUCTS.splice(0, PRODUCTS.length, ...(products || []));
+                productsState = 'ready';
+                document.querySelectorAll('[data-category-count]').forEach(el => {
+                    const category = el.dataset.categoryCount;
+                    const count = PRODUCTS.filter(p => category === 'Free & Donations' ? ['free', 'donate'].includes(p.type) : p.cat === category).length;
+                    el.textContent = `${count} item${count === 1 ? '' : 's'}`;
+                });
                 visibleCount = 8;
                 renderProducts();
             } catch (err) {
                 console.warn('Could not load products:', err.message);
-                PRODUCTS.splice(0, PRODUCTS.length);
+                productsState = 'error';
+                productsError = err.message;
+                document.querySelectorAll('[data-category-count]').forEach(el => { el.textContent = 'Unavailable'; });
                 renderProducts();
             }
         }

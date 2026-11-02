@@ -37,6 +37,7 @@ if (TOKEN && ADMIN_SESSION_API_BASE && ADMIN_SESSION_API_BASE !== API_BASE) {
 let CURRENT_USER = null;
 const ADMIN_PRODUCTS = new Map();
 const ADMIN_MESSAGES = new Map();
+const messageDrafts = new Map();
 const ADMIN_PURCHASES = new Map();
 let adminMessagePollStarted = false;
 let activeTab = 'dashboard';
@@ -71,17 +72,43 @@ function setupThemeToggle() {
 
 async function api(path, options = {}) {
     const isFormData = options.body instanceof FormData;
-    const res = await fetch(API_BASE + path, {
-        ...options,
-        headers: {
-            ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-            ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
-            ...(options.headers || {})
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (options.signal?.aborted) controller.abort();
+    options.signal?.addEventListener('abort', abort, { once: true });
+    const timer = setTimeout(abort, 45000);
+    try {
+        const res = await fetch(API_BASE + path, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+                ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
+                ...(options.headers || {})
+            }
+        });
+        const data = await res.json().catch(err => { if (controller.signal.aborted) throw err; return null; });
+        if (!res.ok) {
+            if (res.status === 401) {
+                TOKEN = '';
+                localStorage.removeItem('cirvio_admin_token');
+                adminApp.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                document.getElementById('loginError').textContent = 'Your session expired. Please sign in again.';
+            }
+            throw new Error(data?.message || 'Request failed');
         }
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
+        if (!data) throw new Error('The server returned an invalid response. Please try again.');
+        return data;
+    } catch (err) {
+        if (options.signal?.aborted) throw err;
+        if (err.name === 'AbortError') throw new Error('Loading took too long. Please try again.');
+        if (err instanceof TypeError) throw new Error('Unable to connect. Check your connection and try again.');
+        throw err;
+    } finally {
+        clearTimeout(timer);
+        options.signal?.removeEventListener('abort', abort);
+    }
 }
 
 /* ---------- login ---------- */
@@ -128,6 +155,7 @@ function activateTab(tab) {
     const panel = document.getElementById('tab-' + tab);
     if (panel) panel.classList.add('active');
     applyActiveSearchFilter();
+    if (CURRENT_USER) loadActiveTabData();
 }
 
 function bindJumpActions(root = document) {
@@ -149,7 +177,7 @@ async function showApp() {
     ensureEmployeePanel();
     updateAdminChrome();
     applyRolePermissions();
-    await Promise.all([loadStats(), loadUsers(), loadListings(), loadPurchases(), loadMessages(), loadClientOrigins(), loadSiteMedia()]);
+    await Promise.allSettled([loadActiveTabData(), loadMessages()]);
     startAdminMessagePoll();
 }
 
@@ -167,7 +195,7 @@ async function showApp() {
 })();
 
 const inr = (n) => 'Rs ' + Number(n || 0).toLocaleString('en-IN');
-const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtDate = (d) => d && Number.isFinite(Date.parse(d)) ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const isAdmin = () => CURRENT_USER && CURRENT_USER.role === 'admin';
 const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : inr(p.price));
 const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
@@ -224,7 +252,7 @@ function listingBookCell(p) {
     const thumb = listingThumb(p);
     return `
       <div class="listing-book">
-        <div class="listing-cover-stack">${thumb ? `<img src="${esc(thumb)}" alt="">` : `<span class="listing-thumb-empty">No image</span>`}</div>
+        <div class="listing-cover-stack">${thumb ? `<img src="${esc(thumb)}" alt="${esc(p.title)}" loading="lazy" decoding="async">` : `<span class="listing-thumb-empty">No image</span>`}</div>
         <div>
           <strong>${esc(p.title)}</strong>
           <span class="sub">${esc(p.category || 'Book')}</span>
@@ -236,7 +264,7 @@ function listingBookCell(p) {
 function listingImagesCell(p) {
     const images = Array.isArray(p.images) ? p.images : [];
     const count = images.length;
-    const strip = images.slice(0, 3).map(src => `<img src="${esc(src)}" alt="">`).join('');
+    const strip = images.slice(0, 3).map(src => `<img src="${esc(src)}" alt="Listing photo" loading="lazy" decoding="async">`).join('');
     return `
       <div class="image-cell">
         <div class="image-strip">${strip || '<span class="listing-thumb-empty">No image</span>'}</div>
@@ -352,6 +380,7 @@ function setupSidebarToggle() {
 }
 
 function filterTable(table, query) {
+    if (AdminTables.filter(table.id, query)) return;
     const terms = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
     const rows = table.querySelectorAll('tbody tr');
     rows.forEach((row) => {
@@ -383,13 +412,14 @@ function applyActiveSearchFilter() {
 function exportTable(tableId) {
     const table = document.getElementById(tableId);
     if (!table) return;
-    const rows = [...table.querySelectorAll('tr')].filter((row) => row.offsetParent !== null && !row.classList.contains('empty-row'));
+    const rows = AdminTables.exportRows(tableId) || [...table.querySelectorAll('tr')].filter((row) => row.offsetParent !== null && !row.classList.contains('empty-row'));
     if (rows.length <= 1) {
         showAdminNotice('No rows available to export');
         return;
     }
     const csv = rows.map((row) => [...row.children].map((cell) => {
-        const text = cell.textContent.replace(/\s+/g, ' ').trim();
+        const raw = cell.textContent.replace(/\s+/g, ' ').trim();
+        const text = /^[=+@-]/.test(raw) ? "'" + raw : raw;
         return `"${text.replace(/"/g, '""')}"`;
     }).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -429,8 +459,9 @@ setupNotificationButton();
 setupSidebarToggle();
 
 /* ---------- dashboard ---------- */
-async function loadStats() {
-    const s = await api('/api/admin/stats');
+async function loadStats(options = {}) {
+    const s = await api('/api/admin/stats', { signal: options.signal });
+    if (options.signal?.aborted) return;
     document.getElementById('statUsers').textContent = s.totalUsers;
     document.getElementById('statProducts').textContent = s.totalProducts;
     document.getElementById('statPending').textContent = s.pendingProducts;
@@ -451,8 +482,9 @@ async function loadStats() {
 }
 
 /* ---------- users ---------- */
-async function loadUsers() {
-    const { users } = await api('/api/admin/users');
+async function loadUsers(options = {}) {
+    const { users } = await api('/api/admin/users', { signal: options.signal });
+    if (options.signal?.aborted) return;
     const activeUsers = users.filter((u) => u.status === 'active').length;
     const suspendedUsers = users.filter((u) => u.status === 'suspended').length;
     const employees = users.filter((u) => u.role === 'employee');
@@ -469,8 +501,7 @@ async function loadUsers() {
     setText('employeesActiveMetric', activeEmployees);
     setText('employeesSuspendedMetric', suspendedEmployees);
     setText('employeesPendingMetric', users.filter((u) => u.status === 'pending').length);
-    const tbody = document.querySelector('#usersTable tbody');
-    tbody.innerHTML = users.length ? users.map((u) => `
+    AdminTables.set('usersTable', users, (u) => `
         <tr>
           <td><div class="user-cell"><span class="mini-avatar">${iconSvg('user')}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.role)}</span></div></div></td>
           <td>${esc(u.email)}<span class="sub">${esc(u.role)}</span></td>
@@ -486,11 +517,11 @@ async function loadUsers() {
               <button class="row-btn btn-delete" onclick="deleteUser('${u._id}')">Delete</button>
             `}
           </td>
-        </tr>`).join('') : emptyRow(9, 'No users found.');
+        </tr>`, 'No users found.');
 
     const empBody = document.querySelector('#employeesTable tbody');
     if (empBody) {
-        empBody.innerHTML = employees.length ? employees.map((u) => `
+        AdminTables.set('employeesTable', employees, (u) => `
           <tr>
           <td><div class="user-cell"><span class="mini-avatar">${iconSvg('user')}</span><div><strong>${esc(u.name)}</strong><span class="sub">${esc(u.email)}</span></div></div></td>
           <td>${esc(u.email)}</td>
@@ -501,7 +532,7 @@ async function loadUsers() {
               <button class="row-btn btn-approve" onclick="resetEmployeePassword('${u._id}')">Reset Password</button>
               <button class="row-btn btn-delete" onclick="deleteUser('${u._id}')">Delete</button>
             </td>
-          </tr>`).join('') : emptyRow(5, 'No CIRVIO employees yet.');
+          </tr>`, 'No CIRVIO employees yet.');
     }
     applyActiveSearchFilter();
 }
@@ -529,26 +560,26 @@ document.querySelectorAll('.filter-btn').forEach((btn) => {
     });
 });
 
-async function loadListings() {
-    const qs = currentListingFilter ? `?status=${currentListingFilter}` : '';
-    const { products } = await api('/api/admin/products' + qs);
+async function loadListings(options = {}) {
+    const { products: allProducts } = await api('/api/admin/products', { signal: options.signal });
+    if (options.signal?.aborted) return;
+    const products = allProducts.filter(p => !currentListingFilter || p.status === currentListingFilter);
     ADMIN_PRODUCTS.clear();
-    products.forEach((p) => ADMIN_PRODUCTS.set(String(p._id), p));
-    const tbody = document.querySelector('#listingsTable tbody');
-    tbody.innerHTML = products.length ? products.map((p) => `
+    allProducts.forEach((p) => ADMIN_PRODUCTS.set(String(p._id), p));
+    AdminTables.set('listingsTable', products, (p) => `
         <tr>
           <td>${listingBookCell(p)}</td>
           <td>${listingImagesCell(p)}</td>
           <td>${esc(p.category)}</td>
-          <td>${p.type === 'donate' ? 'Donate' : inr(p.price)}</td>
+          <td>${listingPrice(p)}</td>
           <td class="pair-cell">${p.seller ? esc(p.seller.name) : '-'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
           <td>${listingActions(p)}</td>
-        </tr>`).join('') : emptyRow(8, 'No listings found for this filter.');
+        </tr>`, 'No listings found for this filter.');
     const latestBody = document.querySelector('#latestListingsTable tbody');
     if (latestBody) {
-        latestBody.innerHTML = products.length ? products.slice(0, 8).map((p) => `
+        latestBody.innerHTML = allProducts.length ? allProducts.slice(0, 8).map((p) => `
         <tr>
           <td>${listingBookCell(p)}</td>
           <td>${listingImagesCell(p)}</td>
@@ -676,8 +707,9 @@ function closeListingImages() {
 }
 
 /* ---------- purchases (buyer + product + seller, paired) ---------- */
-async function loadPurchases() {
-    const { purchases } = await api('/api/admin/purchases');
+async function loadPurchases(options = {}) {
+    const { purchases } = await api('/api/admin/purchases', { signal: options.signal });
+    if (options.signal?.aborted) return;
     ADMIN_PURCHASES.clear();
     purchases.forEach((row) => ADMIN_PURCHASES.set(String(row.orderId), row));
 
@@ -695,7 +727,7 @@ async function loadPurchases() {
           <td><button class="row-btn btn-view" onclick="openOrderOps('${row.orderId}')">Update</button></td>
         </tr>`;
 
-    document.querySelector('#purchasesTable tbody').innerHTML = purchases.length ? purchases.map(rowHtml).join('') : emptyRow(10, 'No purchases yet.');
+    AdminTables.set('purchasesTable', purchases, rowHtml, 'No purchases yet.');
     document.querySelector('#recentPurchasesTable tbody').innerHTML = purchases.length ? purchases.slice(0, 6).map((row) => `
         <tr>
           <td>${fmtDate(row.date)}</td>
@@ -851,11 +883,15 @@ async function saveOrderOps() {
 }
 
 /* ---------- product messages ---------- */
-async function loadMessages({ notify = false } = {}) {
+async function loadMessages({ notify = false, signal } = {}) {
     const inbox = document.getElementById('messageInboxList');
     if (!inbox) return;
     const previous = new Map(ADMIN_MESSAGES);
-    const { messages } = await api('/api/admin/messages');
+    const { messages } = await api('/api/admin/messages', { signal });
+    if (signal?.aborted) return;
+    const signature = JSON.stringify(messages);
+    if (inbox.dataset.signature === signature) return;
+    inbox.dataset.signature = signature;
     ADMIN_MESSAGES.clear();
     messages.forEach((m) => ADMIN_MESSAGES.set(String(m._id), m));
     const needsReplyCount = messages.filter((m) => !(m.replies || []).some((reply) => ['admin', 'employee'].includes(reply.senderRole))).length;
@@ -924,6 +960,7 @@ function startAdminMessagePoll() {
     if (adminMessagePollStarted) return;
     adminMessagePollStarted = true;
     setInterval(async () => {
+        if (document.hidden || !TOKEN) return;
         try {
             await loadMessages({ notify: true });
         } catch (err) {
@@ -954,6 +991,14 @@ function handleMessageRowClick(event, id) {
 function renderMessageSidePanel(id) {
     const panel = document.getElementById('messageSidePanel');
     if (!panel) return;
+    const previousInput = document.getElementById('sideReplyText');
+    const previousId = activeMessageId;
+    const previousThread = panel.querySelector('.chat-thread');
+    const scrollTop = previousThread?.scrollTop || 0;
+    const atBottom = !previousThread || previousThread.scrollHeight - scrollTop - previousThread.clientHeight < 48;
+    const keepFocus = document.activeElement === previousInput;
+    const selection = previousInput ? [previousInput.selectionStart, previousInput.selectionEnd] : [0, 0];
+    if (previousInput && activeMessageId) messageDrafts.set(activeMessageId, previousInput.value);
     if (!id || !ADMIN_MESSAGES.has(String(id))) {
         activeMessageId = '';
         panel.innerHTML = `
@@ -1000,8 +1045,14 @@ function renderMessageSidePanel(id) {
         <span id="sideReplyStatus" class="side-reply-status sub"></span>
       </div>`;
     document.getElementById('sideReplySend').addEventListener('click', sendSidePanelReply);
+    const nextInput = document.getElementById('sideReplyText');
+    nextInput.value = messageDrafts.get(activeMessageId) || '';
+    if (keepFocus && previousId === activeMessageId) {
+        nextInput.focus({ preventScroll: true });
+        nextInput.setSelectionRange(...selection);
+    }
     const threadEl = panel.querySelector('.chat-thread');
-    if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+    if (threadEl) threadEl.scrollTop = previousId === activeMessageId && !atBottom ? scrollTop : threadEl.scrollHeight;
 }
 
 async function sendSidePanelReply() {
@@ -1020,6 +1071,8 @@ async function sendSidePanelReply() {
         });
         ADMIN_MESSAGES.set(String(message._id), message);
         activeMessageId = String(message._id);
+        textEl.value = '';
+        messageDrafts.delete(activeMessageId);
         await loadMessages();
         showAdminNotice('Reply sent');
     } catch (err) {
@@ -1347,9 +1400,10 @@ async function resetEmployeePassword(id) {
     alert('Employee password updated');
 }
 
-async function loadClientOrigins() {
+async function loadClientOrigins(options = {}) {
     if (!document.getElementById('clientOriginsInput')) return;
-    const data = await api('/api/admin/client-origins');
+    const data = await api('/api/admin/client-origins', { signal: options.signal });
+    if (options.signal?.aborted) return;
     document.getElementById('clientOriginsInput').value = (data.origins || []).join('\n');
     document.getElementById('envOriginsBox').innerHTML = (data.envOrigins || [])
         .map((origin) => `<span class="origin-pill">${origin}</span>`)
@@ -1432,11 +1486,12 @@ async function uploadSiteMediaFile(key, file) {
     }
 }
 
-async function loadSiteMedia() {
+async function loadSiteMedia(options = {}) {
     const grid = document.getElementById('siteMediaGrid');
     if (!grid) return;
     buildSiteMediaInputs();
-    const data = await api('/api/admin/site-media');
+    const data = await api('/api/admin/site-media', { signal: options.signal });
+    if (options.signal?.aborted) return;
     SITE_MEDIA_SLOTS.forEach(([key]) => {
         const input = document.getElementById(`media-${key}`);
         const url = data.media?.[key]?.url || '';
@@ -1467,6 +1522,106 @@ async function saveSiteMedia() {
         if (status) status.textContent = err.message;
     }
 }
+
+/* Each section owns its request and feedback; stale responses cannot replace it. */
+const adminLoads = new Map();
+function withDataFeedback(key, original, targetIds) {
+    return async function (options = {}) {
+        const previous = adminLoads.get(key);
+        if (previous?.pending && options.notify) return previous.pending;
+        previous?.controller.abort();
+        const controller = new AbortController();
+        const state = { controller, loadedAt: previous?.loadedAt || 0 };
+        adminLoads.set(key, state);
+        const targets = targetIds.map(id => document.getElementById(id)).filter(Boolean);
+        const feedbacks = targets.map(anchor => {
+            let feedback = document.getElementById('data-feedback-' + anchor.id);
+            if (feedback) return feedback;
+            feedback = document.createElement('div');
+            feedback.id = 'data-feedback-' + anchor.id;
+            feedback.className = 'data-feedback';
+            feedback.setAttribute('role', 'status');
+            feedback.setAttribute('aria-live', 'polite');
+            (anchor.closest('.table-wrap') || anchor).before(feedback);
+            return feedback;
+        });
+        targets.forEach(target => target.setAttribute('aria-busy', 'true'));
+        if (!options.notify) feedbacks.forEach(feedback => {
+            feedback.hidden = false;
+            feedback.classList.remove('is-error');
+            feedback.textContent = state.loadedAt ? 'Refreshing data...' : 'Loading data...';
+        });
+        state.pending = (async () => {
+            try {
+                await original({ ...options, signal: controller.signal });
+                if (controller.signal.aborted) return;
+                state.loadedAt = Date.now();
+                feedbacks.forEach(feedback => { feedback.hidden = true; });
+            } catch (err) {
+                if (controller.signal.aborted) return;
+                feedbacks.forEach(feedback => {
+                    feedback.hidden = false;
+                    feedback.classList.add('is-error');
+                    feedback.replaceChildren();
+                    const text = document.createElement('span');
+                    text.textContent = `${state.loadedAt ? 'Showing previously loaded data. ' : ''}${err.message}`;
+                    const retry = document.createElement('button');
+                    retry.type = 'button';
+                    retry.className = 'soft-btn';
+                    retry.textContent = 'Try again';
+                    retry.addEventListener('click', () => sectionLoaders[key]());
+                    feedback.append(text, retry);
+                });
+            } finally {
+                if (!controller.signal.aborted) targets.forEach(target => target.setAttribute('aria-busy', 'false'));
+                state.pending = null;
+            }
+        })();
+        return state.pending;
+    };
+}
+
+loadStats = withDataFeedback('stats', loadStats, ['statGrid']);
+loadUsers = withDataFeedback('users', loadUsers, ['usersTable', 'employeesTable']);
+loadListings = withDataFeedback('listings', loadListings, ['listingsTable', 'latestListingsTable']);
+loadPurchases = withDataFeedback('purchases', loadPurchases, ['purchasesTable', 'recentPurchasesTable']);
+loadMessages = withDataFeedback('messages', loadMessages, ['messageInboxList']);
+loadClientOrigins = withDataFeedback('origins', loadClientOrigins, ['clientOriginsInput']);
+loadSiteMedia = withDataFeedback('media', loadSiteMedia, ['siteMediaGrid']);
+const sectionLoaders = { stats: loadStats, users: loadUsers, listings: loadListings, purchases: loadPurchases, messages: loadMessages, origins: loadClientOrigins, media: loadSiteMedia };
+
+async function loadActiveTabData({ force = false } = {}) {
+    const sections = {
+        dashboard: ['stats', 'listings', 'purchases'], users: ['users'], employees: ['users'],
+        listings: ['listings'], purchases: ['purchases'], messages: ['messages'], settings: ['origins', 'media']
+    }[activeTab] || [];
+    if (activeTab === 'settings' && !isAdmin()) return;
+    return Promise.allSettled(sections.map(key => {
+        const state = adminLoads.get(key);
+        if (state?.pending) return state.pending;
+        if (!force && state?.loadedAt && Date.now() - state.loadedAt < 30000) return;
+        return sectionLoaders[key]();
+    }));
+}
+
+document.getElementById('refreshDataBtn').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try { await loadActiveTabData({ force: true }); }
+    finally { button.disabled = false; }
+});
+
+document.getElementById('purchasesDateRange').addEventListener('change', event => {
+    const range = event.target.value;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    if (range === 'This Week') start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+    if (range === 'This Month') start.setDate(1);
+    AdminTables.where('purchasesTable', range === 'All Dates' ? null : row => {
+        const date = new Date(row.date);
+        return date >= start && date <= new Date();
+    });
+});
 
 // expose for inline onclick handlers
 window.toggleUserStatus = toggleUserStatus;

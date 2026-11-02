@@ -493,7 +493,7 @@
         let profileIsPublic = false;
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0) return null;
+            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -629,16 +629,16 @@
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
       <div class="p-card">
-        <div class="p-thumb">${tag}<img src="${l.img}" alt="${l.title}" loading="lazy"></div>
+        <div class="p-thumb">${tag}<img src="${escapeHTML(l.img)}" alt="${escapeHTML(l.title)}" loading="lazy"></div>
         <div class="p-body">
-          <div class="p-cat">${l.cat || 'Uncategorised'}</div>
-          <div class="p-title">${l.title}</div>
+          <div class="p-cat">${escapeHTML(l.cat || 'Uncategorised')}</div>
+          <div class="p-title">${escapeHTML(l.title)}</div>
           <div class="p-price-row">
             <span class="p-price">${l.type === 'sell' ? (l.price ? '₹' + l.price : '₹0') : (l.type === 'donate' ? 'Donation' : 'Free')}</span>
             ${l.orig && l.type === 'sell' ? `<span class="p-orig">₹${l.orig}</span>` : ''}
           </div>
-          <div class="p-meta"><span class="cond">${l.cond || '—'}</span><span>${l.loc || '—'}</span></div>
-          <div class="p-foot"><span>${l.time}</span><span>${STATUS_LABEL[l.status] || 'Live'}</span></div>
+          <div class="p-meta"><span class="cond">${escapeHTML(l.cond || '—')}</span><span>${escapeHTML(l.loc || '—')}</span></div>
+          <div class="p-foot"><span>${escapeHTML(l.time)}</span><span>${STATUS_LABEL[l.status] || 'Live'}</span></div>
         </div>
         <div class="p-card-actions">
           ${l.status === 'draft'
@@ -688,17 +688,17 @@
           <button class="p-wish active" data-id="${p.id}" aria-label="Remove from wishlist">
             <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
           </button>
-          <img src="${p.img}" alt="${p.title}" loading="lazy">
+          <img src="${escapeHTML(p.img)}" alt="${escapeHTML(p.title)}" loading="lazy">
         </div>
         <div class="p-body">
-          <div class="p-cat">${p.cat}</div>
-          <div class="p-title">${p.title}</div>
+          <div class="p-cat">${escapeHTML(p.cat)}</div>
+          <div class="p-title">${escapeHTML(p.title)}</div>
           <div class="p-price-row">
             <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
             ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
           </div>
-          <div class="p-meta"><span class="cond">${p.cond}</span><span>${p.loc}</span></div>
-          <div class="p-foot"><span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${p.seller}</span><span>${p.time}</span></div>
+          <div class="p-meta"><span class="cond">${escapeHTML(p.cond)}</span><span>${escapeHTML(p.loc)}</span></div>
+          <div class="p-foot"><span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${escapeHTML(p.seller)}</span><span>${escapeHTML(p.time)}</span></div>
         </div>
       </a>`;
         }

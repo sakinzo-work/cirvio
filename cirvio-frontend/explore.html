@@ -817,10 +817,12 @@
         ];
 
         const PRODUCTS = [];
+        let productsState = 'loading';
+        let productsError = '';
 
         function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
         function discountPct(p) {
-            if (!p.orig || p.price === 0) return null;
+            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -835,7 +837,7 @@
             else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
-  <a class="p-card" data-id="${p.id}" data-title="${p.title.toLowerCase()}" data-cat="${p.cat.toLowerCase()}"
+  <a class="p-card" data-id="${p.id}" data-title="${escapeHTML(p.title.toLowerCase())}" data-cat="${escapeHTML(p.cat.toLowerCase())}"
      data-price="${p.price}" data-disc="${disc || 0}" data-type="${p.type}"
      href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
     <div class="p-thumb">
@@ -843,29 +845,29 @@
       <button class="p-wish ${isWish ? 'active' : ''}" data-id="${p.id}" aria-label="Save to wishlist">
         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
       </button>
-      <img src="${p.img}" alt="${p.title}" loading="lazy">
+      <img src="${escapeHTML(p.img)}" alt="${escapeHTML(p.title)}" loading="lazy">
       <div class="p-qv" data-id="${p.id}">Quick View</div>
     </div>
     <div class="p-body">
-      <div class="p-cat">${p.cat}</div>
-      <div class="p-title">${p.title}</div>
+      <div class="p-cat">${escapeHTML(p.cat)}</div>
+      <div class="p-title">${escapeHTML(p.title)}</div>
       <div class="p-price-row">
         <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
         ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
         ${disc ? `<span class="p-disc">${disc}% off</span>` : ''}
       </div>
       <div class="p-meta">
-        <span class="cond">${p.cond}</span>
-        <span>${p.loc}</span>
+        <span class="cond">${escapeHTML(p.cond)}</span>
+        <span>${escapeHTML(p.loc)}</span>
       </div>
       <div class="p-foot">
-        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${p.seller}</span>
-        <span>${p.time}</span>
+        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${escapeHTML(p.seller)}</span>
+        <span>${escapeHTML(p.time)}</span>
       </div>
     </div>
     <div class="p-card-actions">
       <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
-        data-id="${p.id}" data-title="${p.title.replace(/"/g, '&quot;')}" data-price="${p.price}" data-img="${p.img}">
+        data-id="${p.id}" data-title="${escapeHTML(p.title)}" data-price="${p.price}" data-img="${escapeHTML(p.img)}">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
         Add to Cart
       </button>
@@ -890,9 +892,15 @@
         ============================================================ */
         const sectionsHolder = document.getElementById('exploreSections');
         function renderExploreSections() {
+            if (productsState !== 'ready') {
+                showDataState(sectionsHolder, { loading: productsState === 'loading', message: productsError, retry: productsState === 'error' ? loadBackendProducts : null });
+                return;
+            }
+            sectionsHolder.setAttribute('aria-busy', 'false');
+            railIO.disconnect();
             sectionsHolder.innerHTML = CATEGORIES.map(c => {
             const slug = slugify(c.name);
-            const items = PRODUCTS.filter(p => p.cat === c.name);
+            const items = PRODUCTS.filter(p => c.name === 'Free & Donations' ? ['free', 'donate'].includes(p.type) : p.cat === c.name);
             const body = items.length
                 ? `<div class="es-scroll-wrap">
                      <button class="es-arrow left" data-scroll="${slug}" data-dir="-1" aria-label="Scroll left">
@@ -917,7 +925,7 @@
       <div class="es-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg></div>
       <div class="es-head-text">
         <h2>${c.name}</h2>
-        <span>${c.count} listings on CIRVIO${items.length ? ` · ${items.length} shown here` : ''}</span>
+        <span>${items.length} listing${items.length === 1 ? '' : 's'} available</span>
       </div>
       ${items.length > 1 ? `<button class="es-viewall" data-slug="${slug}">View all<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>` : ''}
     </div>
@@ -1020,6 +1028,7 @@
         }
 
         function applyExploreFilters() {
+            if (productsState !== 'ready') { noResultsBox.style.display = 'none'; return; }
             const q = exploreSearchInput.value.trim().toLowerCase();
             let anyVisible = false;
             document.querySelectorAll('.explore-section').forEach(section => {
@@ -1113,16 +1122,22 @@
         ============================================================ */
         async function loadBackendProducts() {
             if (!window.CirvioAPI) return;
+            productsState = 'loading';
+            productsError = '';
+            renderExploreSections();
+            applyExploreFilters();
             try {
                 const { products } = await CirvioAPI.getProducts();
                 PRODUCTS.splice(0, PRODUCTS.length, ...(products || []));
+                productsState = 'ready';
                 renderExploreSections();
                 document.querySelectorAll('.explore-section').forEach(s => s.classList.add('show'));
                 observeExploreSections();
                 applyExploreFilters();
             } catch (err) {
                 console.warn('Could not load explore products:', err.message);
-                PRODUCTS.splice(0, PRODUCTS.length);
+                productsState = 'error';
+                productsError = err.message;
                 renderExploreSections();
                 document.querySelectorAll('.explore-section').forEach(s => s.classList.add('show'));
                 applyExploreFilters();

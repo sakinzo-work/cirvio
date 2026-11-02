@@ -83,6 +83,7 @@
         <input id="globalSearchInput" type="search" placeholder="Search anything...">
       </label>
       <div class="topbar-actions">
+        <button id="refreshDataBtn" class="soft-btn" type="button">Refresh data</button>
         <button id="themeToggleBtn" class="icon-btn theme-toggle" type="button" aria-label="Switch to light theme" aria-pressed="false"><svg class="ui-icon"><use href="#icon-sun"></use></svg></button>
         <button id="adminNotificationBtn" class="icon-btn notification-btn" type="button" aria-label="Notifications" data-count="0"><svg class="ui-icon"><use href="#icon-bell"></use></svg></button>
         <div class="topbar-user">
@@ -140,15 +141,15 @@
       </div>
 
       <div class="stat-grid dashboard-stats" id="statGrid">
-        <div class="stat-card tone-green"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-users"></use></svg></span><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-blue"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-listings"></use></svg></span><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-amber"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-review"></use></svg></span><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-cyan"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-approved"></use></svg></span><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-violet"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-sold"></use></svg></span><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-teal"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-orders"></use></svg></span><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-rose"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-payment"></use></svg></span><span class="stat-label">Payment Pending</span><span class="stat-value" id="statPaymentPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-orange"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-dispatch"></use></svg></span><span class="stat-label">Dispatch Pending</span><span class="stat-value" id="statDispatchPending">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
-        <div class="stat-card tone-green wide"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-revenue"></use></svg></span><span class="stat-label">Collected Revenue</span><span class="stat-value" id="statRevenue">-</span><span class="stat-delta">Up 0% vs. yesterday</span></div>
+        <div class="stat-card tone-green"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-users"></use></svg></span><span class="stat-label">Total Users</span><span class="stat-value" id="statUsers">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-blue"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-listings"></use></svg></span><span class="stat-label">Total Listings</span><span class="stat-value" id="statProducts">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-amber"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-review"></use></svg></span><span class="stat-label">Pending Review</span><span class="stat-value" id="statPending">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-cyan"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-approved"></use></svg></span><span class="stat-label">Approved / Live</span><span class="stat-value" id="statApproved">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-violet"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-sold"></use></svg></span><span class="stat-label">Sold Items</span><span class="stat-value" id="statSold">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-teal"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-orders"></use></svg></span><span class="stat-label">Total Orders</span><span class="stat-value" id="statOrders">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-rose"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-payment"></use></svg></span><span class="stat-label">Payment Pending</span><span class="stat-value" id="statPaymentPending">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-orange"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-dispatch"></use></svg></span><span class="stat-label">Dispatch Pending</span><span class="stat-value" id="statDispatchPending">-</span><span class="stat-delta">Current total</span></div>
+        <div class="stat-card tone-green wide"><span class="stat-icon"><svg class="ui-icon"><use href="#icon-revenue"></use></svg></span><span class="stat-label">Collected Revenue</span><span class="stat-value" id="statRevenue">-</span><span class="stat-delta">Current total</span></div>
       </div>
 
       <div class="data-card">
@@ -254,7 +255,7 @@
           </div>
         </div>
         <div class="page-actions purchases-actions">
-          <label class="control-pill">Date Range<select><option>All Dates</option><option>This Week</option><option>This Month</option></select></label>
+          <label class="control-pill">Date Range<select id="purchasesDateRange"><option>All Dates</option><option>This Week</option><option>This Month</option></select></label>
           <label class="table-search"><svg class="field-icon"><use href="#icon-search"></use></svg><input id="purchasesSearchInput" type="search" placeholder="Search..."></label>
           <button class="soft-btn action-primary" type="button" data-export-table="purchasesTable">Export</button>
         </div>
@@ -296,6 +297,7 @@
   </main>
 </div>
 
+<script src="data-tables.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

@@ -34,9 +34,12 @@ function getCirvioApiBase() {
 const API_BASE = getCirvioApiBase();
 window.CIRVIO_API_BASE_ACTIVE = API_BASE;
 
-function normalizeProduct(product) {
+function normalizeProduct(product = {}) {
+    product = product && typeof product === 'object' ? product : {};
     const seller = product.seller || {};
-    const img = product.img || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=500&q=70';
+    const images = (Array.isArray(product.images) ? product.images : []).filter(image => typeof image === 'string' && image.trim());
+    const img = (typeof product.img === 'string' && product.img) || images[0] || window.CIRVIO_PLACEHOLDER_IMAGE;
+    const amount = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
     const rawCategory = product.cat || product.category || 'Books';
     const categoryMap = {
         books: 'School Books',
@@ -66,21 +69,24 @@ function normalizeProduct(product) {
     return {
         ...product,
         id: product._id || product.id,
-        cat,
-        cond: product.cond || product.condition || 'Good',
-        orig: product.orig || product.originalPrice || 0,
-        desc: product.desc || product.description || '',
-        loc: product.loc || product.location || 'Pickup handled by CIRVIO admin',
-        seller: typeof seller === 'string' ? seller : (seller.name || product.sellerName || 'CIRVIO Seller'),
-        sellerId: typeof seller === 'object' ? seller._id : product.seller,
+        title: String(product.title || 'Untitled listing'),
+        cat: String(cat),
+        cond: String(product.cond || product.condition || 'Good'),
+        price: ['donate', 'free'].includes(product.type) ? 0 : amount(product.price),
+        orig: amount(product.orig ?? product.originalPrice),
+        desc: String(product.desc || product.description || ''),
+        loc: String(product.loc || product.location || 'Pickup handled by CIRVIO admin'),
+        seller: String(typeof seller === 'string' ? (product.sellerName || (/^[a-f\d]{24}$/i.test(seller) ? 'CIRVIO Seller' : seller)) : (seller.name || product.sellerName || 'CIRVIO Seller')),
+        sellerId: product.sellerId || (typeof seller === 'object' ? seller._id || seller.id : seller),
         img,
-        images: product.images && product.images.length ? product.images : [img],
-        time: product.time || (product.createdAt ? new Date(product.createdAt).toLocaleDateString() : 'Just now'),
+        images: images.length ? images : [img],
+        time: product.time || (product.createdAt && Number.isFinite(Date.parse(product.createdAt)) ? new Date(product.createdAt).toLocaleDateString('en-IN') : 'Just now'),
         type: product.type || 'sell'
     };
 }
 
 const CirvioAPI = {
+    pendingRequests: new Map(),
     token() {
         const sessionApiBase = localStorage.getItem('cirvio_session_api_base') || '';
         if (sessionApiBase && sessionApiBase !== API_BASE) {
@@ -105,28 +111,53 @@ const CirvioAPI = {
         localStorage.removeItem('cirvio_wishlist');
     },
     async request(path, options = {}) {
+        const key = `${this.token()}:${path}`;
+        const canShare = (!options.method || options.method === 'GET') && !options.signal;
+        if (canShare && this.pendingRequests.has(key)) return this.pendingRequests.get(key);
+        const request = this.performRequest(path, options);
+        if (canShare) this.pendingRequests.set(key, request);
+        try {
+            return await request;
+        } finally {
+            if (canShare) this.pendingRequests.delete(key);
+        }
+    },
+    async performRequest(path, options = {}) {
         let res;
         const isFormData = options.body instanceof FormData;
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        if (options.signal?.aborted) controller.abort();
+        options.signal?.addEventListener('abort', abort, { once: true });
+        const timeout = setTimeout(abort, 45000);
         try {
             res = await fetch(API_BASE + path, {
                 ...options,
+                signal: controller.signal,
                 headers: {
                     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
                     ...(this.token() ? { Authorization: `Bearer ${this.token()}` } : {}),
                     ...(options.headers || {})
                 }
             });
+            const data = await res.json().catch(err => { if (controller.signal.aborted) throw err; return null; });
+            if (!res.ok) {
+                const err = new Error(data?.message || 'Request failed');
+                err.status = res.status;
+                if (res.status === 401) this.clearSession();
+                throw err;
+            }
+            if (!data || typeof data !== 'object') throw new Error('The server returned an invalid response. Please try again.');
+            return data;
         } catch (err) {
-            throw new Error(`Cannot connect to CIRVIO backend at ${API_BASE}. Start the backend or update config.js.`);
-        }
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            const err = new Error(data.message || 'Request failed');
-            err.status = res.status;
-            if (res.status === 401) this.clearSession();
+            if (options.signal?.aborted) throw err;
+            if (err.name === 'AbortError') throw new Error('Loading took too long. Please try again.');
+            if (err instanceof TypeError) throw new Error('Unable to connect. Check your connection and try again.');
             throw err;
+        } finally {
+            clearTimeout(timeout);
+            options.signal?.removeEventListener('abort', abort);
         }
-        return data;
     },
     async register(payload) {
         const data = await this.request('/api/auth/register', {
@@ -223,10 +254,12 @@ const CirvioAPI = {
     },
     async getProducts(query = '') {
         const data = await this.request('/api/products' + query);
-        return { ...data, products: (data.products || []).map(normalizeProduct) };
+        if (!Array.isArray(data.products)) throw new Error('Listings could not be read. Please try again.');
+        return { ...data, products: data.products.filter(Boolean).map(normalizeProduct) };
     },
     async getProduct(id) {
         const data = await this.request('/api/products/' + encodeURIComponent(id));
+        if (!data.product || typeof data.product !== 'object') throw new Error('This listing could not be read. Please try again.');
         return { ...data, product: normalizeProduct(data.product) };
     },
     async createProduct(payload) {
@@ -248,7 +281,8 @@ const CirvioAPI = {
     async myListings() {
         await this.ensureSession();
         const data = await this.request('/api/products/mine');
-        return { ...data, products: (data.products || []).map(normalizeProduct) };
+        if (!Array.isArray(data.products)) throw new Error('Listings could not be read. Please try again.');
+        return { ...data, products: data.products.filter(Boolean).map(normalizeProduct) };
     },
     async checkout(items, deliveryAddress = '') {
         await this.ensureSession();

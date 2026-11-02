@@ -62,7 +62,9 @@ router.get('/', async (req, res) => {
         }
         const products = await Product.find(filter)
             .populate('seller', 'name college verified')
-            .sort({ createdAt: -1 });
+            .slice('images', 1)
+            .sort({ createdAt: -1, _id: -1 })
+            .lean();
         res.json({ count: products.length, products: products.map(publicProduct) });
     } catch (err) {
         res.status(500).json({ message: 'Failed to fetch products', error: err.message });

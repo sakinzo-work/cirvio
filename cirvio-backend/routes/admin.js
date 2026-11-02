@@ -254,7 +254,8 @@ router.get('/products', async (req, res) => {
     if (req.query.status) filter.status = req.query.status;
     const products = await Product.find(filter)
         .populate('seller', 'name email college city')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1, _id: -1 })
+        .lean();
     res.json({ count: products.length, products });
 });
 

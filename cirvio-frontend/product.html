@@ -804,7 +804,7 @@
         ];
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0) return null;
+            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -835,28 +835,28 @@
       <button class="p-wish ${isWish ? 'active' : ''}" data-id="${p.id}" aria-label="Save to wishlist" onclick="event.preventDefault()">
         <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
       </button>
-      <img src="${p.img.replace('w=900', 'w=500')}" alt="${p.title}" loading="lazy">
+      <img src="${escapeHTML(p.img.replace('w=900', 'w=500'))}" alt="${escapeHTML(p.title)}" loading="lazy">
     </div>
     <div class="p-body">
-      <div class="p-cat">${p.cat}</div>
-      <div class="p-title">${p.title}</div>
+      <div class="p-cat">${escapeHTML(p.cat)}</div>
+      <div class="p-title">${escapeHTML(p.title)}</div>
       <div class="p-price-row">
         <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
         ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
         ${disc ? `<span class="p-disc">${disc}% off</span>` : ''}
       </div>
       <div class="p-meta">
-        <span class="cond">${p.cond}</span>
-        <span>${p.loc}</span>
+        <span class="cond">${escapeHTML(p.cond)}</span>
+        <span>${escapeHTML(p.loc)}</span>
       </div>
       <div class="p-foot">
-        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${p.seller}</span>
-        <span>${p.time}</span>
+        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${escapeHTML(p.seller)}</span>
+        <span>${escapeHTML(p.time)}</span>
       </div>
     </div>
     <div class="p-card-actions">
       <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
-        data-id="${p.id}" data-title="${p.title.replace(/"/g, '&quot;')}" data-price="${p.price}" data-img="${p.img}">
+        data-id="${p.id}" data-title="${escapeHTML(p.title)}" data-price="${p.price}" data-img="${escapeHTML(p.img)}">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
         Add to Cart
       </button>
@@ -871,19 +871,30 @@
         PRODUCTS.splice(0, PRODUCTS.length);
         let product = null;
         let activeThumb = 0;
+        let productError = null;
+        const productDetail = document.querySelector('.product-detail');
+        const productState = document.createElement('div');
+        productDetail.before(productState);
+        productDetail.style.display = 'none';
+        showDataState(productState, { loading: true, title: 'Loading listing...' });
 
         function render() {
             if (!product) {
                 window.CirvioCurrentProduct = null;
-                document.querySelector('.product-detail').innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:70px 20px;color:#8a856f;">
-        <p style="font-family:var(--font-display);font-size:1.4rem;color:var(--olive-deep);margin-bottom:8px;">Product not found</p>
-        <p>This listing is unavailable or has not been approved yet.</p>
-        <a href="index.html#browse" class="btn btn-terracotta" style="margin-top:18px;">Browse Listings</a>
-      </div>`;
+                productDetail.style.display = 'none';
+                const unavailable = !id || productError?.status === 404;
+                showDataState(productState, {
+                    title: unavailable ? 'Listing unavailable' : 'Unable to load listing',
+                    message: unavailable ? 'This listing is unavailable or has not been approved yet.' : productError?.message,
+                    retry: unavailable ? null : loadBackendProduct
+                });
+                if (unavailable) productState.querySelector('.data-state').insertAdjacentHTML('beforeend', '<a href="index.html#browse" class="btn btn-terracotta">Browse Listings</a>');
                 document.getElementById('similarGrid').innerHTML = '';
                 return;
             }
+            productState.replaceChildren();
+            productState.setAttribute('aria-busy', 'false');
+            productDetail.style.display = '';
             document.title = product.title + ' — CIRVIO';
             document.getElementById('crumbCat').textContent = product.title;
             document.getElementById('pdCat').textContent = product.cat;
@@ -916,17 +927,17 @@
             document.getElementById('galleryMainImg').src = imgs[0];
             document.getElementById('galleryMainImg').alt = product.title;
             document.getElementById('galleryThumbs').innerHTML = imgs.map((src, i) => `
-        <button class="${i === 0 ? 'active' : ''}" data-i="${i}"><img src="${src}" alt="${product.title} view ${i + 1}"></button>
+        <button class="${i === 0 ? 'active' : ''}" data-i="${i}"><img src="${escapeHTML(src)}" alt="${escapeHTML(product.title)} view ${i + 1}"></button>
       `).join('');
 
             /* specs */
             document.getElementById('specTable').innerHTML = `
-        <div class="spec-row"><span>Category</span><span>${product.cat}</span></div>
-        <div class="spec-row"><span>Condition</span><span>${product.cond}</span></div>
+        <div class="spec-row"><span>Category</span><span>${escapeHTML(product.cat)}</span></div>
+        <div class="spec-row"><span>Condition</span><span>${escapeHTML(product.cond)}</span></div>
         <div class="spec-row"><span>Listing type</span><span>${product.type === 'sell' ? 'For Sale' : (product.type === 'donate' ? 'Donation' : 'Free')}</span></div>
-        <div class="spec-row"><span>Pickup details</span><span>${product.loc}</span></div>
-        <div class="spec-row"><span>Posted</span><span>${product.time}</span></div>
-        <div class="spec-row"><span>Seller</span><span>${product.seller}</span></div>
+        <div class="spec-row"><span>Pickup details</span><span>${escapeHTML(product.loc)}</span></div>
+        <div class="spec-row"><span>Posted</span><span>${escapeHTML(product.time)}</span></div>
+        <div class="spec-row"><span>Seller</span><span>${escapeHTML(product.seller)}</span></div>
       `;
 
             /* add-to-cart button needs this item's data */
@@ -1035,13 +1046,10 @@
         });
 
         async function loadBackendProduct() {
-            if (!window.CirvioAPI || !id) return;
+            if (!window.CirvioAPI || !id) { render(); return; }
+            showDataState(productState, { loading: true, title: 'Loading listing...' });
             try {
-                const [{ product: apiProduct }, productList] = await Promise.all([
-                    CirvioAPI.getProduct(id),
-                    CirvioAPI.getProducts().catch(() => ({ products: [] }))
-                ]);
-                PRODUCTS.splice(0, PRODUCTS.length, ...(productList.products || []));
+                const { product: apiProduct } = await CirvioAPI.getProduct(id);
                 if (apiProduct) {
                     product = apiProduct;
                     if (!PRODUCTS.some(p => String(p.id) === String(apiProduct.id))) {
@@ -1049,9 +1057,17 @@
                     }
                     render();
                 }
+                // Related listings must never delay the main product.
+                CirvioAPI.getProducts().then(({ products }) => {
+                    PRODUCTS.splice(0, PRODUCTS.length, ...products);
+                    const similar = PRODUCTS.filter(p => p.cat === product.cat && String(p.id) !== String(product.id));
+                    const related = similar.length ? similar : PRODUCTS.filter(p => String(p.id) !== String(product.id));
+                    document.getElementById('similarGrid').innerHTML = related.slice(0, 4).map(productCardHTML).join('');
+                }).catch(() => {});
             } catch (err) {
                 console.warn('Could not load product:', err.message);
                 product = null;
+                productError = err;
                 render();
             }
         }

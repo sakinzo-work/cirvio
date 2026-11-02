@@ -347,12 +347,12 @@
         function approvalCard(l) {
             return `
       <div class="approval-card reveal show" data-id="${l.id}">
-        <div class="approval-thumb"><img src="${l.img || PLACEHOLDER_IMG}" alt="${l.title}" loading="lazy"></div>
+        <div class="approval-thumb"><img src="${l.img || PLACEHOLDER_IMG}" alt="${escapeHTML(l.title)}" loading="lazy"></div>
         <div class="approval-body">
           <div class="approval-top">
             <div class="approval-title-wrap">
-              <div class="approval-title">${l.title || 'Untitled listing'}</div>
-              <div class="approval-meta">${l.cat || 'Uncategorised'} · Submitted ${fmtDate(l.submittedAt)}</div>
+              <div class="approval-title">${escapeHTML(l.title || 'Untitled listing')}</div>
+              <div class="approval-meta">${escapeHTML(l.cat || 'Uncategorised')} · Submitted ${fmtDate(l.submittedAt)}</div>
             </div>
             ${statusBadge(l)}
           </div>

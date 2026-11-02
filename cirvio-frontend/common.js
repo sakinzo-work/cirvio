@@ -6,6 +6,30 @@
 
 /* ---------- tiny persisted store (wishlist count, listings a
    student has posted, profile info) so it carries across pages ---------- */
+window.CIRVIO_PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360"><rect width="480" height="360" fill="#eeeadd"/><path d="M180 110h120v140H180zM200 145h80m-80 25h80m-80 25h50" fill="none" stroke="#77745e" stroke-width="6"/><text x="240" y="290" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#575442">Image unavailable</text></svg>');
+
+function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function showDataState(container, { loading = false, title = '', message = '', retry } = {}) {
+    container.setAttribute('aria-busy', String(loading));
+    container.innerHTML = `<div class="data-state" role="status" aria-live="polite">
+        <strong>${escapeHTML(title || (loading ? 'Loading listings...' : 'Unable to load listings'))}</strong>
+        ${message ? `<p>${escapeHTML(message)}</p>` : ''}
+        ${loading ? '<div class="data-skeletons" aria-hidden="true">' + '<div class="data-skeleton"></div>'.repeat(4) + '</div>' : ''}
+        ${retry ? '<button type="button" class="btn btn-terracotta data-retry">Try again</button>' : ''}
+    </div>`;
+    if (retry) container.querySelector('.data-retry').addEventListener('click', retry);
+}
+
+document.addEventListener('error', event => {
+    const img = event.target;
+    if (img.tagName !== 'IMG' || img.dataset.fallbackApplied) return;
+    img.dataset.fallbackApplied = 'true';
+    img.src = window.CIRVIO_PLACEHOLDER_IMAGE;
+}, true);
+
 const CirvioStore = {
     _read(key, fallback) {
         try {
@@ -1027,7 +1051,7 @@ function initReveal() {
     if (!revealEls.length) return;
     const io = new IntersectionObserver((entries) => {
         entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('show'); io.unobserve(en.target); } });
-    }, { threshold: 0.12 });
+    }, { threshold: 0 });
     revealEls.forEach(el => io.observe(el));
 }
 

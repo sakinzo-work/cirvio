@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "CIRVIO Admin",
+  "short_name": "CIRVIO Admin",
+  "description": "CIRVIO staff dashboard for listings, purchases and messages.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#00181b",
+  "theme_color": "#00181b",
+  "lang": "en",
+  "icons": [
+    { "src": "icons/admin-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/admin-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/admin-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

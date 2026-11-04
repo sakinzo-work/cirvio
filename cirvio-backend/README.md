@@ -42,6 +42,14 @@ Visit `http://localhost:5000/admin` in your browser and log in with your
 admin email/password. It's a static HTML/CSS/JS panel served directly by
 the Express app — no separate build step needed.
 
+### Use on a phone and install the admin app
+
+Open `/admin/` on the deployed HTTPS site. Use the menu button to switch between Dashboard, Users, Listings, Purchases, Messages, Settings and Employees (admin accounts only). On phones, tables become labeled cards and messages open as a separate conversation with a Back button. Replies stay in memory while switching conversations; an unsuccessful send keeps the draft.
+
+Choose **Install** in the toolbar or **Install admin app** on the login screen. Supporting browsers show the installation prompt. On iPhone, use Safari's **Share → Add to Home Screen**; the app also shows installation help when a direct prompt is unavailable. Installation requires HTTPS, except for localhost development.
+
+The PWA stores only public application files and icons. Staff records, API responses and conversations are never placed in the service-worker cache. An offline screen and connection banner explain when a connection is required. Reconnect to load data or save changes. Available app updates are offered with an **Update app** button so staff can save changes before reloading.
+
 ## API overview
 
 | Method | Route                              | Access        | Purpose |

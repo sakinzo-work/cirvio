@@ -209,7 +209,8 @@ const defaults = pathname => {
             });
             assert.equal(await page.locator('#statUsers').innerText(), '202');
             await page.setViewportSize({ width: 390, height: 844 });
-            await page.locator('.nav-btn[data-tab="users"]').click({ force: true });
+            await page.locator('#mobileMenuBtn').click();
+            await page.locator('.nav-btn[data-tab="users"]').click();
             assert.equal(await page.locator('#usersTable tbody tr').count(), 10);
         }, undefined, true);
 

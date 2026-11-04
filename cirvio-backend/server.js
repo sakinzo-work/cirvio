@@ -27,6 +27,10 @@ app.use(express.json({ limit: '15mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API routes
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
@@ -34,7 +38,11 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 
 // serve the admin panel (static HTML/CSS/JS) at /admin
-app.use('/admin', express.static(path.join(__dirname, 'admin-panel')));
+app.use('/admin', express.static(path.join(__dirname, 'admin-panel'), {
+    setHeaders(res, filename) {
+        if (filename.endsWith('admin-sw.js') || filename.endsWith('manifest.webmanifest')) res.set('Cache-Control', 'no-cache');
+    }
+}));
 
 app.get('/', (req, res) => res.send('CIRVIO API is running ✅'));
 app.get('/api/health', (req, res) => res.json({ ok: true, message: 'CIRVIO API is running' }));

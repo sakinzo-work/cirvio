@@ -1,3 +1,19 @@
+function decorateAdminTables(root = document) {
+    const tables = root.matches?.('table') ? [root] : root.querySelectorAll('table');
+    tables.forEach(table => {
+        table.setAttribute('role', 'table');
+        const headers = [...(table.tHead?.rows[0]?.cells || [])].map(cell => cell.textContent.trim());
+        table.querySelectorAll('thead th').forEach(cell => cell.setAttribute('scope', 'col'));
+        table.querySelectorAll('tbody tr').forEach(row => {
+            row.setAttribute('role', 'row');
+            [...row.cells].forEach((cell, index) => {
+                cell.dataset.label = headers[index] || '';
+                cell.setAttribute('role', 'cell');
+            });
+        });
+    });
+}
+
 /* Keep full data available for search/export; only mount the current page. */
 const AdminTables = (() => {
     const tables = new Map();
@@ -24,6 +40,7 @@ const AdminTables = (() => {
         state.table.tBodies[0].innerHTML = rows.length
             ? rows.slice(start, start + state.size).map(row => state.render(row.item)).join('')
             : `<tr class="empty-row"><td colspan="${count}" class="empty-state">${escape(state.query ? 'No results match your search. Try another search term.' : state.empty)}</td></tr>`;
+        decorateAdminTables(state.table);
         state.footer.querySelector('[data-page-summary]').textContent = rows.length
             ? `${start + 1}–${Math.min(start + state.size, rows.length)} of ${rows.length}${state.query || state.predicate ? ` matching (${state.rows.length} total)` : ''}`
             : `0 of ${state.rows.length} results`;
@@ -43,10 +60,11 @@ const AdminTables = (() => {
                 <label>Rows <select aria-label="Rows per page"><option>10</option><option selected>25</option><option>50</option></select></label>
                 <div class="data-page-controls"><button type="button" class="soft-btn" data-page-prev>Previous</button><span data-page-number></span><button type="button" class="soft-btn" data-page-next>Next</button></div>`;
             table.closest('.table-wrap').after(footer);
-            state = { table, footer, page: 1, size: 25, query: '' };
+            state = { table, footer, page: 1, size: window.matchMedia('(max-width: 780px)').matches ? 10 : 25, query: '' };
+            footer.querySelector('select').value = String(state.size);
             const toolbarSize = table.closest('.data-card')?.querySelector('.table-toolbar select');
             if (toolbarSize) {
-                toolbarSize.value = '25';
+                toolbarSize.value = String(state.size);
                 toolbarSize.setAttribute('aria-label', 'Rows per page');
                 toolbarSize.addEventListener('change', () => {
                     state.size = Number(toolbarSize.value);

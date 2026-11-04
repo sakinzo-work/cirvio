@@ -38,6 +38,8 @@ let CURRENT_USER = null;
 const ADMIN_PRODUCTS = new Map();
 const ADMIN_MESSAGES = new Map();
 const messageDrafts = new Map();
+const pendingReplies = new Set();
+let activeMessageFilter = 'all';
 const ADMIN_PURCHASES = new Map();
 let adminMessagePollStarted = false;
 let activeTab = 'dashboard';
@@ -50,6 +52,8 @@ const ADMIN_THEME_KEY = 'cirvio_admin_theme';
 function setAdminTheme(theme) {
     const cleanTheme = theme === 'light' ? 'light' : 'dark';
     document.body.dataset.theme = cleanTheme;
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = getComputedStyle(document.body).getPropertyValue('--bg').trim();
     localStorage.setItem(ADMIN_THEME_KEY, cleanTheme);
     const btn = document.getElementById('themeToggleBtn');
     if (btn) {
@@ -71,6 +75,7 @@ function setupThemeToggle() {
 }
 
 async function api(path, options = {}) {
+    if (navigator.onLine === false) throw new Error('You are offline. Reconnect and try again. Your changes have not been sent.');
     const isFormData = options.body instanceof FormData;
     const controller = new AbortController();
     const abort = () => controller.abort();
@@ -96,7 +101,9 @@ async function api(path, options = {}) {
                 loginScreen.classList.remove('hidden');
                 document.getElementById('loginError').textContent = 'Your session expired. Please sign in again.';
             }
-            throw new Error(data?.message || 'Request failed');
+            const error = new Error(data?.message || 'Request failed');
+            error.status = res.status;
+            throw error;
         }
         if (!data) throw new Error('The server returned an invalid response. Please try again.');
         return data;
@@ -114,10 +121,14 @@ async function api(path, options = {}) {
 /* ---------- login ---------- */
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const button = e.currentTarget.querySelector('button[type="submit"]');
+    if (button.disabled) return;
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     const errEl = document.getElementById('loginError');
     errEl.textContent = '';
+    button.disabled = true;
+    button.textContent = 'Signing in...';
     try {
         const data = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
         if (!['admin', 'employee'].includes(data.user.role)) {
@@ -131,6 +142,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         showApp();
     } catch (err) {
         errEl.textContent = err.message;
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Login';
     }
 });
 
@@ -148,14 +162,29 @@ document.querySelectorAll('.nav-btn').forEach((btn) => {
     });
 });
 
-function activateTab(tab) {
+function activateTab(tab, { historyMode = 'push', load = true } = {}) {
+    if (!document.getElementById('tab-' + tab) || (tab === 'employees' && !isAdmin())) tab = 'dashboard';
+    if (tab !== activeTab) document.getElementById('globalSearchInput').value = '';
     activeTab = tab;
-    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.nav-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+        if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page');
+        else b.removeAttribute('aria-current');
+    });
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
     const panel = document.getElementById('tab-' + tab);
     if (panel) panel.classList.add('active');
+    document.body.classList.toggle('messages-active', tab === 'messages');
+    document.getElementById('activeSectionLabel').textContent = titleCase(tab);
+    setMobileMenu(false, false);
+    if (historyMode !== 'none') {
+        const state = { tab, thread: null };
+        if (historyMode === 'replace') history.replaceState(state, '', '#' + tab);
+        else if (location.hash !== '#' + tab || history.state?.thread) history.pushState(state, '', '#' + tab);
+        document.querySelector('.messages-layout').classList.remove('conversation-open');
+    }
     applyActiveSearchFilter();
-    if (CURRENT_USER) loadActiveTabData();
+    if (CURRENT_USER && load) loadActiveTabData();
 }
 
 function bindJumpActions(root = document) {
@@ -177,11 +206,12 @@ async function showApp() {
     ensureEmployeePanel();
     updateAdminChrome();
     applyRolePermissions();
+    activateTab(location.hash.slice(1) || 'dashboard', { historyMode: 'replace', load: false });
     await Promise.allSettled([loadActiveTabData(), loadMessages()]);
     startAdminMessagePoll();
 }
 
-(async function init() {
+async function initAdminSession() {
     if (!TOKEN) return; // stay on login screen
     try {
         const data = await api('/api/auth/me');
@@ -189,10 +219,19 @@ async function showApp() {
             CURRENT_USER = data.user;
             return showApp();
         }
-    } catch (e) {
+        TOKEN = '';
         localStorage.removeItem('cirvio_admin_token');
+    } catch (error) {
+        if (error.status === 401) return;
+        document.getElementById('loginError').textContent = error.message || 'Could not connect. Please retry.';
+        document.getElementById('retrySessionBtn').hidden = false;
     }
-})();
+}
+initAdminSession();
+document.getElementById('retrySessionBtn').addEventListener('click', async event => {
+    event.currentTarget.hidden = true;
+    await initAdminSession();
+});
 
 const inr = (n) => 'Rs ' + Number(n || 0).toLocaleString('en-IN');
 const fmtDate = (d) => d && Number.isFinite(Date.parse(d)) ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
@@ -240,9 +279,9 @@ function listingActions(p) {
     return `
     <div class="action-stack">
       <button class="row-btn btn-view" onclick="viewListingImages('${p._id}')">View Images</button>
-      ${p.status !== 'approved' ? `<button class="row-btn btn-approve" ${viewed ? '' : 'disabled title="View images/details first"'} onclick="approveProduct('${p._id}')">Approve</button>` : ''}
+      ${['pending', 'rejected'].includes(p.status) ? `<button class="row-btn btn-approve" ${viewed ? '' : 'disabled title="View images/details first"'} onclick="approveProduct('${p._id}')">Approve</button>` : ''}
       ${p.status !== 'rejected' && p.status !== 'sold' ? `<button class="row-btn btn-reject" onclick="rejectProduct('${p._id}')">Reject</button>` : ''}
-      <button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>
+      ${isAdmin() ? `<button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>` : ''}
       <span class="review-state ${viewed ? 'review-seen' : 'review-needed'}">${viewed ? 'Viewed by staff' : 'View before approval'}</span>
     </div>
     `;
@@ -297,6 +336,7 @@ function ensurePasswordEye() {
     btn.addEventListener('click', () => {
         const show = password.type === 'password';
         password.type = show ? 'text' : 'password';
+        btn.textContent = show ? 'Hide' : 'Show';
         btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
     });
 }
@@ -393,11 +433,17 @@ function filterTable(table, query) {
 
 function filterMessageInbox() {
     const input = document.getElementById('messagesSearchInput');
-    const terms = String(input ? input.value : '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const global = document.getElementById('globalSearchInput');
+    const terms = `${input?.value || ''} ${global?.value || ''}`.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let visible = 0;
     document.querySelectorAll('.message-thread').forEach((row) => {
         const text = row.textContent.toLowerCase();
-        row.classList.toggle('table-row-hidden', terms.length && !terms.every((term) => text.includes(term)));
+        const match = terms.every(term => text.includes(term)) && (activeMessageFilter === 'all' || row.dataset.needsReply === 'true');
+        row.classList.toggle('table-row-hidden', !match);
+        if (match) visible++;
     });
+    document.getElementById('messageSearchEmpty').hidden = visible > 0 || ADMIN_MESSAGES.size === 0;
+    document.getElementById('messageInboxCount').textContent = `${visible} of ${ADMIN_MESSAGES.size} conversations`;
 }
 
 function applyActiveSearchFilter() {
@@ -407,6 +453,8 @@ function applyActiveSearchFilter() {
     const panelSearch = panel.querySelector('.table-search input');
     const query = `${globalSearch ? globalSearch.value : ''} ${panelSearch ? panelSearch.value : ''}`.trim();
     panel.querySelectorAll('table').forEach((table) => filterTable(table, query));
+    decorateAdminTables(panel);
+    if (activeTab === 'messages') filterMessageInbox();
 }
 
 function exportTable(tableId) {
@@ -497,6 +545,7 @@ async function loadUsers(options = {}) {
     setText('usersTotalMetric', users.length);
     setText('usersActiveMetric', activeUsers);
     setText('usersSuspendedMetric', suspendedUsers);
+    setText('usersStaffMetric', users.filter(u => ['admin', 'employee'].includes(u.role)).length);
     setText('employeesTotalMetric', employees.length);
     setText('employeesActiveMetric', activeEmployees);
     setText('employeesSuspendedMetric', suspendedEmployees);
@@ -539,14 +588,18 @@ async function loadUsers(options = {}) {
 
 async function toggleUserStatus(id, currentStatus) {
     const status = currentStatus === 'active' ? 'suspended' : 'active';
-    await api(`/api/admin/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
-    loadUsers();
+    try {
+        await api(`/api/admin/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+        await loadUsers();
+        showAdminNotice('User status updated');
+    } catch (error) { showAdminNotice(error.message); }
 }
 async function deleteUser(id) {
     if (!confirm('Delete this user permanently?')) return;
-    await api(`/api/admin/users/${id}`, { method: 'DELETE' });
-    loadUsers();
-    loadStats();
+    try {
+        await api(`/api/admin/users/${id}`, { method: 'DELETE' });
+        await Promise.allSettled([loadUsers(), loadStats()]);
+    } catch (error) { showAdminNotice(error.message); }
 }
 
 /* ---------- listings ---------- */
@@ -613,13 +666,17 @@ async function approveProduct(id) {
 async function rejectProduct(id) {
     const reason = prompt('Reason for rejecting this listing:', 'Does not meet CIRVIO guidelines');
     if (reason === null) return;
-    await api(`/api/admin/products/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) });
-    loadListings(); loadStats();
+    try {
+        await api(`/api/admin/products/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) });
+        await Promise.allSettled([loadListings(), loadStats()]);
+    } catch (error) { showAdminNotice(error.message); }
 }
 async function deleteProduct(id) {
     if (!confirm('Delete this listing permanently?')) return;
-    await api(`/api/admin/products/${id}`, { method: 'DELETE' });
-    loadListings(); loadStats();
+    try {
+        await api(`/api/admin/products/${id}`, { method: 'DELETE' });
+        await Promise.allSettled([loadListings(), loadStats()]);
+    } catch (error) { showAdminNotice(error.message); }
 }
 
 function ensureImageModal() {
@@ -853,6 +910,9 @@ function closeOrderOps() {
 
 async function saveOrderOps() {
     if (!activeOrderOpsId) return;
+    const saveButton = document.getElementById('opsSave');
+    if (saveButton.disabled) return;
+    saveButton.disabled = true;
     const status = document.getElementById('opsStatus');
     status.textContent = 'Saving...';
     const payload = {
@@ -879,10 +939,18 @@ async function saveOrderOps() {
         setTimeout(closeOrderOps, 450);
     } catch (err) {
         status.textContent = err.message;
+    } finally {
+        saveButton.disabled = false;
     }
 }
 
 /* ---------- product messages ---------- */
+function messageNeedsReply(message) {
+    const replies = message.replies || [];
+    const last = replies[replies.length - 1];
+    return !last || !['admin', 'employee'].includes(last.senderRole);
+}
+
 async function loadMessages({ notify = false, signal } = {}) {
     const inbox = document.getElementById('messageInboxList');
     if (!inbox) return;
@@ -894,7 +962,7 @@ async function loadMessages({ notify = false, signal } = {}) {
     inbox.dataset.signature = signature;
     ADMIN_MESSAGES.clear();
     messages.forEach((m) => ADMIN_MESSAGES.set(String(m._id), m));
-    const needsReplyCount = messages.filter((m) => !(m.replies || []).some((reply) => ['admin', 'employee'].includes(reply.senderRole))).length;
+    const needsReplyCount = messages.filter(messageNeedsReply).length;
     updateMessageBadges(needsReplyCount);
     if (notify) {
         const changed = messages.find((m) => {
@@ -910,6 +978,14 @@ async function loadMessages({ notify = false, signal } = {}) {
             showAdminNotice(`New message from ${sender.name || 'buyer'}`);
         }
     }
+    renderAdminMessages();
+}
+
+function renderAdminMessages() {
+    const inbox = document.getElementById('messageInboxList');
+    const inboxScroll = inbox.scrollTop;
+    const messages = [...ADMIN_MESSAGES.values()].sort((a, b) => (Date.parse(b.updatedAt || b.createdAt) || 0) - (Date.parse(a.updatedAt || a.createdAt) || 0));
+    updateMessageBadges(messages.filter(messageNeedsReply).length);
     const countLabel = document.getElementById('messageInboxCount');
     if (countLabel) countLabel.textContent = `${messages.length} conversation${messages.length === 1 ? '' : 's'}`;
     inbox.innerHTML = messages.length ? messages.map((m) => {
@@ -919,9 +995,9 @@ async function loadMessages({ notify = false, signal } = {}) {
         const replies = m.replies || [];
         const lastReply = replies[replies.length - 1];
         const lastText = lastReply ? lastReply.text : m.text;
-        const needsReply = !replies.some((reply) => ['admin', 'employee'].includes(reply.senderRole));
+        const needsReply = messageNeedsReply(m);
         return `
-        <button class="message-thread ${String(m._id) === activeMessageId ? 'active-row' : ''}" data-message-id="${m._id}" type="button" onclick="handleMessageRowClick(event,'${m._id}')">
+        <button class="message-thread ${String(m._id) === activeMessageId ? 'active-row' : ''}" data-message-id="${m._id}" data-needs-reply="${needsReply}" type="button" onclick="handleMessageRowClick(event,'${m._id}')">
           <span class="avatar">${iconSvg('user')}</span>
           <span class="message-thread-main">
             <span class="thread-top">
@@ -941,9 +1017,12 @@ async function loadMessages({ notify = false, signal } = {}) {
         <p>New product enquiries will appear here.</p>
       </div>`;
     filterMessageInbox();
+    inbox.scrollTop = inboxScroll;
     if (messages.length) {
-        const panelMessageId = ADMIN_MESSAGES.has(activeMessageId) ? activeMessageId : String(messages[0]._id);
+        const requested = history.state?.tab === 'messages' ? history.state.thread : '';
+        const panelMessageId = ADMIN_MESSAGES.has(requested) ? requested : (ADMIN_MESSAGES.has(activeMessageId) ? activeMessageId : String(messages[0]._id));
         renderMessageSidePanel(panelMessageId);
+        if (requested && ADMIN_MESSAGES.has(requested)) document.querySelector('.messages-layout').classList.add('conversation-open');
     } else {
         renderMessageSidePanel('');
     }
@@ -960,7 +1039,7 @@ function startAdminMessagePoll() {
     if (adminMessagePollStarted) return;
     adminMessagePollStarted = true;
     setInterval(async () => {
-        if (document.hidden || !TOKEN) return;
+    if (document.hidden || !TOKEN || navigator.onLine === false) return;
         try {
             await loadMessages({ notify: true });
         } catch (err) {
@@ -986,6 +1065,8 @@ function showAdminNotice(text) {
 
 function handleMessageRowClick(event, id) {
     renderMessageSidePanel(id);
+    document.querySelector('.messages-layout').classList.add('conversation-open');
+    if (history.state?.thread !== String(id)) history.pushState({ tab: 'messages', thread: String(id) }, '', '#messages');
 }
 
 function renderMessageSidePanel(id) {
@@ -1021,6 +1102,7 @@ function renderMessageSidePanel(id) {
     });
     panel.innerHTML = `
       <div class="chat-header">
+        <button type="button" class="icon-btn message-back" id="messageBackBtn" aria-label="Back to inbox"><svg class="ui-icon" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
         <div class="chat-contact">
           <span class="avatar">${iconSvg('user')}</span>
           <div>
@@ -1036,17 +1118,37 @@ function renderMessageSidePanel(id) {
           <div class="reply-bubble ${['admin', 'employee'].includes(part.senderRole) ? 'from-admin' : 'from-buyer'}">
             <strong>${messageParticipantLabel(part.senderRole)}</strong>
             <p>${esc(part.text || '')}</p>
-            <small>${fmtDate(part.createdAt)}</small>
+            <small>${part.createdAt && Number.isFinite(Date.parse(part.createdAt)) ? new Date(part.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Time unavailable'}</small>
           </div>`).join('')}
       </div>
       <div class="chat-input">
-        <textarea id="sideReplyText" placeholder="Type admin reply..."></textarea>
-        <button class="row-btn btn-approve" id="sideReplySend">Send</button>
-        <span id="sideReplyStatus" class="side-reply-status sub"></span>
+        <textarea id="sideReplyText" aria-label="Reply to conversation" placeholder="Type your reply..." rows="1"></textarea>
+        <button type="button" class="row-btn btn-approve" id="sideReplySend" data-sending="${pendingReplies.has(activeMessageId)}" ${pendingReplies.has(activeMessageId) || navigator.onLine === false ? 'disabled' : ''}>${pendingReplies.has(activeMessageId) ? 'Sending...' : 'Send'}</button>
+        <span id="sideReplyStatus" class="side-reply-status sub" role="status"></span>
       </div>`;
     document.getElementById('sideReplySend').addEventListener('click', sendSidePanelReply);
+    document.getElementById('messageBackBtn').addEventListener('click', () => {
+        if (history.state?.thread) history.back();
+        else closeMobileConversation();
+    });
     const nextInput = document.getElementById('sideReplyText');
     nextInput.value = messageDrafts.get(activeMessageId) || '';
+    const resizeInput = () => {
+        nextInput.style.height = 'auto';
+        nextInput.style.height = Math.min(112, nextInput.scrollHeight) + 'px';
+        messageDrafts.set(activeMessageId, nextInput.value);
+    };
+    nextInput.addEventListener('input', resizeInput);
+    nextInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing) {
+            event.preventDefault();
+            sendSidePanelReply();
+        }
+    });
+    resizeInput();
+    requestAnimationFrame(() => {
+        if (nextInput.isConnected && nextInput.getClientRects().length) resizeInput();
+    });
     if (keepFocus && previousId === activeMessageId) {
         nextInput.focus({ preventScroll: true });
         nextInput.setSelectionRange(...selection);
@@ -1056,27 +1158,51 @@ function renderMessageSidePanel(id) {
 }
 
 async function sendSidePanelReply() {
+    const threadId = activeMessageId;
+    if (!threadId || pendingReplies.has(threadId)) return;
     const textEl = document.getElementById('sideReplyText');
     const status = document.getElementById('sideReplyStatus');
     const text = textEl ? textEl.value.trim() : '';
+    const originalText = textEl?.value || '';
     if (!activeMessageId || !text) {
         if (status) status.textContent = 'Reply text is required';
         return;
     }
     if (status) status.textContent = 'Sending...';
+    const button = document.getElementById('sideReplySend');
+    pendingReplies.add(threadId);
+    button.disabled = true;
+    button.dataset.sending = 'true';
+    button.textContent = 'Sending...';
     try {
-        const { message } = await api(`/api/admin/messages/${activeMessageId}/reply`, {
+        const { message } = await api(`/api/admin/messages/${threadId}/reply`, {
             method: 'POST',
             body: JSON.stringify({ text })
         });
+        if (!message?._id) throw new Error('The server did not confirm your reply. Please refresh this conversation.');
         ADMIN_MESSAGES.set(String(message._id), message);
-        activeMessageId = String(message._id);
-        textEl.value = '';
-        messageDrafts.delete(activeMessageId);
-        await loadMessages();
+        adminLoads.get('messages')?.controller.abort();
+        document.getElementById('messageInboxList').dataset.signature = '';
+        if (messageDrafts.get(threadId) === originalText || (activeMessageId === threadId && textEl.value === originalText)) {
+            messageDrafts.delete(threadId);
+            if (activeMessageId === threadId) textEl.value = '';
+        }
+        pendingReplies.delete(threadId);
+        renderAdminMessages();
         showAdminNotice('Reply sent');
     } catch (err) {
-        if (status) status.textContent = err.message;
+        if (activeMessageId === threadId) document.getElementById('sideReplyStatus').textContent = err.message;
+        else showAdminNotice(err.message);
+    } finally {
+        pendingReplies.delete(threadId);
+        if (activeMessageId === threadId) {
+            const currentButton = document.getElementById('sideReplySend');
+            if (currentButton) {
+                currentButton.disabled = navigator.onLine === false;
+                currentButton.dataset.sending = 'false';
+                currentButton.textContent = 'Send';
+            }
+        }
     }
 }
 
@@ -1352,6 +1478,7 @@ async function saveStaffProfile() {
         const data = await api('/api/auth/me', { method: 'PUT', body: JSON.stringify(payload) });
         CURRENT_USER = data.user;
         localStorage.setItem('cirvio_profile', JSON.stringify(data.user));
+        updateAdminChrome();
         status.textContent = 'Saved';
     } catch (err) {
         status.textContent = err.message;
@@ -1621,6 +1748,95 @@ document.getElementById('purchasesDateRange').addEventListener('change', event =
         const date = new Date(row.date);
         return date >= start && date <= new Date();
     });
+});
+
+/* Phone navigation and keyboard access share the same sections as desktop. */
+const mobileLayout = window.matchMedia('(max-width: 780px)');
+function setMobileMenu(open, restoreFocus = true) {
+    const shouldOpen = open && mobileLayout.matches;
+    adminApp.classList.toggle('mobile-menu-open', shouldOpen);
+    document.getElementById('sidebarBackdrop').hidden = !shouldOpen;
+    document.getElementById('mobileMenuBtn').setAttribute('aria-expanded', String(shouldOpen));
+    document.getElementById('adminSidebar').inert = mobileLayout.matches && !shouldOpen;
+    document.querySelector('.main').inert = shouldOpen || !!document.querySelector('.image-modal.open');
+    if (shouldOpen) document.querySelector('.sidebar .nav-btn.active')?.focus();
+    else if (restoreFocus && mobileLayout.matches) document.getElementById('mobileMenuBtn').focus();
+}
+document.getElementById('mobileMenuBtn').addEventListener('click', () => setMobileMenu(true));
+document.getElementById('closeMobileMenu').addEventListener('click', () => setMobileMenu(false));
+document.getElementById('sidebarBackdrop').addEventListener('click', () => setMobileMenu(false));
+mobileLayout.addEventListener('change', () => setMobileMenu(false, false));
+setMobileMenu(false, false);
+
+function closeMobileConversation() {
+    document.querySelector('.messages-layout').classList.remove('conversation-open');
+    document.querySelector(`.message-thread[data-message-id="${CSS.escape(activeMessageId)}"]`)?.focus({ preventScroll: true });
+}
+
+document.querySelectorAll('[data-message-filter]').forEach(button => button.addEventListener('click', () => {
+    activeMessageFilter = button.dataset.messageFilter;
+    document.querySelectorAll('[data-message-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    filterMessageInbox();
+}));
+
+window.addEventListener('popstate', () => {
+    if (!CURRENT_USER) return;
+    activateTab(history.state?.tab || location.hash.slice(1) || 'dashboard', { historyMode: 'none' });
+    const thread = history.state?.thread;
+    if (activeTab === 'messages' && thread && ADMIN_MESSAGES.has(thread)) {
+        renderMessageSidePanel(thread);
+        document.querySelector('.messages-layout').classList.add('conversation-open');
+    } else closeMobileConversation();
+});
+
+window.addEventListener('admin:online', () => {
+    if (CURRENT_USER) {
+        loadActiveTabData({ force: true });
+        loadMessages({ notify: true });
+    } else if (TOKEN) initAdminSession();
+});
+
+let activeModal = null;
+let modalReturnFocus = null;
+const modalClosers = { listingImageModal: closeListingImages, orderOpsModal: closeOrderOps, messageReplyModal: closeMessageReply };
+function syncModalAccess() {
+    const modal = document.querySelector('.image-modal.open');
+    if (modal === activeModal) return;
+    if (modal) {
+        modalReturnFocus = document.activeElement;
+        activeModal = modal;
+        const dialog = modal.querySelector('[role="dialog"]');
+        dialog?.setAttribute('aria-modal', 'true');
+        document.body.classList.add('modal-open');
+        document.querySelector('.main').inert = true;
+        document.getElementById('adminSidebar').inert = true;
+        modal.querySelector('button:not(:disabled), input, select, textarea')?.focus({ preventScroll: true });
+    } else {
+        activeModal = null;
+        document.body.classList.remove('modal-open');
+        setMobileMenu(false, false);
+        if (modalReturnFocus?.isConnected) modalReturnFocus.focus({ preventScroll: true });
+        modalReturnFocus = null;
+    }
+}
+new MutationObserver(syncModalAccess).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+
+document.addEventListener('keydown', event => {
+    if (document.querySelector('dialog[open]')) return;
+    const menuOpen = adminApp.classList.contains('mobile-menu-open');
+    const focusRoot = activeModal || (menuOpen ? document.getElementById('adminSidebar') : null);
+    if (event.key === 'Escape') {
+        if (activeModal) { event.preventDefault(); modalClosers[activeModal.id]?.(); }
+        else if (menuOpen) { event.preventDefault(); setMobileMenu(false); }
+    }
+    if (event.key === 'Tab' && focusRoot) {
+        const focusable = [...focusRoot.querySelectorAll('button, a[href], input, textarea, select, [tabindex="0"]')]
+            .filter(el => !el.disabled && el.getClientRects().length);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
 });
 
 // expose for inline onclick handlers

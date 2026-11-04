@@ -40,7 +40,7 @@ function normalizeProduct(product = {}) {
     const images = (Array.isArray(product.images) ? product.images : []).filter(image => typeof image === 'string' && image.trim());
     const img = (typeof product.img === 'string' && product.img) || images[0] || window.CIRVIO_PLACEHOLDER_IMAGE;
     const amount = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
-    const rawCategory = product.cat || product.category || 'Books';
+    const rawCategory = product.cat || product.category || 'Uncategorised';
     const categoryMap = {
         books: 'School Books',
         book: 'School Books',
@@ -71,16 +71,21 @@ function normalizeProduct(product = {}) {
         id: product._id || product.id,
         title: String(product.title || 'Untitled listing'),
         cat: String(cat),
-        cond: String(product.cond || product.condition || 'Good'),
+        cond: String(product.cond || product.condition || 'Not specified'),
+        college: String(product.college || (typeof seller === 'object' && seller.college) || '').trim(),
         price: ['donate', 'free'].includes(product.type) ? 0 : amount(product.price),
         orig: amount(product.orig ?? product.originalPrice),
         desc: String(product.desc || product.description || ''),
         loc: String(product.loc || product.location || 'Pickup handled by CIRVIO admin'),
         seller: String(typeof seller === 'string' ? (product.sellerName || (/^[a-f\d]{24}$/i.test(seller) ? 'CIRVIO Seller' : seller)) : (seller.name || product.sellerName || 'CIRVIO Seller')),
         sellerId: product.sellerId || (typeof seller === 'object' ? seller._id || seller.id : seller),
+        sellerVerified: product.sellerVerified ?? (seller.verified === true),
+        sellerCreatedAt: product.sellerCreatedAt || seller.createdAt || '',
+        sellerRatingAverage: amount(product.sellerRatingAverage ?? seller.trustRatingAverage),
+        sellerRatingCount: amount(product.sellerRatingCount ?? seller.trustRatingCount),
         img,
         images: images.length ? images : [img],
-        time: product.time || (product.createdAt && Number.isFinite(Date.parse(product.createdAt)) ? new Date(product.createdAt).toLocaleDateString('en-IN') : 'Just now'),
+        time: product.time || (product.createdAt && Number.isFinite(Date.parse(product.createdAt)) ? new Date(product.createdAt).toLocaleDateString('en-IN') : 'Date unavailable'),
         type: product.type || 'sell'
     };
 }

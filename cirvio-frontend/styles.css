@@ -4920,6 +4920,9 @@ footer {
 .data-state p { margin: 10px 0 18px; line-height: 1.6; }
 .data-state .btn { margin-top: 14px; min-height: 44px; }
 .data-result-count { color: #5c5847; font-size: .85rem; margin: 0 0 16px; }
+.search-suggest .sg-item { width: 100%; border: 0; background: transparent; text-align: left; font: inherit; }
+.search-suggest[hidden] { display: none; }
+.trust-star:disabled { cursor: default; }
 .data-skeletons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; margin-top: 24px; }
 .data-skeleton { height: 290px; border-radius: 16px; background: linear-gradient(100deg, #ece8dc 30%, #f8f5ec 50%, #ece8dc 70%); background-size: 200% 100%; animation: data-shimmer 1.6s ease-in-out infinite; }
 .p-title, .p-meta, .p-seller { overflow-wrap: anywhere; }

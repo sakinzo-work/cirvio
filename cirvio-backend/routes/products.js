@@ -39,7 +39,12 @@ function publicProduct(product) {
             _id: obj.seller._id,
             name: obj.seller.name,
             college: obj.seller.college,
-            verified: obj.seller.verified
+            verified: obj.seller.verified,
+            createdAt: obj.seller.createdAt,
+            trustRatingCount: (obj.seller.trustRatings || []).length,
+            trustRatingAverage: obj.seller.trustRatings?.length
+                ? obj.seller.trustRatings.reduce((total, rating) => total + Number(rating.value || 0), 0) / obj.seller.trustRatings.length
+                : 0
         }
         : obj.seller;
     const { location, ...safeProduct } = obj;
@@ -61,7 +66,7 @@ router.get('/', async (req, res) => {
             if (maxPrice) filter.price.$lte = Number(maxPrice);
         }
         const products = await Product.find(filter)
-            .populate('seller', 'name college verified')
+            .populate('seller', 'name college verified createdAt trustRatings.value')
             .slice('images', 1)
             .sort({ createdAt: -1, _id: -1 })
             .lean();
@@ -98,7 +103,7 @@ router.get('/:id', async (req, res) => {
         const product = await Product.findOne({
             _id: req.params.id,
             status: { $in: ['approved', 'sold'] }
-        }).populate('seller', 'name college verified');
+        }).populate('seller', 'name college verified createdAt trustRatings.value');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         product.views += 1;
         await product.save();

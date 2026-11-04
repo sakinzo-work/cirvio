@@ -37,8 +37,8 @@
                     <path d="M21 21l-4.3-4.3" />
                 </svg>
                 <input type="text" id="searchInput" placeholder="Search books, notes, calculators..." autocomplete="off">
-                <div class="loc">Mumbai</div>
-                <div class="search-suggest" id="searchSuggest"></div>
+                <div class="loc"><span data-header-location>All locations</span></div>
+                <div class="search-suggest" id="searchSuggest" hidden></div>
             </div>
             <div class="header-actions">
                 <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
@@ -156,7 +156,7 @@
                             <span class="p-price">${p.price === 0 ? 'Free' : 'Rs ' + (p.price || 0)}</span>
                             ${p.orig ? `<span class="p-orig">Rs ${p.orig}</span>` : ''}
                         </div>
-                        <div class="p-meta"><span class="cond">${escapeHTML(p.cond || 'Good')}</span><span>${escapeHTML(p.loc || 'Mumbai')}</span></div>
+                        <div class="p-meta"><span class="cond">${escapeHTML(p.cond || 'Not specified')}</span><span>${escapeHTML(p.loc || 'Pickup details unavailable')}</span></div>
                         <div class="p-foot"><span class="p-seller">${escapeHTML(p.seller || 'CIRVIO Seller')}</span><span>${escapeHTML(p.time || 'Just now')}</span></div>
                     </div>
                 </a>`;

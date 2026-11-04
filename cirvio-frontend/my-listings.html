@@ -34,8 +34,8 @@
             <div class="header-search" style="position:relative;">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
                 <input type="text" id="searchInput" placeholder="Search books, notes, calculators..." autocomplete="off">
-                <div class="loc">Mumbai</div>
-                <div class="search-suggest" id="searchSuggest"></div>
+                <div class="loc"><span data-header-location>All locations</span></div>
+                <div class="search-suggest" id="searchSuggest" hidden></div>
             </div>
             <div class="header-actions">
                 <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
@@ -151,7 +151,7 @@
                             <span class="p-price">${l.type === 'sell' ? 'Rs ' + (l.price || 0) : (l.type === 'donate' ? 'Donation' : 'Free')}</span>
                             ${l.orig && l.type === 'sell' ? `<span class="p-orig">Rs ${l.orig}</span>` : ''}
                         </div>
-                        <div class="p-meta"><span class="cond">${escapeHTML(l.cond || 'Good')}</span><span>${escapeHTML(l.loc || 'Mumbai')}</span></div>
+                        <div class="p-meta"><span class="cond">${escapeHTML(l.cond || 'Not specified')}</span><span>${escapeHTML(l.loc || 'Pickup details unavailable')}</span></div>
                         <div class="p-foot"><span>${escapeHTML(l.time || 'Just now')}</span><span>${STATUS_LABEL[l.status] || 'Live'}</span></div>
                     </div>
                     <div class="p-card-actions">

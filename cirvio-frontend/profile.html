@@ -53,22 +53,9 @@
                         <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
                         <circle cx="12" cy="9" r="2.4" />
                     </svg>
-                    Mumbai
+                    <span data-header-location>All locations</span>
                 </div>
-                <div class="search-suggest" id="searchSuggest">
-                    <div class="sg-label">Trending searches</div>
-                    <div class="sg-item" data-q="NCERT Class 12"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>NCERT Class 12</div>
-                    <div class="sg-item" data-q="JEE Previous Papers"><svg viewBox="0 0 24 24" fill="none"
-                            stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>JEE Previous Year Papers</div>
-                    <div class="sg-item" data-q="Casio Calculator"><svg viewBox="0 0 24 24" fill="none"
-                            stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>Casio FX-991ES Calculator</div>
-                </div>
+                <div class="search-suggest" id="searchSuggest" hidden></div>
             </div>
 
             <div class="header-actions">
@@ -95,7 +82,7 @@
                         <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
                         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                     </svg>
-                    <span class="badge-count" id="notifCount">3</span>
+                    <span class="badge-count" id="notifCount" style="display:none;">0</span>
                 </button>
                 <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
@@ -163,7 +150,7 @@
                         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                     </svg>
                     Notifications
-                    <span class="badge-count" id="mpNotifCount">3</span>
+                    <span class="badge-count" id="mpNotifCount" style="display:none;">0</span>
                 </a>
                 <a class='mp-quick-item' href='profile.html'>
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
@@ -211,7 +198,7 @@
                         <span id="profileCollege">—</span>
                     </div>
                     <div class="p-badges">
-                        <span id="verifiedBadge"><svg viewBox="0 0 24 24" width="12" height="12" fill="none"
+                        <span id="verifiedBadge" style="display:none;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none"
                                 stroke="currentColor" stroke-width="2.4">
                                 <path d="M20 6L9 17l-5-5" />
                             </svg> Verified Student</span>
@@ -236,7 +223,7 @@
                     <h3>Public Trust Profile</h3>
                     <p>Students can check this profile before buying, selling or donating. Add a rating when the exchange feels genuine and smooth.</p>
                     <div class="trust-score">
-                        <strong id="trustAverage">5.0</strong>
+                        <strong id="trustAverage">—</strong>
                         <div>
                             <div class="trust-stars" id="trustStars" aria-label="Rate this user">
                                 <button class="trust-star" type="button" data-rate="1">★</button>
@@ -483,14 +470,14 @@
     <script src="common.js"></script>
     <script>
         /* ============================================================
-           SAMPLE CATALOG (so saved-wishlist items sourced from the
-           homepage demo data can be shown here too)
+           APPROVED LISTINGS — loaded from the backend
         ============================================================ */
         const PRODUCTS = [];
         const profileParams = new URLSearchParams(location.search);
         const requestedUserId = profileParams.get('user') || '';
-        let profileSubject = null;
-        let profileIsPublic = false;
+        const ownProfile = CirvioStore.getProfile();
+        let profileIsPublic = !!requestedUserId && String(requestedUserId) !== String(ownProfile.id || ownProfile._id || '');
+        let profileSubject = profileIsPublic ? {} : null;
 
         function discountPct(p) {
             if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
@@ -502,11 +489,13 @@
             const p = profileSubject || CirvioStore.getProfile();
             const avatar = document.getElementById('profileAvatar');
             avatar.innerHTML = p.photo
-                ? `<img src="${p.photo}" alt="">`
+                ? `<img src="${escapeHTML(p.photo)}" alt="">`
                 : (p.name || 'S').trim().charAt(0).toUpperCase();
             document.getElementById('profileName').textContent = p.name || 'Student';
-            document.getElementById('profileCollege').textContent = [p.course, p.college].filter(Boolean).join(' · ') || 'Add your college in Settings';
-            document.getElementById('joinedBadge').textContent = 'Joined ' + (p.joined || '—');
+            document.getElementById('profileCollege').textContent = [p.course, p.college].filter(Boolean).join(' · ') || (profileIsPublic ? 'College not provided' : 'Add your college in Settings');
+            const joined = p.createdAt;
+            document.getElementById('joinedBadge').textContent = joined && Number.isFinite(Date.parse(joined))
+                ? 'Joined ' + new Date(joined).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Join date unavailable';
             document.getElementById('verifiedBadge').style.display = p.verified ? 'inline-flex' : 'none';
 
             document.getElementById('setName').value = profileIsPublic ? '' : (p.name || '');
@@ -517,33 +506,23 @@
             document.getElementById('setPhone').value = profileIsPublic ? '' : (p.phone || '');
             document.querySelector('.profile-actions').style.display = profileIsPublic ? 'none' : '';
             document.getElementById('profileTabs').style.display = profileIsPublic ? 'none' : '';
-        }
-
-        function ratingKey() {
-            const p = profileSubject || CirvioStore.getProfile();
-            return `cirvio_profile_rating_${p.id || p._id || p.email || 'me'}`;
-        }
-
-        function getTrustRating() {
-            try {
-                return JSON.parse(localStorage.getItem(ratingKey())) || { total: 0, count: 0, mine: 0 };
-            } catch {
-                return { total: 0, count: 0, mine: 0 };
-            }
+            document.querySelector('.profile-stats').style.display = profileIsPublic ? 'none' : '';
+            document.querySelector('.profile-quick-grid').style.display = profileIsPublic ? 'none' : '';
+            updateHeaderLocation();
         }
 
         function renderTrustRating() {
-            const localRating = getTrustRating();
-            const count = profileIsPublic ? Number(profileSubject?.trustRatingCount || 0) : localRating.count;
-            const avg = profileIsPublic
-                ? Number(profileSubject?.trustRatingAverage || 0)
-                : (localRating.count ? (localRating.total / localRating.count) : 0);
-            const mine = profileIsPublic ? Number(profileSubject?.myTrustRating || 0) : localRating.mine;
-            document.getElementById('trustAverage').textContent = avg.toFixed(1);
+            const subject = profileSubject || CirvioStore.getProfile();
+            const count = Number(subject.trustRatingCount || 0);
+            const avg = Number(subject.trustRatingAverage || 0);
+            const mine = profileIsPublic ? Number(subject.myTrustRating || 0) : 0;
+            document.getElementById('trustAverage').textContent = count ? avg.toFixed(1) : '—';
             document.getElementById('trustMeta').textContent = count
                 ? `${count} trust rating${count === 1 ? '' : 's'} from CIRVIO users${mine ? ' - your rating is ' + mine : ''}`
-                : 'No ratings yet - be the first to rate this profile';
+                : 'No ratings yet';
             document.querySelectorAll('.trust-star').forEach((btn) => {
+                btn.disabled = !profileIsPublic || !profileSubject?.id;
+                btn.title = profileIsPublic ? `Rate ${btn.dataset.rate} out of 5` : 'You cannot rate your own profile';
                 btn.classList.toggle('active', Number(btn.dataset.rate) <= Math.round(mine || avg || 0));
             });
         }
@@ -578,14 +557,6 @@
                 }
                 return;
             }
-            const rating = getTrustRating();
-            if (rating.mine) rating.total -= rating.mine;
-            else rating.count += 1;
-            rating.mine = value;
-            rating.total += value;
-            localStorage.setItem(ratingKey(), JSON.stringify(rating));
-            renderTrustRating();
-            showToast('Trust rating saved');
         });
 
         document.getElementById('profilePhotoInput').addEventListener('change', (e) => {
@@ -653,8 +624,8 @@
             CirvioStore.processApprovals();
             const listings = CirvioStore.getListings();
             document.getElementById('statListings').textContent = listings.filter(l => l.status !== 'draft').length;
-            document.getElementById('statSold').textContent = 0;
-            document.getElementById('statDonated').textContent = listings.filter(l => l.type === 'donate' || l.type === 'free').length;
+            document.getElementById('statSold').textContent = listings.filter(l => l.status === 'sold' && l.type === 'sell').length;
+            document.getElementById('statDonated').textContent = listings.filter(l => l.status === 'sold' && ['donate', 'free'].includes(l.type)).length;
 
             const grid = document.getElementById('listingsGrid');
             const empty = document.getElementById('listingsEmpty');
@@ -698,7 +669,7 @@
             ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
           </div>
           <div class="p-meta"><span class="cond">${escapeHTML(p.cond)}</span><span>${escapeHTML(p.loc)}</span></div>
-          <div class="p-foot"><span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${escapeHTML(p.seller)}</span><span>${escapeHTML(p.time)}</span></div>
+          <div class="p-foot"><span class="p-seller">${p.sellerVerified ? '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' : ''}${escapeHTML(p.seller)}</span><span>${escapeHTML(p.time)}</span></div>
         </div>
       </a>`;
         }
@@ -912,8 +883,12 @@
                 renderTrustRating();
                 return true;
             } catch (err) {
+                profileSubject = {};
+                loadProfileHeader();
+                document.getElementById('profileName').textContent = 'Profile unavailable';
+                renderTrustRating();
                 showToast(err.message || 'Could not load profile');
-                return false;
+                return true;
             }
         }
 
@@ -956,6 +931,10 @@
         if (CirvioAuth.requireLogin()) {
             loadPublicProfileIfNeeded().then((isPublic) => {
                 if (!isPublic) {
+                    CirvioAPI.me().then(() => {
+                        loadProfileHeader();
+                        renderTrustRating();
+                    }).catch(err => showToast(err.message || 'Could not refresh profile'));
                     loadBackendSavedProducts();
                     loadBackendListings();
                     if (window.CirvioMessages) CirvioMessages.sync();

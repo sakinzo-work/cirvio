@@ -187,8 +187,8 @@
                     <path d="M21 21l-4.3-4.3" />
                 </svg>
                 <input type="text" id="searchInput" placeholder="Search books, notes, calculators..." autocomplete="off">
-                <div class="loc">Mumbai</div>
-                <div class="search-suggest" id="searchSuggest"></div>
+                <div class="loc"><span data-header-location>All locations</span></div>
+                <div class="search-suggest" id="searchSuggest" hidden></div>
             </div>
             <div class="header-actions">
                 <button class="btn-icon" id="cartBtn" aria-label="Add to cart" title="Add to cart">
@@ -415,9 +415,7 @@
                         <h2>Contact Us</h2>
                         <p>For account help, listing review questions, payment support, safety reports or privacy requests, contact CIRVIO support.</p>
                         <ul>
-                            <li>Email: hello@cirvio.in</li>
-                            <li>Phone: +91 98765 43210</li>
-                            <li>Support hours: Monday to Saturday, 10:00 AM to 6:00 PM IST</li>
+                            <li>Use CIRVIO product messages to contact the operations team.</li>
                         </ul>
                         <div class="legal-callout">For urgent safety issues, do not wait for support. Move to a safe place and contact local authorities if needed.</div>
                     </section>
@@ -462,10 +460,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <span>&copy; 2026 CIRVIO. All rights reserved. &middot; hello@cirvio.in &middot; +91 98765 43210</span>
-                <div class="footer-pay">
-                    <span>UPI</span><span>Razorpay</span><span>Cards</span><span>Net Banking</span>
-                </div>
+                <span>&copy; <span data-current-year></span> CIRVIO. All rights reserved.</span>
             </div>
         </div>
     </footer>

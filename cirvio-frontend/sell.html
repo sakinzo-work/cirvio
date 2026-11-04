@@ -52,22 +52,9 @@
                         <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
                         <circle cx="12" cy="9" r="2.4" />
                     </svg>
-                    Mumbai
+                    <span data-header-location>All locations</span>
                 </div>
-                <div class="search-suggest" id="searchSuggest">
-                    <div class="sg-label">Trending searches</div>
-                    <div class="sg-item" data-q="NCERT Class 12"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>NCERT Class 12</div>
-                    <div class="sg-item" data-q="JEE Previous Papers"><svg viewBox="0 0 24 24" fill="none"
-                            stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>JEE Previous Year Papers</div>
-                    <div class="sg-item" data-q="Casio Calculator"><svg viewBox="0 0 24 24" fill="none"
-                            stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>Casio FX-991ES Calculator</div>
-                </div>
+                <div class="search-suggest" id="searchSuggest" hidden></div>
             </div>
 
             <div class="header-actions">
@@ -94,7 +81,7 @@
                         <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
                         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                     </svg>
-                    <span class="badge-count" id="notifCount">3</span>
+                    <span class="badge-count" id="notifCount" style="display:none;">0</span>
                 </button>
                 <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
@@ -162,7 +149,7 @@
                         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                     </svg>
                     Notifications
-                    <span class="badge-count" id="mpNotifCount">3</span>
+                    <span class="badge-count" id="mpNotifCount" style="display:none;">0</span>
                 </a>
                 <a href="profile.html" class="mp-quick-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
@@ -202,7 +189,7 @@
             <div class="form-shell" id="formView">
                 <div class="form-card reveal show">
                     <h3>Item Details</h3>
-                    <p class="form-sub">Verified students will see this listing on your campus feed within minutes.</p>
+                    <p class="form-sub">Your listing will appear in the marketplace after CIRVIO approves it.</p>
 
                     <form id="sellForm" novalidate>
 
@@ -262,7 +249,7 @@
                                     <span class="cur">₹</span>
                                     <input type="number" id="itemPrice" min="0" placeholder="0">
                                 </div>
-                                <div class="hint" id="priceHint">Set a fair price — most books sell for 30–60% of MRP.
+                                <div class="hint" id="priceHint">Set a fair price based on the edition and condition of your item.
                                 </div>
                             </div>
                             <div class="field-group">
@@ -415,7 +402,7 @@
         let photos = []; // array of dataURLs
         let photoFiles = [];
         let photoMeta = [];
-        const PLACEHOLDER_IMG = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&q=70";
+        const PLACEHOLDER_IMG = window.CIRVIO_PLACEHOLDER_IMAGE;
 
         function getSellerName() {
             return CirvioStore.getProfile().name || CirvioStore.getProfile().email || 'CIRVIO Student';
@@ -437,7 +424,7 @@
             if (t === 'sell') {
                 priceField.classList.remove('disabled');
                 priceInput.disabled = false;
-                priceHint.textContent = 'Set a fair price — most books sell for 30–60% of MRP.';
+                priceHint.textContent = 'Set a fair price based on the edition and condition of your item.';
                 pageTitle.textContent = 'List a Book, Note or Study Item';
             } else {
                 priceField.classList.add('disabled');

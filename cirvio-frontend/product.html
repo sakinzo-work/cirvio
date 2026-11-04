@@ -471,22 +471,9 @@
                         <path d="M12 22s7-7.4 7-12.6A7 7 0 1 0 5 9.4C5 14.6 12 22 12 22z" />
                         <circle cx="12" cy="9" r="2.4" />
                     </svg>
-                    Mumbai
+                    <span data-header-location>All locations</span>
                 </div>
-                <div class="search-suggest" id="searchSuggest">
-                    <div class="sg-label">Trending searches</div>
-                    <div class="sg-item" data-q="NCERT Class 12"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>NCERT Class 12</div>
-                    <div class="sg-item" data-q="JEE Previous Papers"><svg viewBox="0 0 24 24" fill="none"
-                            stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>JEE Previous Year Papers</div>
-                    <div class="sg-item" data-q="Casio Calculator"><svg viewBox="0 0 24 24" fill="none"
-                            stroke-width="2">
-                            <path d="M3 3v18h18M7 15l4-5 3 3 5-7" />
-                        </svg>Casio FX-991ES Calculator</div>
-                </div>
+                <div class="search-suggest" id="searchSuggest" hidden></div>
             </div>
 
             <div class="header-actions">
@@ -513,7 +500,7 @@
                         <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
                         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                     </svg>
-                    <span class="badge-count" id="notifCount">3</span>
+                    <span class="badge-count" id="notifCount" style="display:none;">0</span>
                 </button>
                 <a href="profile.html" class="btn-icon" aria-label="Account" title="My account">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
@@ -581,7 +568,7 @@
                         <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                     </svg>
                     Notifications
-                    <span class="badge-count" id="mpNotifCount">3</span>
+                    <span class="badge-count" id="mpNotifCount" style="display:none;">0</span>
                 </a>
                 <a href="profile.html" class="mp-quick-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
@@ -632,7 +619,7 @@
                     <h1 class="pd-title" id="pdTitle">Loading item…</h1>
 
                     <div class="pd-price-row">
-                        <span class="pd-price" id="pdPrice">₹0</span>
+                        <span class="pd-price" id="pdPrice">—</span>
                         <span class="pd-orig" id="pdOrig"></span>
                         <span class="pd-disc" id="pdDisc" style="display:none;"></span>
                     </div>
@@ -683,21 +670,17 @@
                     </div>
 
                     <div class="seller-card">
-                        <div class="seller-avatar" id="sellerAvatar">S</div>
+                        <div class="seller-avatar" id="sellerAvatar">?</div>
                         <div class="seller-info">
                             <div class="s-name">
                                 <span id="sellerName">Seller</span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round">
+                                <svg id="sellerVerified" hidden aria-label="Verified seller" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round">
                                     <path d="M20 6L9 17l-5-5" />
                                 </svg>
                             </div>
                             <div class="s-meta">
-                                <span class="s-rating">
-                                    <svg viewBox="0 0 24 24"><path
-                                            d="M12 2l2.9 6.4 7 .7-5.3 4.8 1.6 6.9L12 17.4 5.8 20.8l1.6-6.9L2.1 9.1l7-.7z" /></svg>
-                                    4.7 · 32 reviews
-                                </span>
-                                <span id="sellerSince">Member since 2024</span>
+                                <span class="s-rating" id="sellerRating"></span>
+                                <span id="sellerSince" hidden></span>
                             </div>
                         </div>
                         <a href="index.html#browse" id="sellerProfileLink">View Profile</a>
@@ -786,22 +769,9 @@
     <script src="common.js"></script>
     <script>
         /* ============================================================
-           DEMO CATALOG (same items as the rest of the site)
+           APPROVED LISTINGS — loaded from the backend
         ============================================================ */
-        const PRODUCTS = [
-            { id: 1, title: "Engineering Mathematics by B.S. Grewal", cat: "College Books", price: 280, orig: 650, cond: "Good", loc: "Powai, Mumbai", seller: "Aarav M.", time: "2h ago", type: "sell", img: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=900&q=75", desc: "Widely used engineering maths textbook covering all core topics for first-year engineering students. Minor highlighting in first two chapters, spine intact. All pages present, no torn or missing sheets — great for semester 1 and 2 coursework." },
-            { id: 2, title: "NCERT Class 12 Physics Part 1 & 2", cat: "School Books", price: 150, orig: 340, cond: "Like New", loc: "Andheri, Mumbai", seller: "Priya S.", time: "5h ago", type: "sell", img: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=900&q=75", desc: "Complete set of NCERT Class 12 Physics textbooks, barely used, no markings. Perfect for board exam preparation. Both parts included, cover in excellent shape." },
-            { id: 3, title: "Organic Chemistry — Morrison & Boyd", cat: "Competitive Exams", price: 420, orig: 900, cond: "Excellent", loc: "Kothrud, Pune", seller: "Rohan K.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=900&q=75", desc: "Classic organic chemistry reference used for NEET and JEE preparation. All pages intact, light cover wear. A must-have for anyone tackling organic reaction mechanisms." },
-            { id: 4, title: "JEE Main Previous Year Question Papers", cat: "Question Banks", price: 0, orig: 250, cond: "Good", loc: "Vashi, Navi Mumbai", seller: "Sneha D.", time: "3h ago", type: "donate", img: "https://images.unsplash.com/photo-1509266272358-7701da638078?w=900&q=75", desc: "10-year compilation of JEE Main previous papers with solutions. Donating to help a fellow aspirant — pickup preferred. Spiral bound, easy to flip through during timed practice." },
-            { id: 5, title: "NEET Biology Handwritten Notes", cat: "Notes", price: 180, orig: 400, cond: "Excellent", loc: "Bandra, Mumbai", seller: "Meera J.", time: "6h ago", type: "sell", img: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=900&q=75", desc: "Neatly organized handwritten biology notes covering the full NEET syllabus, colour-coded diagrams included. Written across two notebooks, index page included for quick topic lookup." },
-            { id: 6, title: "Casio FX-991ES Plus Scientific Calculator", cat: "Calculators", price: 650, orig: 1200, cond: "Good", loc: "Baner, Pune", seller: "Karan V.", time: "1d ago", type: "sell", img: "https://images.unsplash.com/photo-1587145820098-24e73c66d5a8?w=900&q=75", desc: "Fully functional scientific calculator, ideal for engineering and competitive exams. Comes with original cover and instruction booklet. Battery replaced recently." },
-            { id: 7, title: "Data Structures Handwritten Notes (CS)", cat: "Notes", price: 120, orig: 0, cond: "Good", loc: "Malad, Mumbai", seller: "Ishaan R.", time: "4h ago", type: "free", img: "https://images.unsplash.com/photo-1517842645767-c639042777db?w=900&q=75", desc: "Semester 3 Data Structures notes with solved examples and diagrams. Giving away for free to a junior in need. Covers trees, graphs, sorting and searching in detail." },
-            { id: 8, title: "Indian Polity by M. Laxmikanth", cat: "Competitive Exams", price: 350, orig: 695, cond: "Like New", loc: "Dwarka, Delhi", seller: "Ananya T.", time: "8h ago", type: "sell", img: "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=900&q=75", desc: "Latest edition of the definitive UPSC Indian Polity reference. No markings, used for one attempt only. Comes with a fresh cover, no water damage or torn pages." },
-            { id: 9, title: "Rich Dad Poor Dad — Robert Kiyosaki", cat: "Novels", price: 99, orig: 299, cond: "Good", loc: "Koramangala, Bengaluru", seller: "Vivaan P.", time: "12h ago", type: "sell", img: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=900&q=75", desc: "Popular personal finance book, gently used with a few dog-eared pages. Great condition overall, all pages readable." },
-            { id: 10, title: "The Alchemist — Paulo Coelho", cat: "Novels", price: 0, orig: 250, cond: "Fair", loc: "Salt Lake, Kolkata", seller: "Riya B.", time: "1d ago", type: "donate", img: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=900&q=75", desc: "A well-loved copy ready for its next reader. Donating as part of our campus book drive this month. Cover slightly worn but binding is solid." },
-            { id: 11, title: "B.Com Semester 3 Complete Notes Set", cat: "Study Material", price: 220, orig: 480, cond: "Excellent", loc: "Nungambakkam, Chennai", seller: "Aditya N.", time: "9h ago", type: "sell", img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=900&q=75", desc: "Complete B.Com semester 3 notes including accounting, costing and business law summaries. Typed and printed for easy reading, spiral bound." },
-            { id: 12, title: "Class 10 CBSE Complete Book Set", cat: "School Books", price: 600, orig: 1400, cond: "Good", loc: "Sector 15, Gurugram", seller: "Diya C.", time: "2d ago", type: "sell", img: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=900&q=75", desc: "Full set of Class 10 CBSE textbooks across all subjects. Some highlighting present in Maths and Science, all other books unmarked." },
-        ];
+        const PRODUCTS = [];
 
         function discountPct(p) {
             if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
@@ -812,13 +782,9 @@
             return new URLSearchParams(location.search).get(name);
         }
 
-        /* build 4 gallery crops from the same source photo so there's
-           a real thumbnail strip without misrepresenting the item */
+        /* Show only the photos supplied with this listing. */
         function galleryImages(product) {
-            if (product.images && product.images.length) return product.images;
-            const baseUrl = product.img;
-            const crops = ['crop=entropy', 'crop=top', 'crop=bottom', 'crop=left'];
-            return crops.map(c => baseUrl.replace(/&q=\d+/, '') + '&q=75&fit=crop&' + c);
+            return product.images?.length ? product.images : [product.img];
         }
 
         function productCardHTML(p) {
@@ -850,7 +816,7 @@
         <span>${escapeHTML(p.loc)}</span>
       </div>
       <div class="p-foot">
-        <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${escapeHTML(p.seller)}</span>
+        <span class="p-seller">${p.sellerVerified ? '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' : ''}${escapeHTML(p.seller)}</span>
         <span>${escapeHTML(p.time)}</span>
       </div>
     </div>
@@ -905,6 +871,18 @@
             document.getElementById('pdDesc').textContent = product.desc;
             document.getElementById('sellerAvatar').textContent = product.seller.trim().charAt(0).toUpperCase();
             document.getElementById('sellerName').textContent = product.seller;
+            document.getElementById('sellerVerified').style.display = product.sellerVerified ? '' : 'none';
+            document.getElementById('sellerVerified').hidden = !product.sellerVerified;
+            const ratingCount = product.sellerRatingCount;
+            document.getElementById('sellerRating').textContent = ratingCount
+                ? `${product.sellerRatingAverage.toFixed(1)} · ${ratingCount} rating${ratingCount === 1 ? '' : 's'}`
+                : 'No ratings yet';
+            const since = document.getElementById('sellerSince');
+            const joined = product.sellerCreatedAt;
+            const validJoined = joined && Number.isFinite(Date.parse(joined));
+            since.hidden = !validJoined;
+            since.style.display = validJoined ? '' : 'none';
+            since.textContent = validJoined ? 'Member since ' + new Date(joined).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '';
             const sellerProfileLink = document.getElementById('sellerProfileLink');
             sellerProfileLink.href = product.sellerId ? `profile.html?user=${encodeURIComponent(product.sellerId)}` : 'index.html#browse';
             window.CirvioCurrentProduct = product;
@@ -1060,6 +1038,7 @@
                 // Related listings must never delay the main product.
                 CirvioAPI.getProducts().then(({ products }) => {
                     PRODUCTS.splice(0, PRODUCTS.length, ...products);
+                    setSearchSuggestions(PRODUCTS);
                     const similar = PRODUCTS.filter(p => p.cat === product.cat && String(p.id) !== String(product.id));
                     const related = similar.length ? similar : PRODUCTS.filter(p => String(p.id) !== String(product.id));
                     document.getElementById('similarGrid').innerHTML = related.slice(0, 4).map(productCardHTML).join('');

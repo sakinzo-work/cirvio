@@ -1,6 +1,6 @@
 # Rendering checks
 
-`rendering.cjs` opens the website and admin panel in Chromium with intercepted API fixtures. It does not connect to MongoDB or use real accounts. It checks loading, retries, categories, safe text rendering, product details, pagination, search, exports, stale responses, message drafts and numeric normalization.
+`rendering.cjs` opens the website and admin panel in Chromium with intercepted API fixtures. It does not connect to MongoDB or use real accounts. It checks loading, retries, categories, safe text rendering, product details, pagination, search, exports, stale responses, message drafts, marketplace totals, college filtering, account ratings and numeric normalization. A public product route check uses a stubbed model to verify seller summaries and private-field removal.
 
 From the project root in PowerShell, install the test browser driver in a temporary folder and run:
 

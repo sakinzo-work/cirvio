@@ -108,12 +108,32 @@ function initHeaderScroll() {
 }
 
 /* ---------- search suggest dropdown ---------- */
+let headerSearchProducts = [];
+function setSearchSuggestions(products) {
+    headerSearchProducts = Array.isArray(products) ? products : [];
+}
+
+function updateHeaderLocation() {
+    const city = CirvioStore.getProfile().city;
+    document.querySelectorAll('[data-header-location]').forEach(el => {
+        el.textContent = city ? String(city) : 'All locations';
+    });
+}
+
 function initHeaderSearch() {
     const searchInput = document.getElementById('searchInput');
     const searchSuggest = document.getElementById('searchSuggest');
     if (!searchInput || !searchSuggest) return;
 
-    searchInput.addEventListener('focus', () => searchSuggest.classList.add('open'));
+    function showSuggestions() {
+        const query = searchInput.value.trim().toLowerCase();
+        const titles = [...new Set(headerSearchProducts.filter(p => !query || p.title.toLowerCase().includes(query) || p.cat.toLowerCase().includes(query)).map(p => p.title))].slice(0, 5);
+        searchSuggest.innerHTML = titles.length ? '<div class="sg-label">Available listings</div>' + titles.map(title => `<button type="button" class="sg-item" data-q="${escapeHTML(title)}">${escapeHTML(title)}</button>`).join('') : '';
+        searchSuggest.hidden = !titles.length;
+        searchSuggest.classList.toggle('open', titles.length > 0);
+    }
+    searchInput.addEventListener('focus', showSuggestions);
+    searchInput.addEventListener('input', showSuggestions);
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.header-search')) searchSuggest.classList.remove('open');
     });
@@ -1105,6 +1125,8 @@ async function applySiteMedia() {
 /* ---------- boot ---------- */
 function initCirvioChrome(pageKey) {
     CirvioStore.processApprovals();
+    document.querySelectorAll('[data-current-year]').forEach(el => { el.textContent = new Date().getFullYear(); });
+    updateHeaderLocation();
     initHeaderScroll();
     initHeaderSearch();
     initMobileMenu();

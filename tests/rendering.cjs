@@ -6,18 +6,21 @@ const fs = require('node:fs');
 const path = require('node:path');
 const express = require('../cirvio-backend/node_modules/express');
 const { chromium } = require('playwright');
+const Product = require('../cirvio-backend/models/Product');
 
 const root = path.resolve(__dirname, '..');
 const app = express();
 app.use('/admin', express.static(path.join(root, 'cirvio-backend/admin-panel')));
 app.use(express.static(path.join(root, 'cirvio-frontend')));
+app.use('/fixture-products', require('../cirvio-backend/routes/products'));
 const image = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#ded9c4"/></svg>');
-const user = { _id: 'staff1', id: 'staff1', name: 'Test Staff', email: 'staff@example.test', role: 'admin', status: 'active' };
+const user = { _id: 'staff1', id: 'staff1', name: 'Test Staff', email: 'staff@example.test', role: 'admin', status: 'active', city: 'Bengaluru', createdAt: '2025-03-01', trustRatingAverage: 4.2, trustRatingCount: 5 };
 const products = Array.from({ length: 61 }, (_, index) => ({
     _id: 'p' + index, title: index === 0 ? 'Book "quoted" <b>literal</b> & notes' : 'Book ' + index,
     category: index % 2 ? 'Notes' : 'School Books', condition: 'Good', type: index === 1 ? 'free' : 'sell',
     price: index === 1 ? 0 : 100 + index, originalPrice: 300, description: 'Fixture description',
     images: [image], seller: { _id: 'seller1', name: 'Seller & Co', email: 'seller@example.test' },
+    college: index % 2 ? 'College B' : 'College A',
     status: index % 2 ? 'pending' : 'approved', createdAt: '2026-10-01T10:00:00Z', reviewViewedAt: null
 }));
 const users = Array.from({ length: 61 }, (_, index) => ({
@@ -248,7 +251,98 @@ const defaults = pathname => {
             assert.equal(values.count, 1);
         });
 
-        console.log(`\n${passed} browser rendering checks passed.`);
+        await check('Marketplace totals and college filtering come from listings', async (page, base) => {
+            await page.goto(base + '/index.html');
+            await page.waitForFunction(() => document.getElementById('heroListingCount').textContent === '61');
+            assert.equal(await page.locator('#heroCampusCount').innerText(), '2');
+            assert.equal(await page.locator('#heroDonationCount').innerText(), '1');
+            if (process.env.CIRVIO_SCREENSHOT_DIR) {
+                await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero-copy')).opacity === '1');
+                await page.screenshot({ path: path.join(process.env.CIRVIO_SCREENSHOT_DIR, 'homepage-summary.png') });
+            }
+            assert.equal(await page.locator('#collegeSelect option').count(), 3);
+            assert.match(await page.locator('#collegeList').innerText(), /College A.*31 listings/s);
+            await page.locator('#collegeSelect').selectOption('College B');
+            await page.locator('#browseCampusBtn').click();
+            assert.match(await page.locator('.data-result-count').innerText(), /of 30 listings at College B/);
+            assert.equal(await page.locator('#testimonials, #nlForm').count(), 0);
+            await page.locator('#searchInput').fill('quoted');
+            await page.locator('#searchInput').focus();
+            assert.equal(await page.locator('#searchSuggest .sg-item').innerText(), products[0].title);
+            assert.equal(await page.locator('#productGrid .p-seller svg').count(), 0);
+        });
+
+        await check('An empty marketplace contains no demo records or invented totals', async (page, base) => {
+            await page.goto(base + '/index.html');
+            await page.waitForFunction(() => document.getElementById('heroListingCount').textContent === '0');
+            assert.equal(await page.locator('#heroCampusCount').innerText(), '0');
+            assert.equal(await page.locator('#heroDonationCount').innerText(), '0');
+            assert.equal(await page.locator('#productGrid .p-card').count(), 0);
+            assert.equal(await page.locator('#collegeSelect option').count(), 1);
+            assert.match(await page.locator('#collegeList').innerText(), /No colleges are listed yet/);
+            assert.equal(await page.locator('[data-header-location]').innerText(), 'All locations');
+        }, pathname => pathname === '/api/products' ? { body: { products: [] } } : undefined);
+
+        await check('Seller badges, ratings and membership dates use API metadata', async (page, base) => {
+            await page.goto(base + '/product.html?id=p0');
+            await page.locator('#pdTitle').waitFor({ state: 'visible' });
+            assert.equal(await page.locator('#sellerRating').innerText(), '4.3 · 7 ratings');
+            assert.match(await page.locator('#sellerSince').innerText(), /Mar 2025/);
+            assert.equal(await page.locator('#sellerVerified').isVisible(), true);
+        }, pathname => pathname === '/api/products/p0' ? { body: { product: { ...products[0], seller: { ...products[0].seller, verified: true, createdAt: '2025-03-01', trustRatingAverage: 4.3, trustRatingCount: 7 } } } } : undefined);
+
+        await check('Missing seller metadata never invents reviews or verification', async (page, base) => {
+            await page.goto(base + '/product.html?id=p0');
+            await page.locator('#pdTitle').waitFor({ state: 'visible' });
+            assert.equal(await page.locator('#sellerRating').innerText(), 'No ratings yet');
+            assert.equal(await page.locator('#sellerSince').isVisible(), false);
+            assert.equal(await page.locator('#sellerVerified').isVisible(), false);
+        });
+
+        await check('Own profile uses account ratings, join date, city and sold listings', async (page, base) => {
+            await page.goto(base + '/profile.html');
+            await page.waitForFunction(() => document.getElementById('trustAverage').textContent === '4.2');
+            assert.match(await page.locator('#joinedBadge').innerText(), /Mar 2025/);
+            assert.equal(await page.locator('[data-header-location]').innerText(), 'Bengaluru');
+            assert.equal(await page.locator('#trustStars button:not(:disabled)').count(), 0);
+            assert.equal(await page.locator('#statSold').innerText(), '1');
+        }, pathname => pathname === '/api/products/mine' ? { body: { products: [{ ...products[0], status: 'sold' }] } } : undefined, true);
+
+        await check('An unavailable public profile never displays the viewer account data', async (page, base) => {
+            await page.goto(base + '/profile.html?user=missing');
+            await page.getByText('Profile unavailable', { exact: true }).waitFor();
+            assert.equal(await page.locator('.profile-stats').isVisible(), false);
+            assert.equal(await page.locator('#trustAverage').innerText(), '—');
+            assert.equal(await page.locator('#trustStars button:not(:disabled)').count(), 0);
+        }, pathname => pathname === '/api/auth/users/missing' ? { status: 404, body: { message: 'User not found' } } : undefined, true);
+
+        await check('Public listing API returns seller summaries without private contact or rating entries', async (_page, base) => {
+            const original = Product.find;
+            Product.find = () => ({
+                populate() { return this; }, slice() { return this; }, sort() { return this; },
+                async lean() {
+                    return [{ ...products[0], location: 'Private pickup address', seller: {
+                        _id: 'seller1', name: 'Real Seller', college: 'College A', verified: true,
+                        email: 'private@example.test', phone: 'private-phone', createdAt: '2025-03-01',
+                        trustRatings: [{ user: 'private-rater1', value: 4 }, { user: 'private-rater2', value: 5 }]
+                    } }];
+                }
+            });
+            try {
+                const response = await fetch(base + '/fixture-products');
+                assert.equal(response.status, 200);
+                const { products: [product] } = await response.json();
+                assert.equal(product.seller.trustRatingAverage, 4.5);
+                assert.equal(product.seller.trustRatingCount, 2);
+                assert.equal(product.seller.verified, true);
+                assert.equal(product.seller.email, undefined);
+                assert.equal(product.seller.phone, undefined);
+                assert.equal(product.seller.trustRatings, undefined);
+                assert.equal(product.location, '');
+            } finally { Product.find = original; }
+        });
+
+        console.log(`\n${passed} rendering and API checks passed.`);
     } finally {
         await browser.close();
         server.closeAllConnections();

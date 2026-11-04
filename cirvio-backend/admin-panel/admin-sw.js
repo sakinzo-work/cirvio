@@ -1,11 +1,12 @@
 /* Cache public application files only. Staff API responses never enter Cache Storage. */
-const CACHE = 'cirvio-admin-shell-v1';
+const CACHE = 'cirvio-admin-shell-v2';
 const ROOT = self.registration.scope;
 const FILES = [
     'index.html', 'offline.html', 'admin.css', 'admin-mobile.css', 'admin.js',
     'data-tables.js', 'admin-pwa.js', 'manifest.webmanifest',
     'cirvio-logo-header.png', 'cirvio-logo-footer.png',
-    'icons/admin-192.png', 'icons/admin-512.png', 'icons/admin-maskable-512.png', 'icons/apple-touch-icon.png'
+    'icons/admin-panel-192.png', 'icons/admin-panel-512.png', 'icons/admin-panel-maskable-512.png',
+    'icons/admin-panel-apple-touch.png', 'icons/admin-panel-32.png'
 ];
 const SHELL = new Set(FILES.map(file => new URL(file, ROOT).href));
 

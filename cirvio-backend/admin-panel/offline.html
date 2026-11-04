@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#00181b">
 <title>Offline · CIRVIO Admin</title>
-<link rel="icon" href="icons/admin-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/admin-panel-32.png">
 <style>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#00181b;color:#f2fffb;font:16px/1.6 system-ui,sans-serif}.offline-card{width:min(100%,420px);padding:32px;border:1px solid #26615d;border-radius:20px;background:#03272b;text-align:center}img{width:72px;height:72px;border-radius:18px}h1{font-size:28px;margin:18px 0 8px}p{color:#a8c9c9}button{min-height:48px;padding:12px 24px;border:0;border-radius:10px;background:#20e7ad;color:#002b24;font:inherit;font-weight:700;cursor:pointer}button:focus-visible{outline:3px solid white;outline-offset:4px}
 </style>
 </head>
-<body><main class="offline-card"><img src="icons/admin-192.png" alt="CIRVIO"><h1>You’re offline</h1><p>Connect to the internet to open your dashboard, read messages and save changes.</p><p>Staff records and conversations are not stored in the offline cache.</p><button id="retry" type="button">Try again</button><p id="status" role="status"></p></main>
+<body><main class="offline-card"><img src="icons/admin-panel-192.png" alt="CIRVIO Admin"><h1>You’re offline</h1><p>Connect to the internet to open your dashboard, read messages and save changes.</p><p>Staff records and conversations are not stored in the offline cache.</p><button id="retry" type="button">Try again</button><p id="status" role="status"></p></main>
 <script>document.getElementById('retry').addEventListener('click',()=>location.replace('./'));window.addEventListener('online',()=>{document.getElementById('status').textContent='Connection restored. Opening dashboard…';location.replace('./');});</script>
 </body>
 </html>

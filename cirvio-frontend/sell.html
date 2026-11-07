@@ -242,6 +242,14 @@
                             </div>
                         </div>
 
+                        <fieldset class="listing-classification" id="listingClassification">
+                            <legend>Category details</legend>
+                            <p id="categoryLoadStatus" role="status">Loading category options...</p>
+                            <button type="button" class="btn btn-outline btn-sm" id="retryCategories" hidden>Retry categories</button>
+                            <div class="classification-fields" id="classificationFields"></div>
+                            <p class="hint" id="classificationSummary" aria-live="polite"></p>
+                        </fieldset>
+
                         <div class="field-row">
                             <div class="field-group" id="priceGroup">
                                 <label for="itemPrice">Your price</label>
@@ -394,6 +402,7 @@
     <script src="config.js"></script>
     <script src="api.js"></script>
     <script src="common.js"></script>
+    <script src="sell-categories.js"></script>
     <script>
         /* ============================================================
             STATE
@@ -584,8 +593,9 @@
           <img src="${photos[0] || PLACEHOLDER_IMG}" alt="Preview">
         </div>
         <div class="p-body">
-          <div class="p-cat">${cat}</div>
-          <div class="p-title">${title}</div>
+          <div class="p-cat">${escapeHTML(cat)}</div>
+          <div class="p-title">${escapeHTML(title)}</div>
+          <div class="p-classification">${escapeHTML(window.SellCategories?.summary() || '')}</div>
           <div class="p-price-row">
             <span class="p-price">${(listingType === 'sell' && price) ? '₹' + price : (listingType === 'sell' ? '₹0' : (listingType === 'donate' ? 'Donation' : 'Free'))}</span>
             ${orig && listingType === 'sell' ? `<span class="p-orig">₹${orig}</span>` : ''}
@@ -593,10 +603,10 @@
           </div>
           <div class="p-meta">
             <span class="cond">${cond}</span>
-            <span>${loc}</span>
+            <span>${escapeHTML(loc)}</span>
           </div>
           <div class="p-foot">
-            <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${getSellerName()}</span>
+            <span class="p-seller"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>${escapeHTML(getSellerName())}</span>
             <span>Just now</span>
           </div>
         </div>`;
@@ -624,6 +634,7 @@
             return {
                 title: document.getElementById('itemTitle').value.trim(),
                 cat: document.getElementById('itemCategory').value,
+                classification: window.SellCategories?.value() || {},
                 cond: document.getElementById('itemCondition').value,
                 price: listingType === 'sell' ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
                 orig: Number(document.getElementById('itemOrig').value) || 0,
@@ -705,6 +716,7 @@
                 id: now,
                 title: document.getElementById('itemTitle').value.trim(),
                 cat: document.getElementById('itemCategory').value,
+                classification: window.SellCategories?.value() || {},
                 cond: document.getElementById('itemCondition').value,
                 price: listingType === 'sell' ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
                 orig: Number(document.getElementById('itemOrig').value) || 0,
@@ -735,6 +747,7 @@
             return CirvioAPI.createProduct({
                 title: listing.title,
                 category: listing.cat,
+                classification: listing.classification,
                 condition: listing.cond,
                 type: listing.type,
                 price: listing.price,
@@ -761,6 +774,7 @@
             let ok = true;
             ok = validateField('itemTitle', document.getElementById('itemTitle').value.trim().length > 0) && ok;
             ok = validateField('itemCategory', document.getElementById('itemCategory').value.length > 0) && ok;
+            ok = window.SellCategories.validate() && ok;
             ok = validateField('itemCondition', document.getElementById('itemCondition').value.length > 0) && ok;
             ok = validateField('itemDesc', document.getElementById('itemDesc').value.trim().length > 0) && ok;
             ok = validateField('itemLoc', document.getElementById('itemLoc').value.trim().length > 0) && ok;

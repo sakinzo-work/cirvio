@@ -819,8 +819,8 @@
             }
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            CirvioAPI.logout();
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await CirvioAPI.logout();
             CirvioStore.setCart([]);
             CirvioStore.setWishlist([]);
             showToast('Logged out');
@@ -843,7 +843,7 @@
                 btn.disabled = true;
                 btn.textContent = 'Deleting...';
                 await CirvioAPI.deleteAccount(password);
-                CirvioAPI.logout();
+                await CirvioAPI.logout();
                 CirvioStore.setListings([]);
                 CirvioStore.setMessages([]);
                 showToast('Account deleted');

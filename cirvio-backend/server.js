@@ -10,6 +10,7 @@ const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 const messageRoutes = require('./routes/messages');
 const adminRoutes = require('./routes/admin');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // serve the admin panel (static HTML/CSS/JS) at /admin
 app.use('/admin', express.static(path.join(__dirname, 'admin-panel'), {

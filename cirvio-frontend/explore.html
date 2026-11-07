@@ -784,6 +784,7 @@
             { name: "Practical Files", icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' },
             { name: "Stationery Bundles", icon: '<path d="M2 12h4l3-9 4 18 3-9h6"/>' },
             { name: "Free & Donations", icon: '<path d="M12 2C7 6 4 11 4 15a8 8 0 0 0 16 0c0-4-3-9-8-13z"/><path d="M12 22V10"/>' },
+            ...['Drawing & Art Supplies', 'Lab & Engineering Tools', 'Bags & Accessories', 'Electronics & Accessories', 'Other Study Items'].map(name => ({ name, icon: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 5V3h8v2M3 11h18"/>' })),
         ];
 
         const PRODUCTS = [];
@@ -807,7 +808,7 @@
             else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
-  <a class="p-card" data-id="${p.id}" data-title="${escapeHTML(p.title.toLowerCase())}" data-cat="${escapeHTML(p.cat.toLowerCase())}"
+  <a class="p-card" data-id="${p.id}" data-title="${escapeHTML(p.title.toLowerCase())}" data-classification="${escapeHTML((p.classificationSummary || '').toLowerCase())}" data-cat="${escapeHTML(p.cat.toLowerCase())}"
      data-price="${p.price}" data-disc="${disc || 0}" data-type="${p.type}"
      href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
     <div class="p-thumb">
@@ -820,6 +821,7 @@
     </div>
     <div class="p-body">
       <div class="p-cat">${escapeHTML(p.cat)}</div>
+      <div class="p-classification">${escapeHTML(p.classificationSummary || '')}</div>
       <div class="p-title">${escapeHTML(p.title)}</div>
       <div class="p-price-row">
         <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
@@ -1005,7 +1007,7 @@
                 const cards = section.querySelectorAll('.p-card');
                 let sectionHasMatch = false;
                 cards.forEach(card => {
-                    const matchesText = !q || card.dataset.title.includes(q) || card.dataset.cat.includes(q);
+                    const matchesText = !q || card.dataset.title.includes(q) || card.dataset.cat.includes(q) || card.dataset.classification.includes(q);
                     const matchesFilter = passesFilter(card);
                     const show = matchesText && matchesFilter;
                     card.style.display = show ? '' : 'none';

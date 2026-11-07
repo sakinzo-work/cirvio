@@ -18,6 +18,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .install-help button { min-height: 44px; }
 .message-inbox { display: flex; flex-direction: column; }
 .message-inbox-list { flex: 1; }
+.message-alert-controls { padding: 0 12px 10px; }
+.message-alert-controls button { min-height: 44px; width: 100%; }
+.message-alert-controls p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.message-alert-controls p:empty { display: none; }
 .message-inbox .data-feedback { margin: 4px 12px; flex-shrink: 0; }
 .inbox-filters { display: flex; gap: 8px; padding: 0 12px 10px; }
 .inbox-filters button { min-height: 40px; padding: 8px 12px; font-size: 12px; }

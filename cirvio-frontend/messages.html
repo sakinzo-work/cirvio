@@ -211,11 +211,15 @@
                 CirvioStore.setMessages(messages);
                 refreshMsgBadge();
             }
+            CirvioStore.setNotifications(CirvioStore.getNotifications().map(notification => notification.threadId === activeThreadId ? { ...notification, read: true } : notification));
+            refreshNotificationBadge();
+            renderNotificationPanel();
         }
 
         function selectThread(id) {
             if (activeThreadId) chatDrafts.set(activeThreadId, document.getElementById('chatInput').value);
             activeThreadId = id;
+            window.CirvioActiveThread = id;
             const thread = groupThreads().find((t) => t.id === id);
             if (!thread) return;
             markActiveRead();
@@ -325,6 +329,7 @@
         document.getElementById('chatSearch').addEventListener('input', renderThreadList);
         document.getElementById('chatMobileBack').addEventListener('click', () => {
             document.body.classList.remove('chat-open');
+            window.CirvioActiveThread = '';
         });
         deleteBtn.addEventListener('click', deleteActiveThread);
 
@@ -410,6 +415,13 @@
                 document.body.classList.remove('chat-open');
                 openFirstThreadOnDesktop();
             }
+        });
+
+        navigator.serviceWorker?.addEventListener('message', async event => {
+            if (event.data?.type !== 'OPEN_MESSAGE') return;
+            await CirvioMessages.sync();
+            const thread = String(event.data.threadId || '');
+            if (groupThreads().some(item => item.id === thread)) selectThread(thread);
         });
 
         if (CirvioAuth.requireLogin()) {

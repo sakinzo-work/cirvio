@@ -9,6 +9,7 @@ const Order = require('../models/Order');
 const AppSetting = require('../models/AppSetting');
 const Message = require('../models/Message');
 const { protect, adminOnly, staffOnly } = require('../middleware/auth');
+const notifications = require('../services/message-notifications');
 
 const router = express.Router();
 const requireAdmin = [adminOnly];
@@ -452,6 +453,7 @@ router.post('/messages/:id/reply', async (req, res, next) => {
         });
         message.readByAdminAt = message.readByAdminAt || new Date();
         await message.save();
+        notifications.queueMessageNotification(message, req.user);
 
         const updated = await populateAdminThread(Message.findById(message._id)).lean();
 

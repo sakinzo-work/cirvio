@@ -3,7 +3,7 @@
    App-shell precache + runtime caching so the site installs as a
    PWA and keeps working (mostly) offline.
 ============================================================ */
-const CIRVIO_CACHE = 'cirvio-cache-v12';
+const CIRVIO_CACHE = 'cirvio-cache-v13';
 
 const APP_SHELL = [
     './',
@@ -23,6 +23,7 @@ const APP_SHELL = [
     'config.js',
     'api.js',
     'common.js',
+    'sell-categories.js',
     'manifest.json',
     'cirvio-logo-header.png',
     'cirvio-logo-footer.png',
@@ -40,6 +41,25 @@ const APP_SHELL = [
     'icon-maskable-512.png',
     'apple-touch-icon.png'
 ];
+
+self.addEventListener('push', event => {
+    let payload = {};
+    try { payload = event.data?.json() || {}; } catch { /* Show a generic alert for an invalid payload. */ }
+    const threadId = /^[a-f\d]{24}$/i.test(payload.threadId || '') ? payload.threadId : '';
+    const target = new URL('messages.html', self.registration.scope);
+    if (threadId) target.searchParams.set('thread', threadId);
+    event.waitUntil(self.registration.showNotification('CIRVIO · New message', { body: 'You have a new message. Tap to open the conversation.', icon: new URL('icon-192.png', self.registration.scope).href, badge: new URL('icon-192.png', self.registration.scope).href, tag: `cirvio-message-${threadId || 'inbox'}`, data: { url: target.href, threadId } }));
+});
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    const target = new URL(event.notification.data?.url || 'messages.html', self.registration.scope);
+    if (target.origin !== new URL(self.registration.scope).origin || !target.pathname.endsWith('/messages.html')) return;
+    event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+        const existing = clients.find(client => new URL(client.url).origin === target.origin && new URL(client.url).pathname === target.pathname);
+        if (existing) { existing.postMessage({ type: 'OPEN_MESSAGE', threadId: event.notification.data?.threadId }); return existing.focus(); }
+        return self.clients.openWindow(target.href);
+    }));
+});
 
 self.addEventListener('install', (event) => {
     event.waitUntil(

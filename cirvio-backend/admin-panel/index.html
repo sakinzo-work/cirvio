@@ -304,6 +304,7 @@
             <svg class="field-icon"><use href="#icon-search"></use></svg>
             <input id="messagesSearchInput" type="search" placeholder="Search chats...">
           </label>
+          <div class="message-alert-controls"><button type="button" class="soft-btn" id="enableAdminNotifications">Enable notifications</button><p id="adminNotificationStatus" role="status" aria-live="polite"></p></div>
           <div class="inbox-filters" role="group" aria-label="Conversation filter"><button type="button" class="soft-btn" data-message-filter="all" aria-pressed="true">All chats</button><button type="button" class="soft-btn" data-message-filter="needs-reply" aria-pressed="false">Needs reply</button></div>
           <p id="messageSearchEmpty" class="message-no-results" role="status" hidden>No conversations match your search.</p>
           <div id="messageInboxList" class="message-inbox-list"></div>
@@ -335,6 +336,7 @@
 
 <script src="admin-pwa.js"></script>
 <script src="data-tables.js"></script>
+<script src="push-client.js"></script>
 <script src="admin.js"></script>
 <script src="admin-conversations.js"></script>
 </body>

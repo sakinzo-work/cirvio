@@ -71,6 +71,7 @@ function normalizeProduct(product = {}) {
         id: product._id || product.id,
         title: String(product.title || 'Untitled listing'),
         cat: String(cat),
+        classificationSummary: String(product.classificationSummary || [product.classification?.className, product.classification?.streamOther || product.classification?.stream, product.classification?.courseOther || product.classification?.course, product.classification?.year ? `Year ${product.classification.year}` : '', product.classification?.itemOther || product.classification?.itemType].filter(Boolean).join(' · ')),
         cond: String(product.cond || product.condition || 'Not specified'),
         college: String(product.college || (typeof seller === 'object' && seller.college) || '').trim(),
         price: ['donate', 'free'].includes(product.type) ? 0 : amount(product.price),
@@ -118,7 +119,8 @@ const CirvioAPI = {
         localStorage.removeItem('cirvio_messages');
         localStorage.removeItem('cirvio_notifications');
     },
-    logout() {
+    async logout() {
+        await window.CirvioPush?.disconnect().catch(() => {});
         this.clearSession();
         localStorage.removeItem('cirvio_cart');
         localStorage.removeItem('cirvio_wishlist');
@@ -342,6 +344,8 @@ window.cirvioProductToListing = function cirvioProductToListing(product) {
         backendId: p.id,
         title: p.title,
         cat: p.cat,
+        classification: p.classification || {},
+        classificationSummary: p.classificationSummary || '',
         cond: p.cond,
         price: p.price,
         orig: p.orig,

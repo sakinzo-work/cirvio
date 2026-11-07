@@ -1,9 +1,15 @@
 const mongoose = require('mongoose');
 
+const classificationSchema = new mongoose.Schema(Object.fromEntries(
+    ['level', 'className', 'stream', 'streamOther', 'course', 'courseOther', 'year', 'board', 'subject', 'itemType', 'itemOther']
+        .map(key => [key, { type: String, trim: true, maxlength: 100 }])
+), { _id: false });
+
 const productSchema = new mongoose.Schema(
     {
         title: { type: String, required: true, trim: true },
         category: { type: String, required: true }, // books / notes / calculators / stationery ...
+        classification: { type: classificationSchema, default: () => ({}) },
         condition: { type: String, required: true }, // new / like-new / good / fair
         type: { type: String, enum: ['sell', 'donate', 'free'], default: 'sell' },
         price: { type: Number, default: 0, min: 0 },

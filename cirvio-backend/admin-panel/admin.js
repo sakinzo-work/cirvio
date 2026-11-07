@@ -149,7 +149,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 });
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await window.CirvioPush?.disconnect().catch(() => {});
     localStorage.removeItem('cirvio_admin_token');
     localStorage.removeItem('cirvio_admin_session_api_base');
     TOKEN = '';
@@ -207,8 +208,11 @@ async function showApp() {
     ensureEmployeePanel();
     updateAdminChrome();
     applyRolePermissions();
-    activateTab(location.hash.slice(1) || 'dashboard', { historyMode: 'replace', load: false });
+    const linkedThread = new URLSearchParams(location.search).get('thread');
+    activateTab(linkedThread ? 'messages' : (location.hash.slice(1) || 'dashboard'), { historyMode: 'replace', load: false });
     await Promise.allSettled([loadActiveTabData(), loadMessages()]);
+    if (linkedThread && ADMIN_MESSAGES.has(linkedThread)) handleMessageRowClick(null, linkedThread);
+    if (!window.CirvioPush && window.createCirvioPushClient) window.CirvioPush = createCirvioPushClient({ api, token: () => TOKEN, app: 'admin', worker: './admin-sw.js', scope: './', button: document.getElementById('enableAdminNotifications'), status: document.getElementById('adminNotificationStatus') });
     startAdminMessagePoll();
 }
 
@@ -297,9 +301,15 @@ function listingBookCell(p) {
         <div>
           <strong>${esc(p.title)}</strong>
           <span class="sub">${esc(p.category || 'Book')}</span>
+          <span class="sub">${esc(listingClassification(p))}</span>
         </div>
       </div>
     `;
+}
+
+function listingClassification(product) {
+    const data = product.classification || {};
+    return [data.className, data.streamOther || data.stream, data.courseOther || data.course, data.year ? `Year ${data.year}` : '', data.board, data.subject, data.itemOther || data.itemType].filter(Boolean).join(' · ');
 }
 
 function listingImagesCell(p) {
@@ -742,6 +752,7 @@ async function viewListingImages(id) {
         <div><dt>Title</dt><dd>${esc(product.title || 'Untitled listing')}</dd></div>
         <div><dt>Seller</dt><dd>${esc(product.seller ? `${product.seller.name} (${product.seller.email || 'no email'})` : 'No seller')}</dd></div>
         <div><dt>Category</dt><dd>${esc(product.category || 'Uncategorised')}</dd></div>
+        <div><dt>Class / Course / Item type</dt><dd>${esc(listingClassification(product) || 'Not specified')}</dd></div>
         <div><dt>Condition</dt><dd>${esc(product.condition || 'Not provided')}</dd></div>
         <div><dt>Price</dt><dd>${esc(listingPrice(product))}</dd></div>
         <div><dt>Location</dt><dd>${esc(product.location || '-')}</dd></div>
@@ -1801,6 +1812,14 @@ window.addEventListener('admin:online', () => {
         loadActiveTabData({ force: true });
         loadMessages({ notify: true });
     } else if (TOKEN) initAdminSession();
+});
+
+navigator.serviceWorker?.addEventListener('message', async event => {
+    if (event.data?.type !== 'OPEN_MESSAGE' || !CURRENT_USER) return;
+    const thread = String(event.data.threadId || '');
+    activateTab('messages', { load: false });
+    await loadMessages();
+    if (ADMIN_MESSAGES.has(thread)) handleMessageRowClick(null, thread);
 });
 
 let activeModal = null;

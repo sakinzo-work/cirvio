@@ -11,6 +11,7 @@ $env:NODE_PATH = Join-Path $testPrefix 'node_modules'
 node tests/rendering.cjs
 node tests/admin-mobile.cjs
 node tests/messaging-api.cjs
+node tests/notifications-categories.cjs
 ```
 
 The runner uses installed Google Chrome on Windows. Otherwise install Playwright's Chromium or set `CIRVIO_BROWSER_PATH` to a Chromium executable. The backend's existing dependencies must be installed.
@@ -20,3 +21,7 @@ The runner uses installed Google Chrome on Windows. Otherwise install Playwright
 To investigate a single group in PowerShell, set `$env:ADMIN_TEST_FILTER = 'Manifest'` (or another test-name fragment). Remove it with `Remove-Item Env:ADMIN_TEST_FILTER` before the full run.
 
 Messaging checks cover recipient search, starting/reopening private chats from Users and listing reviews, search/open failures, phone and desktop layouts, and user replies without a product. `messaging-api.cjs` exercises the actual authenticated Express routes and Mongoose validation with isolated model adapters: concurrent opens, the unique conversation index, literal search, input limits, staff access, private participant isolation and legacy group chats. It also checks that the website worker bypasses private API calls and preserves the admin cache during updates. It requires only the backend dependencies.
+
+Category and notification checks exercise school streams, degree/master's courses and years, general item types, clearing incompatible fields, draft/publish persistence, notification counts and chat links, explicit push permission, denied permission, failed subscription setup and opt-out. `notifications-categories.cjs` validates the actual category/subscription API routes, private-key handling, recipient selection, expired subscriptions and both worker click handlers. Browser push tests use a mocked push manager; no real push notification is sent. Device delivery must be checked on the deployed HTTPS app after enabling notifications.
+
+Use `$env:RENDER_TEST_FILTER = 'Push alerts'` to run one browser group; remove that environment variable before a full rendering run.

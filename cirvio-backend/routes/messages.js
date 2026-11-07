@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Message = require('../models/Message');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
+const notifications = require('../services/message-notifications');
 
 const router = express.Router();
 
@@ -45,6 +46,7 @@ router.post('/', protect, async (req, res) => {
             productTitle: product.title,
             productImg: product.images && product.images[0] ? product.images[0] : ''
         });
+        notifications.queueMessageNotification(message, req.user);
         message = await populateThread(Message.findById(message._id));
 
         res.status(201).json({ message });
@@ -90,6 +92,7 @@ router.post('/:id/replies', protect, async (req, res) => {
             text: cleanText
         });
         await message.save();
+        notifications.queueMessageNotification(message, req.user);
         const updated = await populateThread(Message.findById(message._id));
         res.status(201).json({ message: updated });
     } catch (err) {

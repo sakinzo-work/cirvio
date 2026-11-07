@@ -616,6 +616,7 @@
                 <!-- info -->
                 <div class="pd-info">
                     <div class="pd-cat" id="pdCat">Category</div>
+                    <p class="p-classification" id="pdClassification"></p>
                     <h1 class="pd-title" id="pdTitle">Loading item…</h1>
 
                     <div class="pd-price-row">
@@ -864,6 +865,7 @@
             document.title = product.title + ' — CIRVIO';
             document.getElementById('crumbCat').textContent = product.title;
             document.getElementById('pdCat').textContent = product.cat;
+            document.getElementById('pdClassification').textContent = product.classificationSummary || '';
             document.getElementById('pdTitle').textContent = product.title;
             document.getElementById('pdCond').textContent = product.cond;
             document.getElementById('pdLoc').textContent = product.loc;

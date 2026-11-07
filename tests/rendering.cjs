@@ -45,6 +45,7 @@ const defaults = pathname => {
     if (pathname === '/api/messages/my') return { messages: [] };
     if (pathname === '/api/products/mine') return { products: [] };
     if (pathname === '/api/products') return { products };
+    if (pathname === '/api/products/categories') return require('../cirvio-backend/services/listing-categories').taxonomy;
     if (pathname.startsWith('/api/products/')) return { product: products[0] };
     return {};
 };
@@ -56,6 +57,7 @@ const defaults = pathname => {
     const browser = await chromium.launch({ headless: true, executablePath: chromePath });
     let passed = 0;
     async function check(name, run, responder, signedIn = false) {
+        if (process.env.RENDER_TEST_FILTER && !name.toLowerCase().includes(process.env.RENDER_TEST_FILTER.toLowerCase())) return;
         const context = await browser.newContext({ serviceWorkers: 'block', acceptDownloads: true });
         await context.addInitScript(signedIn => {
             if (signedIn) {
@@ -316,6 +318,126 @@ const defaults = pathname => {
             assert.equal(await page.locator('#trustAverage').innerText(), '—');
             assert.equal(await page.locator('#trustStars button:not(:disabled)').count(), 0);
         }, pathname => pathname === '/api/auth/users/missing' ? { status: 404, body: { message: 'User not found' } } : undefined, true);
+
+        await check('School classes, streams, higher education and general item categories work on a phone', async (page, base) => {
+            await page.setViewportSize({ width: 390, height: 844 });
+            await page.goto(base + '/sell.html');
+            await page.waitForFunction(() => !document.getElementById('itemCategory').disabled);
+            await page.locator('#itemCategory').selectOption('School Books');
+            for (const label of ['Nursery', 'LKG', 'UKG', 'Class 10', 'Class 11', 'Class 12']) assert.ok(await page.locator('#classification-className option').filter({ hasText: label }).count());
+            await page.locator('#classification-className').selectOption('Class 12');
+            assert.equal(await page.locator('#classification-stream').isVisible(), true);
+            assert.equal(await page.evaluate(() => SellCategories.validate()), false);
+            await page.locator('#classification-stream').selectOption('Commerce');
+            assert.equal(await page.evaluate(() => SellCategories.validate()), true);
+            await page.locator('#classification-className').selectOption('Class 10');
+            assert.equal(await page.locator('#classification-stream').isVisible(), false);
+            assert.equal((await page.evaluate(() => SellCategories.value())).stream, undefined);
+            await page.locator('#itemCategory').selectOption('College Books');
+            await page.locator('#classification-level').selectOption('undergraduate');
+            await page.locator('#classification-course').selectOption('B.Com.');
+            await page.locator('#classification-year').selectOption('3');
+            assert.match(await page.locator('#classificationSummary').innerText(), /B.Com.*Year 3/);
+            await page.locator('#classification-level').selectOption('masters');
+            assert.equal(await page.locator('#classification-course').inputValue(), '');
+            await page.locator('#classification-course').selectOption('M.Sc.');
+            await page.locator('#classification-year').selectOption('2');
+            assert.equal(await page.evaluate(() => SellCategories.validate()), true);
+            await page.locator('#itemCategory').selectOption('Calculators');
+            await page.locator('#classification-itemType').selectOption('Scientific calculator');
+            const classification = await page.evaluate(() => SellCategories.value());
+            assert.deepEqual(classification, { itemType: 'Scientific calculator' });
+            await page.locator('#itemTitle').fill('Calculator');
+            await page.locator('#saveDraftBtn').click();
+            assert.equal(await page.evaluate(() => CirvioStore.getListings()[0].classification.itemType), 'Scientific calculator');
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+        }, undefined, true);
+
+        let published;
+        await check('Class and stream survive listing confirmation, upload and saved records', async (page, base) => {
+            await page.goto(base + '/sell.html');
+            await page.waitForFunction(() => !document.getElementById('itemCategory').disabled);
+            await page.locator('#itemTitle').fill('Physics <b>book</b>');
+            await page.locator('#itemCategory').selectOption('School Books');
+            await page.locator('#classification-className').selectOption('Class 12');
+            await page.locator('#classification-stream').selectOption('Science (PCM)');
+            await page.locator('#classification-board').selectOption('CBSE / NCERT');
+            await page.locator('#itemCondition').selectOption('Good');
+            await page.locator('#itemPrice').fill('100');
+            await page.locator('#itemDesc').fill('Physics textbook');
+            await page.locator('#itemLoc').fill('Test City');
+            await page.locator('#fileInput').setInputFiles({ name: 'book.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6lGAAAAAASUVORK5CYII=', 'base64') });
+            await page.waitForFunction(() => photos.length === 1);
+            assert.equal(await page.locator('#previewCard .p-title').innerText(), 'Physics <b>book</b>');
+            assert.equal(await page.locator('#previewCard b').count(), 0);
+            await page.locator('#submitBtn').click();
+            await page.locator('#publishConfirmBtn').click();
+            await page.locator('#successView').waitFor({ state: 'visible' });
+            assert.equal(published.classification.className, 'Class 12');
+            assert.equal(published.classification.stream, 'Science (PCM)');
+            assert.equal(await page.evaluate(() => CirvioStore.getListings()[0].classification.board), 'CBSE / NCERT');
+        }, (pathname, route) => {
+            if (pathname === '/api/products' && route.request().method() === 'POST') {
+                published = route.request().postDataJSON();
+                return { body: { product: { ...published, _id: '000000000000000000000555', status: 'pending', seller: user } } };
+            }
+        }, true);
+
+        const noticeThread = { _id: '000000000000000000000222', conversationType: 'direct', sender: user, text: '', replies: [{ _id: 'a', senderRole: 'admin', sender: { _id: 'other-staff' }, text: 'First message', createdAt: '2026-11-07' }, { _id: 'b', senderRole: 'admin', sender: { _id: 'other-staff' }, text: 'Second message', createdAt: '2026-11-07' }] };
+        await check('Every incoming message produces one notification and opens its chat', async (page, base) => {
+            await page.addInitScript(profile => localStorage.setItem('cirvio_profile', JSON.stringify(profile)), user);
+            await page.goto(base + '/index.html');
+            await page.waitForFunction(() => CirvioStore.getNotifications().filter(item => item.type === 'message').length === 2);
+            await page.evaluate(() => CirvioMessages.sync({ notify: true }));
+            assert.equal(await page.evaluate(() => CirvioStore.getNotifications().filter(item => item.type === 'message').length), 2);
+            await page.locator('button[aria-label="Notifications"]').first().click();
+            assert.equal(await page.locator('#npList .np-item').count(), 2);
+            assert.match(await page.locator('#npList a').first().getAttribute('href'), /messages.html\?thread=000000000000000000000222/);
+            await page.locator('#npList a').first().click();
+            await page.locator('#chatRoom').waitFor({ state: 'visible' });
+            assert.equal(await page.evaluate(() => CirvioStore.getNotifications().filter(item => !item.read).length), 0);
+        }, pathname => pathname === '/api/messages/my' ? { body: { messages: [noticeThread] } } : undefined, true);
+
+        const pushPublicKey = require('../cirvio-backend/node_modules/web-push').generateVAPIDKeys().publicKey;
+        const pushRequests = [];
+        let rejectPushSubscription = false;
+        await check('Push alerts require a click, handle denied permission and can be disabled', async (page, base) => {
+            await page.addInitScript(() => {
+                localStorage.setItem('cirvio_api_base', location.origin);
+                window.pushFixture = { permission: 'denied', permissionRequests: 0, subscribed: false, unsubscribed: 0 };
+                const state = window.pushFixture;
+                Object.defineProperty(window, 'Notification', { configurable: true, value: { get permission() { return state.permission; }, async requestPermission() { state.permissionRequests++; return state.permission; } } });
+                Object.defineProperty(window, 'PushManager', { configurable: true, value: function () {} });
+                const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/fixture', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'fixture', auth: 'fixture' } }; }, async unsubscribe() { state.subscribed = false; state.unsubscribed++; return true; } };
+                const registration = { active: {}, async update() {}, addEventListener() {}, pushManager: { async getSubscription() { return state.subscribed ? subscription : null; }, async subscribe(options) { if (!options.userVisibleOnly || options.applicationServerKey.length !== 65) throw new Error('Invalid push options'); state.subscribed = true; return subscription; } } };
+                Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { async getRegistration() { return registration; }, async register() { return registration; }, addEventListener() {} } });
+            });
+            await page.goto(base + '/index.html');
+            await page.waitForFunction(() => !!window.CirvioPush);
+            assert.equal(await page.evaluate(() => pushFixture.permissionRequests), 0, 'No automatic permission prompt');
+            await page.locator('button[aria-label="Notifications"]').first().click();
+            await page.locator('#enableMessageNotifications').click();
+            await page.waitForFunction(() => document.getElementById('pushNotificationStatus').textContent.includes('blocked'));
+            await page.evaluate(() => { pushFixture.permission = 'granted'; });
+            rejectPushSubscription = true;
+            await page.locator('#enableMessageNotifications').click();
+            await page.getByText('Notification save failed', { exact: true }).waitFor();
+            assert.equal(await page.evaluate(() => pushFixture.subscribed), false, 'Failed setup removes the unregistered subscription');
+            rejectPushSubscription = false;
+            await page.locator('#enableMessageNotifications').click();
+            await page.getByRole('button', { name: 'Disable notifications', exact: true }).waitFor();
+            assert.equal(pushRequests.filter(request => request.method === 'POST').at(-1).body.app, 'site');
+            await page.locator('#enableMessageNotifications').click();
+            await page.getByRole('button', { name: 'Enable notifications', exact: true }).waitFor();
+            assert.equal(await page.evaluate(() => pushFixture.subscribed), false);
+            assert.ok(pushRequests.some(request => request.method === 'DELETE'));
+        }, (pathname, route) => {
+            if (pathname === '/api/notifications/push-key') return { body: { publicKey: pushPublicKey } };
+            if (pathname === '/api/notifications/subscriptions') {
+                pushRequests.push({ method: route.request().method(), body: route.request().postDataJSON() });
+                return rejectPushSubscription ? { status: 503, body: { message: 'Notification save failed' } } : { body: { enabled: route.request().method() === 'POST' } };
+            }
+        }, true);
 
         const directId = '000000000000000000000123';
         const directThread = { _id: directId, conversationType: 'direct', sender: user, text: '', createdAt: '2026-11-07', updatedAt: '2026-11-07', replies: [{ _id: 'first', sender: { _id: 'other-staff' }, senderRole: 'admin', text: 'Hello from CIRVIO support', createdAt: '2026-11-07' }] };

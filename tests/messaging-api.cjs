@@ -8,6 +8,7 @@ const jwt = require('../cirvio-backend/node_modules/jsonwebtoken');
 const Message = require('../cirvio-backend/models/Message');
 const User = require('../cirvio-backend/models/User');
 const Product = require('../cirvio-backend/models/Product');
+require('../cirvio-backend/services/message-notifications').queueMessageNotification = () => {};
 const id = number => number.toString(16).padStart(24, '0');
 const users = [
     { _id: id(1), name: 'Admin', role: 'admin', status: 'active' },
@@ -103,12 +104,12 @@ app.use((error, request, response, next) => response.status(500).json({ message:
             URL,
             location: { origin: siteOrigin },
             self: { addEventListener(name, listener) { workerEvents[name] = listener; }, clients: { async claim() {} } },
-            caches: { async keys() { return ['cirvio-cache-v11', 'cirvio-cache-v12', 'cirvio-admin-shell-v3', 'unrelated-app']; }, async delete(key) { deletedCaches.push(key); } }
+            caches: { async keys() { return ['cirvio-cache-v12', 'cirvio-cache-v13', 'cirvio-admin-shell-v4', 'unrelated-app']; }, async delete(key) { deletedCaches.push(key); } }
         });
         let activation;
         workerEvents.activate({ waitUntil(promise) { activation = promise; } });
         await activation;
-        assert.deepEqual(deletedCaches, ['cirvio-cache-v11'], 'Website updates preserve admin and unrelated caches');
+        assert.deepEqual(deletedCaches, ['cirvio-cache-v12'], 'Website updates preserve admin and unrelated caches');
         for (const [url, headers] of [
             [siteOrigin + '/api/messages/my', {}],
             ['https://api.example.test/api/messages/my', {}],

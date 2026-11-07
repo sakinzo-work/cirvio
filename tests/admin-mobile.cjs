@@ -302,6 +302,18 @@ app.use('/api', async (request, response) => {
             assert.equal(await page.locator('.admin-settings-card').isVisible(), false);
         });
 
+        await check('Notification links and worker messages open the right admin conversation', async page => {
+            await page.goto(base + '/admin/?thread=m1#messages');
+            await page.locator('#sideReplyText').waitFor({ state: 'visible' });
+            assert.equal(await page.evaluate(() => activeMessageId), 'm1');
+            await page.locator('#sideReplyText').fill('Keep this draft when opening another alert');
+            await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'OPEN_MESSAGE', threadId: 'm2' } })));
+            await page.waitForFunction(() => activeMessageId === 'm2');
+            await page.locator('#messageBackBtn').click();
+            await page.locator('.message-thread[data-message-id="m1"]').click();
+            assert.equal(await page.locator('#sideReplyText').inputValue(), 'Keep this draft when opening another alert');
+        });
+
         await check('Manifest, real service worker, offline recovery and private-cache exclusion', async (page, context) => {
             await boot(page);
             await page.evaluate(() => navigator.serviceWorker.ready);

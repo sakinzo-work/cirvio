@@ -58,6 +58,20 @@ The user receives it in the website's **Messages** page and can reply there. Lis
 
 ## API overview
 
+### Message push notifications
+
+In the website notification panel or the admin **Messages** screen, choose **Enable notifications** and allow the browser prompt. This device then receives Web Push alerts even when the page is closed, subject to the browser/OS notification settings. Tapping an alert opens its conversation; an already open chat window receives the link without reloading and losing drafts. Use **Disable notifications** to stop alerts on that device. Signing out unsubscribes it.
+
+HTTPS is required (localhost is supported for development). On iPhone/iPad, install the app on the Home Screen before enabling alerts. In-app notifications and message badges work independently of push permission. Alerts show generic message text; conversation content is loaded after authentication.
+
+The server creates its VAPID key pair once and persists it in MongoDB `AppSetting.webPushVapid`. Private keys are never sent to clients. Optionally configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` in the backend environment to manage keys externally. Keep the same keys across deployments. Install dependencies with `npm ci`; `web-push@3.6.7` supports the project's Node 18 runtime. Only active participants and active staff receive the appropriate alerts; expired device subscriptions are removed automatically. Push failures do not prevent message saving.
+
+### Listing education and item categories
+
+`GET /api/products/categories` exposes the taxonomy used by the sell form and backend validation. School Books support Nursery/LKG/UKG and Classes 1–12; Classes 11/12 require a stream. College Books support undergraduate, postgraduate/masters, diploma, research and professional programmes, with course and study year. Notes and study resources can optionally target an education level. General item groups include calculators, stationery, drawing supplies, lab/engineering tools, bags, electronics/accessories and other study items, with item subtypes.
+
+New listings store these details in `Product.classification`; public product responses include `classificationSummary`. Changing category clears incompatible details. Existing listings still render without education metadata and can receive ordinary edits without a migration. Creating a new school/college listing requires its appropriate details.
+
 | Method | Route                              | Access        | Purpose |
 |--------|-------------------------------------|---------------|---------|
 | POST   | `/api/auth/register`                | public        | student signup |
@@ -83,6 +97,9 @@ The user receives it in the website's **Messages** page and can reply there. Lis
 | POST   | `/api/admin/messages/:id/reply`     | staff         | send a message to an existing conversation |
 | GET    | `/api/messages/my`                 | logged in     | own private conversations and product groups |
 | POST   | `/api/messages/:id/replies`         | participant   | reply to a private conversation or product group |
+| GET    | `/api/products/categories`          | public        | education levels, courses, streams and item types |
+| GET    | `/api/notifications/push-key`        | logged in     | public VAPID key only |
+| POST/DELETE | `/api/notifications/subscriptions` | logged in | enable/disable this device's push subscription |
 
 ## Data model
 

@@ -268,14 +268,22 @@ function ensureNotificationPanel() {
             <strong>Notifications</strong>
             <button type="button" id="npMarkRead">Mark read</button>
         </div>
+        <div class="np-push-controls"><button type="button" id="enableMessageNotifications">Enable notifications</button><p id="pushNotificationStatus" role="status" aria-live="polite"></p></div>
         <div class="np-list" id="npList"></div>
         <a class="np-status-link" href="status.html">View listing status</a>
     `;
     document.body.appendChild(panel);
+    setupWebsitePush();
     document.getElementById('npMarkRead').addEventListener('click', () => {
         CirvioStore.setNotifications(CirvioStore.getNotifications().map(n => ({ ...n, read: true })));
         refreshNotificationBadge();
         renderNotificationPanel();
+    });
+    document.getElementById('npList').addEventListener('click', event => {
+        const item = event.target.closest('[data-notification-id]');
+        if (!item) return;
+        CirvioStore.setNotifications(CirvioStore.getNotifications().map(notification => notification.id === item.dataset.notificationId ? { ...notification, read: true } : notification));
+        refreshNotificationBadge();
     });
     document.addEventListener('click', (e) => {
         if (!panel.classList.contains('open')) return;
@@ -292,9 +300,9 @@ function renderNotificationPanel() {
     if (!list) return;
     const notifications = CirvioStore.getNotifications();
     list.innerHTML = notifications.length ? notifications.map(n => `
-        <a class="np-item ${n.read ? '' : 'unread'}" href="${botEsc(n.link || 'status.html')}">
-            <span>${n.title || 'CIRVIO update'}</span>
-            <p>${n.text || 'Your listing status has changed.'}</p>
+        <a class="np-item ${n.read ? '' : 'unread'}" data-notification-id="${botEsc(n.id)}" href="${botEsc(n.link || 'status.html')}">
+            <span>${botEsc(n.title || 'CIRVIO update')}</span>
+            <p>${botEsc(n.text || 'Your listing status has changed.')}</p>
             <small>${n.createdAt ? new Date(n.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Just now'}</small>
         </a>
     `).join('') : '<div class="np-empty">No notifications yet.</div>';
@@ -304,6 +312,23 @@ function toggleNotificationPanel() {
     ensureNotificationPanel();
     renderNotificationPanel();
     document.getElementById('notificationPanel').classList.toggle('open');
+}
+
+function setupWebsitePush() {
+    const button = document.getElementById('enableMessageNotifications');
+    const status = document.getElementById('pushNotificationStatus');
+    function ready() {
+        if (!window.CirvioPush) window.CirvioPush = createCirvioPushClient({ api: (path, options) => CirvioAPI.request(path, options), token: () => CirvioAPI.token(), app: 'site', worker: 'sw.js', scope: './', button, status });
+    }
+    if (window.createCirvioPushClient) { ready(); return; }
+    const script = document.createElement('script');
+    script.src = (window.CIRVIO_API_BASE_ACTIVE || window.CIRVIO_API_BASE).replace(/\/$/, '') + '/admin/push-client.js';
+    script.onload = ready;
+    script.onerror = () => {
+        status.textContent = 'Notification setup could not load. Check your connection and retry.';
+        button.onclick = () => { button.onclick = null; script.remove(); setupWebsitePush(); };
+    };
+    document.head.appendChild(script);
 }
 
 function addListingNotification(listing, status) {
@@ -778,7 +803,7 @@ function messageEntryFromThread(thread, part, index = -1, existing = null) {
         senderRole: role,
         text: part.text || '',
         from: fromAdmin ? 'cirvio' : (fromSeller ? 'seller' : 'buyer'),
-        read: existing ? existing.read : (!fromAdmin && !fromSeller),
+        read: existing ? existing.read : (!!senderId && String(senderId) === currentUserId()),
         createdAt,
         time: createdAt ? new Date(createdAt).toLocaleString() : 'Just now'
     };
@@ -788,20 +813,20 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
     const existing = CirvioStore.getMessages();
     const existingByKey = Object.fromEntries(existing.filter(m => m.backendKey).map(m => [m.backendKey, m]));
     const backendEntries = [];
-    let newAdminReply = null;
+    const incoming = [];
 
     (threads || []).forEach((thread) => {
         if (thread.text) {
             const root = messageEntryFromThread(thread, { text: thread.text, createdAt: thread.createdAt }, -1, existingByKey[`${thread._id}:root`]);
             backendEntries.push(root);
-            if (notify && !isOwnMessage(root) && !existingByKey[root.backendKey]) newAdminReply = root;
+            if (!isOwnMessage(root) && !root.read && !existingByKey[root.backendKey]) incoming.push(root);
         }
 
         (thread.replies || []).forEach((reply, index) => {
             const key = `${thread._id}:reply:${reply._id || index}`;
             const entry = messageEntryFromThread(thread, reply, index, existingByKey[key]);
             backendEntries.push(entry);
-            if (notify && !isOwnMessage(entry) && !existingByKey[key]) newAdminReply = entry;
+            if (!isOwnMessage(entry) && !entry.read && !existingByKey[key]) incoming.push(entry);
         });
     });
 
@@ -811,25 +836,27 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
     refreshMsgBadge();
     window.dispatchEvent(new CustomEvent('cirvio:messages-synced', { detail: { messages: combined } }));
     if (document.getElementById('ccOverlay')?.classList.contains('open')) renderContactThread();
-    if (newAdminReply) {
+    if (incoming.length) {
         const notifications = CirvioStore.getNotifications();
-        const id = `message:${newAdminReply.backendKey || newAdminReply.id}`;
-        const exists = notifications.some(n => n.id === id);
-        if (!exists) {
+        incoming.forEach(entry => {
+            const id = `message:${entry.backendKey || entry.id}`;
+            if (notifications.some(notification => notification.id === id)) return;
             notifications.unshift({
                 id,
+                threadId: entry.threadId,
                 type: 'message',
                 title: 'New message received',
-                text: newAdminReply.conversationType === 'direct' ? 'CIRVIO sent you a message. Open Messages to reply.' : `Message about "${newAdminReply.productTitle || 'your product'}". Open Messages to read it.`,
-                link: 'messages.html',
-                read: false,
-                createdAt: newAdminReply.createdAt || Date.now()
+                text: entry.conversationType === 'direct' ? 'CIRVIO sent you a message. Open Messages to reply.' : `Message about "${entry.productTitle || 'your product'}". Open Messages to read it.`,
+                link: 'messages.html?thread=' + encodeURIComponent(entry.threadId),
+                read: window.CirvioActiveThread === entry.threadId,
+                createdAt: entry.createdAt || Date.now()
             });
-            CirvioStore.setNotifications(notifications);
-            refreshNotificationBadge();
-            renderNotificationPanel();
-        }
-        showToast(`New message about "${newAdminReply.productTitle || 'your product'}"`);
+        });
+        CirvioStore.setNotifications(notifications.slice(0, 100));
+        refreshNotificationBadge();
+        renderNotificationPanel();
+        const latest = incoming[incoming.length - 1];
+        if (notify && window.CirvioActiveThread !== latest.threadId) showToast('New message received. Open Messages to reply.');
     }
 }
 

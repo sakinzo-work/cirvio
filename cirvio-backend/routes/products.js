@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
+const { taxonomy, normalizeClassification, describeClassification } = require('../services/listing-categories');
 
 const router = express.Router();
 
@@ -48,8 +49,10 @@ function publicProduct(product) {
         }
         : obj.seller;
     const { location, ...safeProduct } = obj;
-    return { ...safeProduct, location: '', seller };
+    return { ...safeProduct, classificationSummary: describeClassification(obj.classification), location: '', seller };
 }
+
+router.get('/categories', (req, res) => res.json(taxonomy));
 
 // GET /api/products  — logged-in browse grid (only approved items)
 router.get('/', async (req, res) => {
@@ -124,6 +127,9 @@ router.post('/', protect, async (req, res) => {
         if (!listingImages.length) {
             return res.status(400).json({ message: 'Please add at least one listing image' });
         }
+        let classification;
+        try { classification = normalizeClassification(category, req.body.classification); }
+        catch (err) { return res.status(400).json({ message: err.message }); }
         const listingType = normalizeListingType(type);
         const listingPrice = listingType === 'sell' ? Number(price) || 0 : 0;
         if (listingType === 'sell' && listingPrice <= 0) {
@@ -132,6 +138,7 @@ router.post('/', protect, async (req, res) => {
         const product = await Product.create({
             title: String(title).trim(),
             category,
+            classification,
             condition,
             type: listingType,
             price: listingPrice,
@@ -156,6 +163,10 @@ router.put('/:id', protect, async (req, res) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
     if (String(product.seller) !== String(req.user._id)) {
         return res.status(403).json({ message: 'Not your listing' });
+    }
+    if (req.body.classification !== undefined || (req.body.category !== undefined && req.body.category !== product.category)) {
+        try { product.classification = normalizeClassification(req.body.category || product.category, req.body.classification); }
+        catch (err) { return res.status(400).json({ message: err.message }); }
     }
     const editable = ['title', 'category', 'condition', 'price', 'originalPrice', 'description', 'location', 'college', 'images'];
     editable.forEach((f) => {

@@ -384,23 +384,11 @@
                         </form>
                     </div>
 
-                    <div class="settings-section">
-                        <h3>Notification Preferences</h3>
-                        <div class="toggle-row">
-                            <div><strong>New messages</strong><br><span>Get notified when someone messages you</span>
-                            </div>
-                            <div class="switch on" data-pref="msg"></div>
-                        </div>
-                        <div class="toggle-row">
-                            <div><strong>Price drop alerts</strong><br><span>Alerts for saved items with a price
-                                    drop</span></div>
-                            <div class="switch on" data-pref="price"></div>
-                        </div>
-                        <div class="toggle-row">
-                            <div><strong>Campus newsletter</strong><br><span>Weekly digest of new listings near
-                                    you</span></div>
-                            <div class="switch" data-pref="news"></div>
-                        </div>
+                    <div class="settings-section notification-settings" id="notificationSettings">
+                        <h3>Phone Notifications</h3>
+                        <p class="form-sub">Receive new messages and listing updates on this device, even when CIRVIO is closed.</p>
+                        <button type="button" class="btn btn-primary" id="enableMessageNotifications" data-push-toggle disabled>Checking notifications...</button>
+                        <p id="pushNotificationStatus" data-push-status role="status" aria-live="polite">Checking notification settings...</p>
                     </div>
 
                     <div class="settings-section account-section">
@@ -857,12 +845,6 @@
             }
         });
 
-        document.querySelectorAll('.switch').forEach(sw => {
-            sw.addEventListener('click', () => {
-                sw.classList.toggle('on');
-                showToast(sw.classList.contains('on') ? 'Notifications on' : 'Notifications off');
-            });
-        });
 
         window.addEventListener('cirvio:listings-synced', () => {
             renderListings();
@@ -942,7 +924,10 @@
                     if (initialTab === 'saved') window.location.replace('saved.html');
                     else if (initialTab === 'listings') window.location.replace('my-listings.html');
                     else if (initialTab === 'messages') window.location.replace('messages.html');
-                    else setActiveTab('settings');
+                    else {
+                        setActiveTab('settings');
+                        if (initialTab === 'notifications') document.getElementById('notificationSettings').scrollIntoView({ block: 'center' });
+                    }
                 }
             });
         }

@@ -269,7 +269,7 @@ function ensureNotificationPanel() {
             <strong>Notifications</strong>
             <button type="button" id="npMarkRead">Mark read</button>
         </div>
-        <div class="np-push-controls"><button type="button" id="enableMessageNotifications">Enable notifications</button><p id="pushNotificationStatus" role="status" aria-live="polite"></p></div>
+        <div class="np-push-controls"><a href="profile.html#notifications">Notification settings</a></div>
         <div class="np-list" id="npList"></div>
         <a class="np-status-link" href="status.html">View listing status</a>
     `;
@@ -321,19 +321,96 @@ function toggleNotificationPanel() {
     document.getElementById('notificationPanel').classList.toggle('open');
 }
 
+let websitePushLoading = false;
+const pushPromptPreferenceKey = 'cirvio_push_prompt_site_v1';
+function renderWebsitePush(state) {
+    document.querySelectorAll('[data-push-toggle]').forEach(button => {
+        button.disabled = !state.supported || state.busy;
+        button.textContent = state.busy ? 'Please wait...' : (state.enabled ? 'Disable notifications' : 'Enable notifications');
+        button.setAttribute('aria-pressed', String(state.enabled));
+    });
+    document.querySelectorAll('[data-push-status]').forEach(status => { status.textContent = state.message; });
+    const prompt = document.getElementById('notificationEnablePrompt');
+    if (!prompt) return;
+    const enable = prompt.querySelector('[data-push-enable]');
+    enable.disabled = !state.supported || state.busy;
+    enable.textContent = state.busy ? 'Please wait...' : (CirvioAPI.token() ? 'Enable notifications' : 'Sign in to enable');
+    if (state.enabled) {
+        CirvioStore._write(pushPromptPreferenceKey, {});
+        if (prompt.open) prompt.close();
+    }
+}
+
+function setupWebsitePushPrompt() {
+    if (document.getElementById('notificationEnablePrompt') || location.pathname.endsWith('/login.html')) return;
+    const prompt = document.createElement('dialog');
+    prompt.id = 'notificationEnablePrompt';
+    prompt.className = 'notification-enable-prompt';
+    prompt.setAttribute('aria-labelledby', 'notificationPromptTitle');
+    prompt.setAttribute('aria-describedby', 'notificationPromptDescription');
+    prompt.innerHTML = `
+        <div class="notification-prompt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></div>
+        <h2 id="notificationPromptTitle">Stay updated with CIRVIO</h2>
+        <p id="notificationPromptDescription">Enable phone notifications for new messages, listing reviews, approvals and buyer orders, even when CIRVIO is closed.</p>
+        <p class="notification-prompt-note">You can change this anytime in Profile → Settings.</p>
+        <p data-push-status role="status" aria-live="polite"></p>
+        <div class="notification-prompt-actions">
+            <button type="button" class="btn btn-outline" data-push-later>Not now</button>
+            <button type="button" class="btn btn-primary" data-push-enable>Enable notifications</button>
+        </div>
+    `;
+    document.body.appendChild(prompt);
+    prompt.querySelector('[data-push-later]').addEventListener('click', () => prompt.close());
+    prompt.addEventListener('close', () => {
+        if (!window.CirvioPush?.state().enabled) CirvioStore._write(pushPromptPreferenceKey, { until: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+    });
+    prompt.querySelector('[data-push-enable]').addEventListener('click', () => {
+        if (!CirvioAPI.token()) {
+            const current = (location.pathname.split('/').pop() || 'index.html') + location.search + location.hash;
+            location.href = 'login.html?next=' + encodeURIComponent(current);
+            return;
+        }
+        window.CirvioPush?.enable();
+    });
+}
+
+function maybeShowWebsitePushPrompt() {
+    const state = window.CirvioPush?.state();
+    const preference = CirvioStore._read(pushPromptPreferenceKey, {});
+    const prompt = document.getElementById('notificationEnablePrompt');
+    if (!prompt || !state?.supported || state.busy || state.enabled || state.permission === 'denied' || preference.off || Number(preference.until) > Date.now()) return;
+    if (document.querySelector('dialog[open], .modal-overlay.open')) return;
+    prompt.showModal();
+}
+
 function setupWebsitePush() {
-    const button = document.getElementById('enableMessageNotifications');
-    const status = document.getElementById('pushNotificationStatus');
+    if (websitePushLoading || window.CirvioPush) return;
+    websitePushLoading = true;
+    setupWebsitePushPrompt();
+    document.querySelectorAll('[data-push-toggle]').forEach(button => {
+        if (button.dataset.pushBound) return;
+        button.dataset.pushBound = 'true';
+        button.addEventListener('click', async () => {
+            if (!window.CirvioPush) { setupWebsitePush(); return; }
+            const wasEnabled = window.CirvioPush.state().enabled;
+            await window.CirvioPush.toggle();
+            if (wasEnabled && !window.CirvioPush.state().enabled) CirvioStore._write(pushPromptPreferenceKey, { off: true });
+        });
+    });
+    renderWebsitePush({ supported: true, busy: true, enabled: false, message: 'Checking notification settings...' });
     function ready() {
-        if (!window.CirvioPush) window.CirvioPush = createCirvioPushClient({ api: (path, options) => CirvioAPI.request(path, options), token: () => CirvioAPI.token(), app: 'site', worker: 'sw.js', scope: './', button, status });
+        websitePushLoading = false;
+        if (!window.CirvioPush) window.CirvioPush = createCirvioPushClient({ api: (path, options) => CirvioAPI.request(path, options), token: () => CirvioAPI.token(), app: 'site', worker: 'sw.js', scope: './', onChange: renderWebsitePush });
+        window.CirvioPush.ready.then(() => setTimeout(maybeShowWebsitePushPrompt, 1500));
     }
     if (window.createCirvioPushClient) { ready(); return; }
     const script = document.createElement('script');
-    script.src = (window.CIRVIO_API_BASE_ACTIVE || window.CIRVIO_API_BASE).replace(/\/$/, '') + '/admin/push-client.js';
+    script.src = (window.CIRVIO_API_BASE_ACTIVE || window.CIRVIO_API_BASE).replace(/\/$/, '') + '/admin/push-client.js?v=2';
     script.onload = ready;
     script.onerror = () => {
-        status.textContent = 'Notification setup could not load. Check your connection and retry.';
-        button.onclick = () => { button.onclick = null; script.remove(); setupWebsitePush(); };
+        websitePushLoading = false;
+        script.remove();
+        renderWebsitePush({ supported: true, busy: false, enabled: false, message: 'Notification setup could not load. Check your connection and use Enable notifications to retry.' });
     };
     document.head.appendChild(script);
 }

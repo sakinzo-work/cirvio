@@ -52,6 +52,22 @@ const defaults = pathname => {
     return {};
 };
 
+async function mockPush(page, { permission = 'default', nextPermission = 'granted', subscribed = false, showPrompt = false, supported = true } = {}) {
+    await page.addInitScript(options => {
+        localStorage.setItem('cirvio_api_base', location.origin);
+        if (options.showPrompt) localStorage.removeItem('cirvio_push_prompt_site_v1');
+        const initial = { permission: options.permission, nextPermission: options.nextPermission, permissionRequests: 0, subscribed: options.subscribed, unsubscribed: 0 };
+        const state = window.pushFixture = JSON.parse(sessionStorage.getItem('fixture_push') || 'null') || initial;
+        const save = () => sessionStorage.setItem('fixture_push', JSON.stringify(state));
+        Object.defineProperty(window, 'Notification', { configurable: true, value: { get permission() { return state.permission; }, async requestPermission() { state.permissionRequests++; state.permission = state.nextPermission; save(); return state.permission; } } });
+        Object.defineProperty(window, 'PushManager', { configurable: true, value: function () {} });
+        if (!options.supported) delete window.PushManager;
+        const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/fixture', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'fixture', auth: 'fixture' } }; }, async unsubscribe() { state.subscribed = false; state.unsubscribed++; save(); return true; } };
+        const registration = { active: {}, async update() {}, addEventListener() {}, pushManager: { async getSubscription() { return state.subscribed ? subscription : null; }, async subscribe(options) { if (!options.userVisibleOnly || options.applicationServerKey.length !== 65) throw new Error('Invalid push options'); state.subscribed = true; save(); return subscription; } } };
+        Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { async getRegistration() { return registration; }, async register() { return registration; }, addEventListener() {} } });
+    }, { permission, nextPermission, subscribed, showPrompt, supported });
+}
+
 (async () => {
     const server = await new Promise(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -62,6 +78,10 @@ const defaults = pathname => {
         if (process.env.RENDER_TEST_FILTER && !name.toLowerCase().includes(process.env.RENDER_TEST_FILTER.toLowerCase())) return;
         const context = await browser.newContext({ serviceWorkers: 'block', acceptDownloads: true });
         await context.addInitScript(signedIn => {
+            if (!sessionStorage.getItem('fixture_prompt_seeded')) {
+                localStorage.setItem('cirvio_push_prompt_site_v1', JSON.stringify({ until: Date.now() + 86400000 }));
+                sessionStorage.setItem('fixture_prompt_seeded', 'true');
+            }
             if (signedIn) {
                 localStorage.setItem('cirvio_admin_token', 'fixture-token');
                 localStorage.setItem('cirvio_token', 'fixture-token');
@@ -481,26 +501,22 @@ const defaults = pathname => {
         const pushRequests = [];
         let rejectPushSubscription = false;
         await check('Push alerts require a click, handle denied permission and can be disabled', async (page, base) => {
-            await page.addInitScript(() => {
-                localStorage.setItem('cirvio_api_base', location.origin);
-                window.pushFixture = { permission: 'denied', permissionRequests: 0, subscribed: false, unsubscribed: 0 };
-                const state = window.pushFixture;
-                Object.defineProperty(window, 'Notification', { configurable: true, value: { get permission() { return state.permission; }, async requestPermission() { state.permissionRequests++; return state.permission; } } });
-                Object.defineProperty(window, 'PushManager', { configurable: true, value: function () {} });
-                const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/fixture', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'fixture', auth: 'fixture' } }; }, async unsubscribe() { state.subscribed = false; state.unsubscribed++; return true; } };
-                const registration = { active: {}, async update() {}, addEventListener() {}, pushManager: { async getSubscription() { return state.subscribed ? subscription : null; }, async subscribe(options) { if (!options.userVisibleOnly || options.applicationServerKey.length !== 65) throw new Error('Invalid push options'); state.subscribed = true; return subscription; } } };
-                Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { async getRegistration() { return registration; }, async register() { return registration; }, addEventListener() {} } });
-            });
+            await mockPush(page, { permission: 'denied', nextPermission: 'denied' });
             await page.goto(base + '/index.html');
             await page.waitForFunction(() => !!window.CirvioPush);
             assert.equal(await page.evaluate(() => pushFixture.permissionRequests), 0, 'No automatic permission prompt');
+            await page.evaluate(() => { localStorage.removeItem('cirvio_push_prompt_site_v1'); maybeShowWebsitePushPrompt(); });
+            assert.equal(await page.locator('#notificationEnablePrompt').isVisible(), false, 'Blocked permission does not trigger another popup');
             await page.locator('button[aria-label="Notifications"]').first().click();
+            await page.getByRole('link', { name: 'Notification settings', exact: true }).click();
+            await page.waitForFunction(() => !!window.CirvioPush && !CirvioPush.state().busy);
+            assert.equal(await page.locator('#panel-settings #enableMessageNotifications').count(), 1);
             await page.locator('#enableMessageNotifications').click();
             await page.waitForFunction(() => document.getElementById('pushNotificationStatus').textContent.includes('blocked'));
             await page.evaluate(() => { pushFixture.permission = 'granted'; });
             rejectPushSubscription = true;
             await page.locator('#enableMessageNotifications').click();
-            await page.getByText('Notification save failed', { exact: true }).waitFor();
+            await page.locator('#pushNotificationStatus').filter({ hasText: 'Notification save failed' }).waitFor();
             assert.equal(await page.evaluate(() => pushFixture.subscribed), false, 'Failed setup removes the unregistered subscription');
             rejectPushSubscription = false;
             await page.locator('#enableMessageNotifications').click();
@@ -517,6 +533,96 @@ const defaults = pathname => {
                 return rejectPushSubscription ? { status: 503, body: { message: 'Notification save failed' } } : { body: { enabled: route.request().method() === 'POST' } };
             }
         }, true);
+
+        const promptRequests = [];
+        const pushReply = (pathname, route) => {
+            if (pathname === '/api/notifications/push-key') return { body: { publicKey: pushPublicKey } };
+            if (pathname === '/api/notifications/subscriptions') {
+                promptRequests.push({ method: route.request().method(), app: route.request().postDataJSON().app });
+                return { body: { enabled: route.request().method() === 'POST' } };
+            }
+        };
+        await check('Notification prompt enables on click, fits phones and respects dismissal and opt-out', async (page, base) => {
+            await mockPush(page);
+            await page.goto(base + '/index.html');
+            await page.waitForFunction(() => !!window.CirvioPush && !CirvioPush.state().busy);
+            await page.evaluate(() => { localStorage.removeItem('cirvio_push_prompt_site_v1'); maybeShowWebsitePushPrompt(); });
+            const prompt = page.getByRole('dialog', { name: 'Stay updated with CIRVIO' });
+            await prompt.waitFor();
+            assert.equal(await page.evaluate(() => pushFixture.permissionRequests), 0);
+            for (const width of [320, 390, 768]) {
+                await page.setViewportSize({ width, height: 844 });
+                const box = await prompt.boundingBox();
+                assert.ok(box.x >= 0 && box.x + box.width <= width, 'Prompt stays inside phone viewport');
+                assert.ok(await prompt.locator('[data-push-enable]').evaluate(button => button.getBoundingClientRect().height >= 48));
+            }
+            if (process.env.CIRVIO_SCREENSHOT_DIR) {
+                await page.setViewportSize({ width: 390, height: 844 });
+                await page.screenshot({ path: path.join(process.env.CIRVIO_SCREENSHOT_DIR, 'notification-prompt-mobile.png') });
+            }
+            await prompt.getByRole('button', { name: 'Not now' }).click();
+            await page.evaluate(() => maybeShowWebsitePushPrompt());
+            assert.equal(await prompt.isVisible(), false, 'Dismissed prompt is not immediately repeated');
+            assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('cirvio_push_prompt_site_v1')).until > Date.now()));
+            await page.evaluate(() => localStorage.removeItem('cirvio_push_prompt_site_v1'));
+            await page.reload();
+            await prompt.waitFor(); // The normal visit timer opens the prompt.
+            const before = promptRequests.length;
+            await prompt.locator('[data-push-enable]').evaluate(button => { button.click(); button.click(); });
+            await page.waitForFunction(() => CirvioPush.state().enabled && !CirvioPush.state().busy);
+            assert.equal(await prompt.isVisible(), false);
+            assert.equal(await page.evaluate(() => pushFixture.permissionRequests), 1);
+            assert.equal(promptRequests.slice(before).filter(request => request.method === 'POST').length, 1, 'Only one setup request after repeated clicks');
+            await page.goto(base + '/profile.html#notifications');
+            await page.getByRole('button', { name: 'Disable notifications', exact: true }).waitFor();
+            await page.locator('#enableMessageNotifications').click();
+            await page.getByRole('button', { name: 'Enable notifications', exact: true }).waitFor();
+            assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('cirvio_push_prompt_site_v1')).off), true);
+            await page.goto(base + '/index.html');
+            await page.waitForFunction(() => !!window.CirvioPush && !CirvioPush.state().busy);
+            await page.evaluate(() => maybeShowWebsitePushPrompt());
+            assert.equal(await page.locator('#notificationEnablePrompt').isVisible(), false, 'Opted-out users are not prompted on another page');
+        }, pushReply, true);
+
+        await check('Notification prompt guides guests to sign in without requesting browser permission', async (page, base) => {
+            await mockPush(page, { showPrompt: true });
+            await page.goto(base + '/index.html');
+            const prompt = page.getByRole('dialog', { name: 'Stay updated with CIRVIO' });
+            await prompt.waitFor();
+            await page.keyboard.press('Escape');
+            assert.equal(await prompt.isVisible(), false);
+            await page.evaluate(() => { localStorage.removeItem('cirvio_push_prompt_site_v1'); maybeShowWebsitePushPrompt(); });
+            await prompt.getByRole('button', { name: 'Sign in to enable' }).click();
+            await page.waitForURL('**/login.html?next=index.html');
+            assert.equal(await page.evaluate(() => pushFixture.permissionRequests), 0);
+            assert.equal(await page.locator('#notificationEnablePrompt').count(), 0, 'Login has no competing notification popup');
+        });
+
+        await check('Notification settings explain unsupported browsers without showing an enable prompt', async (page, base) => {
+            await mockPush(page, { supported: false, showPrompt: true });
+            await page.goto(base + '/profile.html#notifications');
+            await page.waitForFunction(() => !!window.CirvioPush && !CirvioPush.state().busy);
+            assert.equal(await page.locator('#enableMessageNotifications').isDisabled(), true);
+            assert.match(await page.locator('#pushNotificationStatus').innerText(), /Home Screen/);
+            await page.evaluate(() => maybeShowWebsitePushPrompt());
+            assert.equal(await page.locator('#notificationEnablePrompt').isVisible(), false);
+        }, undefined, true);
+
+        await check('Admin notification enable control lives in staff Settings and uses the admin subscription', async (page, base) => {
+            await mockPush(page);
+            await page.setViewportSize({ width: 320, height: 844 });
+            await page.goto(base + '/admin/#messages');
+            await page.locator('#tab-messages [data-jump-tab="settings"]').click();
+            await page.locator('#tab-settings.active #enableAdminNotifications').waitFor();
+            await page.waitForFunction(() => !!window.CirvioPush && !CirvioPush.state().busy);
+            assert.equal(await page.locator('#tab-messages #enableAdminNotifications').count(), 0);
+            assert.equal(await page.evaluate(() => pushFixture.permissionRequests), 0);
+            await page.locator('#enableAdminNotifications').click();
+            await page.getByRole('button', { name: 'Disable notifications', exact: true }).waitFor();
+            assert.equal(promptRequests.at(-1).app, 'admin');
+            await page.locator('#enableAdminNotifications').click();
+            await page.getByRole('button', { name: 'Enable notifications', exact: true }).waitFor();
+        }, pushReply, true);
 
         const directId = '000000000000000000000123';
         const directThread = { _id: directId, conversationType: 'direct', sender: user, text: '', createdAt: '2026-11-07', updatedAt: '2026-11-07', replies: [{ _id: 'first', sender: { _id: 'other-staff' }, senderRole: 'admin', text: 'Hello from CIRVIO support', createdAt: '2026-11-07' }] };

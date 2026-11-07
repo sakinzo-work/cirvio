@@ -4942,9 +4942,20 @@ footer {
 #retryListingStatus[hidden] { display: none; }
 .status-summary { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .np-push-controls { padding: 14px; border-bottom: 1px solid #ddd8cc; }
-.np-push-controls button { min-height: 44px; padding: 10px 14px; background: #35492a; color: #fff; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
-.np-push-controls p { font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
-.np-push-controls p:empty { display: none; }
+.np-push-controls a { display: inline-flex; align-items: center; min-height: 44px; color: var(--olive-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.notification-settings button { min-height: 48px; max-width: 100%; white-space: normal; }
+.notification-settings [data-push-status] { margin-top: 12px; font-size: 13px; line-height: 1.6; }
+.notification-enable-prompt { width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; margin: auto; padding: 28px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--ivory); color: var(--charcoal); box-shadow: var(--shadow-pop); }
+.notification-enable-prompt::backdrop { background: rgba(37, 42, 36, .55); }
+.notification-prompt-icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 16px; border-radius: 50%; color: var(--olive-deep); background: var(--cream); }
+.notification-prompt-icon svg { width: 28px; height: 28px; }
+.notification-enable-prompt h2 { font-size: 29px; line-height: 1.15; margin-bottom: 12px; }
+.notification-enable-prompt p { font-size: 14px; line-height: 1.6; margin-top: 10px; }
+.notification-enable-prompt .notification-prompt-note { font-size: 12px; }
+.notification-enable-prompt [data-push-status] { font-size: 12px; font-weight: 500; }
+.notification-prompt-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.notification-prompt-actions .btn { flex: 1 1 auto; min-height: 48px; padding: 12px 16px; white-space: normal; }
+[data-push-status]:empty { display: none; }
 @media (max-width: 560px) { .classification-fields { grid-template-columns: minmax(0, 1fr); } .listing-classification { padding: 14px; } }
 .trust-star:disabled { cursor: default; }
 .data-skeletons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; margin-top: 24px; }

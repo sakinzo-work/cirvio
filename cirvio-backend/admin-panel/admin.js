@@ -1337,6 +1337,18 @@ function ensureSettingsPanel() {
         </div>
       </div>
       <div class="settings-layout">
+        <section class="settings-card notification-settings">
+          <div class="settings-card-head">
+            <span class="role-pill">${iconSvg('messages')}</span>
+            <div>
+              <h3>Phone notifications</h3>
+              <p>Receive new message alerts on this device, even when the admin app is closed.</p>
+            </div>
+          </div>
+          <button type="button" class="soft-btn" id="enableAdminNotifications" disabled>Checking notifications...</button>
+          <p id="adminNotificationStatus" role="status" aria-live="polite"></p>
+        </section>
+
         <section class="settings-card">
           <div class="settings-card-head">
             <span class="role-pill ${isAdmin() ? 'seller' : 'buyer'}">${iconSvg('user')}</span>

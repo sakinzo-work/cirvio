@@ -22,6 +22,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .message-alert-controls button { min-height: 44px; width: 100%; }
 .message-alert-controls p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .message-alert-controls p:empty { display: none; }
+.notification-settings > button { min-height: 48px; max-width: 100%; white-space: normal; }
+.notification-settings > p { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.notification-settings > p:empty { display: none; }
 .message-inbox .data-feedback { margin: 4px 12px; flex-shrink: 0; }
 .inbox-filters { display: flex; gap: 8px; padding: 0 12px 10px; }
 .inbox-filters button { min-height: 40px; padding: 8px 12px; font-size: 12px; }

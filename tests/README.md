@@ -27,4 +27,6 @@ Category and notification checks exercise school streams, degree/master's course
 
 Use `$env:RENDER_TEST_FILTER = 'Push alerts'` to run one browser group; remove that environment variable before a full rendering run.
 
+Use `$env:RENDER_TEST_FILTER = 'Notification'` for the visit popup and Settings controls. These checks cover guest sign-in, a click before requesting browser permission, 320/390/768-pixel popup layouts, Not now and Escape dismissal, a seven-day reminder delay, persisted opt-out, unsupported browsers, reloading an enabled subscription, failed setup, duplicate clicks and staff Settings. Push setup remains mocked; no real phone alerts are sent.
+
 `listing-lifecycle.cjs` runs authenticated review, approval, edit, checkout and notification-history routes against isolated model adapters and real schema validation. It checks deduplicated views/decisions, review resets, owner-only history/read state, invalid and failed checkout rollback, competing buyers, durable order notification retries and seller-order privacy. Browser checks cover the mobile milestone tracker, notification links, buyer-detail retries, persisted reads, no synthetic chat messages, and duplicate checkout prevention. Worker checks cover all listing alert types and focusing an existing status window. No test sends a real push or touches production data.

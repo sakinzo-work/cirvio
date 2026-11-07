@@ -60,7 +60,9 @@ The user receives it in the website's **Messages** page and can reply there. Lis
 
 ### Message push notifications
 
-In the website notification panel or the admin **Messages** screen, choose **Enable notifications** and allow the browser prompt. This device then receives Web Push alerts even when the page is closed, subject to the browser/OS notification settings. Tapping an alert opens its conversation; an already open chat window receives the link without reloading and losing drafts. Use **Disable notifications** to stop alerts on that device. Signing out unsubscribes it.
+In website **Profile → Settings → Phone Notifications** or admin **Settings → Phone notifications**, choose **Enable notifications** and allow the browser prompt. The notification inbox links to these settings. This device then receives Web Push alerts even when the page is closed, subject to the browser/OS notification settings. Tapping an alert opens its conversation; an already open chat window receives the link without reloading and losing drafts. Use **Disable notifications** to stop alerts on that device. Signing out unsubscribes it.
+
+On a supported website visit, a dismissible popup explains message and listing alerts. It requests browser permission only after **Enable notifications** is clicked; guests are directed to sign in first. **Not now** or Escape delays the reminder for seven days on this browser. Enabled, blocked and explicitly opted-out devices are not prompted again. The login page has no competing popup. Settings shows loading, enabled, blocked, unsupported and retry states; price-drop/newsletter demo toggles have been removed.
 
 HTTPS is required (localhost is supported for development). On iPhone/iPad, install the app on the Home Screen before enabling alerts. In-app notifications and message badges work independently of push permission. Alerts show generic message text; conversation content is loaded after authentication.
 

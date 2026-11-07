@@ -334,10 +334,21 @@
   <div id="messageRecipientList" class="message-recipient-list" aria-label="Users"></div>
 </dialog>
 
+<dialog id="userProfileDialog" class="admin-user-profile" aria-labelledby="userProfileTitle">
+  <div class="message-compose-head">
+    <h2 id="userProfileTitle">User profile</h2>
+    <button type="button" class="soft-btn" id="closeUserProfile">Close</button>
+  </div>
+  <p id="userProfileStatus" role="status" aria-live="polite"></p>
+  <button type="button" class="soft-btn" id="retryUserProfile" hidden>Try again</button>
+  <div id="userProfileContent" aria-busy="false"></div>
+</dialog>
+
 <script src="admin-pwa.js"></script>
 <script src="data-tables.js"></script>
 <script src="push-client.js"></script>
 <script src="admin.js"></script>
 <script src="admin-conversations.js"></script>
+<script src="admin-user-profiles.js"></script>
 </body>
 </html>

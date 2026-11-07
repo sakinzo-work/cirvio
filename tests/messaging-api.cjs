@@ -8,12 +8,13 @@ const jwt = require('../cirvio-backend/node_modules/jsonwebtoken');
 const Message = require('../cirvio-backend/models/Message');
 const User = require('../cirvio-backend/models/User');
 const Product = require('../cirvio-backend/models/Product');
-require('../cirvio-backend/services/message-notifications').queueMessageNotification = () => {};
+const queuedNotifications = [];
+require('../cirvio-backend/services/message-notifications').queueMessageNotification = (message, actor) => queuedNotifications.push({ message, actor });
 const id = number => number.toString(16).padStart(24, '0');
 const users = [
     { _id: id(1), name: 'Admin', role: 'admin', status: 'active' },
     { _id: id(2), name: 'Employee', role: 'employee', status: 'active' },
-    { _id: id(3), name: 'Seller', role: 'user', status: 'active' },
+    { _id: id(3), name: 'Seller', email: 'seller@example.test', phone: '+91 9000000001', photo: 'https://example.test/profile.png', college: 'Test College', course: 'BCom', role: 'user', status: 'active', password: 'private-hash', authProvider: 'password', trustRatings: [{ user: id(4), value: 5 }] },
     { _id: id(4), name: 'Buyer', role: 'user', status: 'active' },
     { _id: id(5), name: 'Other user', role: 'user', status: 'active' },
     { _id: id(6), name: 'Literal .* user', role: 'user', status: 'active' }
@@ -104,12 +105,12 @@ app.use((error, request, response, next) => response.status(500).json({ message:
             URL,
             location: { origin: siteOrigin },
             self: { addEventListener(name, listener) { workerEvents[name] = listener; }, clients: { async claim() {} } },
-            caches: { async keys() { return ['cirvio-cache-v14', 'cirvio-cache-v15', 'cirvio-admin-shell-v6', 'unrelated-app']; }, async delete(key) { deletedCaches.push(key); } }
+            caches: { async keys() { return ['cirvio-cache-v15', 'cirvio-cache-v16', 'cirvio-admin-shell-v7', 'unrelated-app']; }, async delete(key) { deletedCaches.push(key); } }
         });
         let activation;
         workerEvents.activate({ waitUntil(promise) { activation = promise; } });
         await activation;
-        assert.deepEqual(deletedCaches, ['cirvio-cache-v14'], 'Website updates preserve admin and unrelated caches');
+        assert.deepEqual(deletedCaches, ['cirvio-cache-v15'], 'Website updates preserve admin and unrelated caches');
         for (const [url, headers] of [
             [siteOrigin + '/api/messages/my', {}],
             ['https://api.example.test/api/messages/my', {}],
@@ -166,6 +167,44 @@ app.use((error, request, response, next) => response.status(500).json({ message:
         assert.equal((await request(`/api/messages/${group._id}/replies`, users[2], { text: 'Group seller reply' })).status, 201);
         console.log('PASS Listing context, participant isolation and legacy group compatibility');
 
+        assert.equal((await request('/api/messages/admin', null, { text: 'Help' })).status, 401);
+        for (const text of ['', ' ', 'x'.repeat(2001), { value: 'Invalid type' }]) {
+            assert.equal((await request('/api/messages/admin', users[4], { text })).status, 400);
+        }
+        const initialAlerts = queuedNotifications.length;
+        const firstContact = await request('/api/messages/admin', users[4], { text: 'Help without a listing', userId: users[2]._id, productId: product._id });
+        assert.equal(firstContact.status, 201);
+        assert.equal(firstContact.message.sender._id, users[4]._id, 'The authenticated user owns the conversation');
+        assert.equal(firstContact.message.product, undefined, 'A support chat does not silently become a listing group');
+        assert.equal(firstContact.message.replies[0].text, 'Help without a listing');
+        assert.equal(firstContact.message.replies[0].senderRole, 'buyer');
+        const continued = await request('/api/messages/admin', users[4], { text: 'One more question' });
+        assert.equal(continued.message._id, firstContact.message._id);
+        assert.equal(continued.message.replies.length, 2);
+        assert.equal((await request('/api/admin/messages/conversations', users[1], { userId: users[4]._id })).message._id, firstContact.message._id, 'Staff reuses the user-started chat');
+        assert.equal((await request(`/api/messages/${firstContact.message._id}/replies`, users[3], { text: 'Private intrusion' })).status, 403);
+        assert.equal(queuedNotifications.length, initialAlerts + 2, 'Each saved support message queues its notification');
+        const simultaneous = await Promise.all(['A', 'B', 'C'].map(text => request('/api/messages/admin', users[5], { text })));
+        assert.ok(simultaneous.every(result => result.status === 201));
+        assert.equal(new Set(simultaneous.map(result => result.message._id)).size, 1);
+        assert.equal(messages.find(message => message.conversationKey === `direct:${users[5]._id}`).replies.length, 3);
+        console.log('PASS Users initiate private admin chats without a listing, reuse them and notify staff');
+
+        assert.equal((await request(`/api/admin/users/${users[2]._id}`, null)).status, 401);
+        assert.equal((await request(`/api/admin/users/${users[2]._id}`, users[3])).status, 403);
+        assert.equal((await request('/api/admin/users/bad')).status, 400);
+        assert.equal((await request(`/api/admin/users/${id(999)}`)).status, 404);
+        for (const staff of [users[0], users[1]]) {
+            const profile = await request(`/api/admin/users/${users[2]._id}`, staff);
+            assert.equal(profile.status, 200);
+            assert.equal(profile.user.phone, users[2].phone);
+            assert.equal(profile.user.photo, users[2].photo);
+            assert.equal(profile.user._id, users[2]._id);
+            assert.equal(profile.user.name, users[2].name);
+            for (const secret of ['password', 'authProvider', 'trustRatings']) assert.equal(secret in profile.user, false);
+        }
+        console.log('PASS Staff profile access includes contact/photo/ID and excludes credentials and private ratings');
+
         for (const text of ['', ' ', 'x'.repeat(2001)]) {
             assert.equal((await request(`/api/admin/messages/${direct._id}/reply`, users[0], { text })).status, 400);
             assert.equal((await request(`/api/messages/${direct._id}/replies`, users[3], { text })).status, 400);
@@ -175,7 +214,7 @@ app.use((error, request, response, next) => response.status(500).json({ message:
         assert.ok(Message.schema.indexes().some(([fields, options]) => fields.conversationKey === 1 && options.unique && options.partialFilterExpression));
         await assert.rejects(new Message({ sender: users[3]._id, text: 'Missing product' }).validate());
         console.log('PASS Message validation and unique conversation index');
-        console.log('\n5 messaging API and cache groups passed. No production data was used.');
+        console.log('\n7 messaging API and cache groups passed. No production data was used.');
     } finally {
         Object.assign(User, { findById: originals.userId, find: originals.userFind });
         Object.assign(Product, { findById: originals.productId, find: originals.productFind });

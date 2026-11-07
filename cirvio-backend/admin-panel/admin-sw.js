@@ -1,9 +1,9 @@
 /* Cache public application files only. Staff API responses never enter Cache Storage. */
-const CACHE = 'cirvio-admin-shell-v6';
+const CACHE = 'cirvio-admin-shell-v7';
 const ROOT = self.registration.scope;
 const FILES = [
     'index.html', 'offline.html', 'admin.css', 'admin-mobile.css', 'admin.js',
-    'data-tables.js', 'admin-pwa.js', 'admin-conversations.js', 'push-client.js', 'manifest.webmanifest',
+    'data-tables.js', 'admin-pwa.js', 'admin-conversations.js', 'admin-user-profiles.js', 'push-client.js', 'manifest.webmanifest',
     'cirvio-logo-header.png', 'cirvio-logo-footer.png',
     'icons/admin-panel-192.png', 'icons/admin-panel-512.png', 'icons/admin-panel-maskable-512.png',
     'icons/admin-panel-apple-touch.png', 'icons/admin-panel-32.png'

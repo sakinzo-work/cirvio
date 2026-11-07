@@ -4,8 +4,25 @@ const Message = require('../models/Message');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
 const notifications = require('../services/message-notifications');
+const { openDirectConversation } = require('../services/direct-conversations');
 
 const router = express.Router();
+
+// No listing or recipient ID is required: this conversation belongs to the signed-in user.
+router.post('/admin', protect, async (req, res, next) => {
+    try {
+        const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+        if (!text) return res.status(400).json({ message: 'Message is required' });
+        if (text.length > 2000) return res.status(400).json({ message: 'Messages can be up to 2000 characters' });
+        const { message } = await openDirectConversation({ userId: req.user._id, actor: req.user });
+        message.replies.push({ sender: req.user._id, senderRole: ['admin', 'employee'].includes(req.user.role) ? req.user.role : 'buyer', text });
+        message.status = 'open';
+        await message.save();
+        notifications.queueMessageNotification(message, req.user);
+        const saved = await populateThread(Message.findById(message._id)).lean();
+        res.status(201).json({ message: saved });
+    } catch (error) { next(error); }
+});
 
 function populateThread(query) {
     return query

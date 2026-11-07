@@ -320,6 +320,10 @@ const CirvioAPI = {
         await this.ensureSession();
         return this.request('/api/messages/my');
     },
+    async messageAdmin(text) {
+        await this.ensureSession();
+        return this.request('/api/messages/admin', { method: 'POST', body: JSON.stringify({ text }) });
+    },
     async replyToMessage(messageId, text) {
         await this.ensureSession();
         return this.request('/api/messages/' + encodeURIComponent(messageId) + '/replies', {

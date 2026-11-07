@@ -56,13 +56,19 @@ In **Messages → New message**, search by name, email or phone and select a use
 
 The user receives it in the website's **Messages** page and can reply there. Listing chats between staff and the seller stay separate from buyer/seller product groups. Admins and employees can start and reply to conversations; other users can only access their own private threads or their existing product groups. The `Message.conversationKey` partial unique index prevents concurrent opens from creating duplicate staff conversations; existing messages need no migration.
 
+On the website **Messages** page, **Message admin** opens the user's private CIRVIO conversation without needing a listing. The first send creates or reuses the same `direct:userId` conversation used by staff. Empty drafts stay on the page; only confirmed server messages appear in history. Failed sends retain the draft, repeated clicks are guarded, and stale inbox responses cannot erase a newly confirmed message.
+
+### View a user's profile
+
+Staff can choose **Users → View profile**, **View profile** in a chat, or the seller's **View profile** in listing review. The dialog fetches the current name, phone, full user ID, photo, email, college, course, city and join date. Missing or invalid photos fall back to initials; missing fields show **Not provided**. Loading failures offer a retry. **Message user** opens that user's private conversation and preserves existing chat drafts when inspecting a profile. The profile API is staff-only and excludes passwords, authentication internals and individual trust-rating entries.
+
 ## API overview
 
 ### Message push notifications
 
 In website **Profile → Settings → Phone Notifications** or admin **Settings → Phone notifications**, choose **Enable notifications** and allow the browser prompt. The notification inbox links to these settings. This device then receives Web Push alerts even when the page is closed, subject to the browser/OS notification settings. Tapping an alert opens its conversation; an already open chat window receives the link without reloading and losing drafts. Use **Disable notifications** to stop alerts on that device. Signing out unsubscribes it.
 
-On a supported website visit, a dismissible popup explains message and listing alerts. It requests browser permission only after **Enable notifications** is clicked; guests are directed to sign in first. **Not now** or Escape delays the reminder for seven days on this browser. Enabled, blocked and explicitly opted-out devices are not prompted again. The login page has no competing popup. Settings shows loading, enabled, blocked, unsupported and retry states; price-drop/newsletter demo toggles have been removed.
+On a supported website visit, a dismissible popup explains message and listing alerts. It requests browser permission only after **Enable notifications** is clicked; guests are directed to sign in first. **Not now** or Escape delays the reminder for seven days on this browser. Enabled, blocked and explicitly opted-out devices are not prompted again. The login page and the visible notification Settings section have no competing popup. Settings shows loading, enabled, blocked, unsupported and retry states; price-drop/newsletter demo toggles have been removed.
 
 HTTPS is required (localhost is supported for development). On iPhone/iPad, install the app on the Home Screen before enabling alerts. In-app notifications and message badges work independently of push permission. Alerts show generic message text; conversation content is loaded after authentication.
 
@@ -108,6 +114,8 @@ Order notification failures retain `Order.notificationPending`; a backend task r
 | GET    | `/api/admin/messages`              | staff         | all staff conversations and product groups |
 | POST   | `/api/admin/messages/:id/reply`     | staff         | send a message to an existing conversation |
 | GET    | `/api/messages/my`                 | logged in     | own private conversations and product groups |
+| POST   | `/api/messages/admin`              | logged in     | send `{ text }` directly to CIRVIO staff; no listing required |
+| GET    | `/api/admin/users/:id`             | staff         | current user profile and contact details, without credentials |
 | POST   | `/api/messages/:id/replies`         | participant   | reply to a private conversation or product group |
 | GET    | `/api/products/categories`          | public        | education levels, courses, streams and item types |
 | GET    | `/api/notifications/push-key`        | logged in     | public VAPID key only |

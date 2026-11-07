@@ -379,6 +379,7 @@ function maybeShowWebsitePushPrompt() {
     const preference = CirvioStore._read(pushPromptPreferenceKey, {});
     const prompt = document.getElementById('notificationEnablePrompt');
     if (!prompt || !state?.supported || state.busy || state.enabled || state.permission === 'denied' || preference.off || Number(preference.until) > Date.now()) return;
+    if (document.getElementById('notificationSettings')?.getClientRects().length) return;
     if (document.querySelector('dialog[open], .modal-overlay.open')) return;
     prompt.showModal();
 }
@@ -884,7 +885,7 @@ function messageEntryFromThread(thread, part, index = -1, existing = null) {
     };
 }
 
-function mergeBackendMessages(threads, { notify = false } = {}) {
+function mergeBackendMessages(threads, { notify = false, partial = false } = {}) {
     const existing = CirvioStore.getMessages();
     const existingByKey = Object.fromEntries(existing.filter(m => m.backendKey).map(m => [m.backendKey, m]));
     const backendEntries = [];
@@ -905,7 +906,8 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
         });
     });
 
-    const localOnly = existing.filter(m => !m.backendKey);
+    const receivedKeys = new Set(backendEntries.map(entry => entry.backendKey));
+    const localOnly = existing.filter(m => !m.backendKey || (partial && !receivedKeys.has(m.backendKey)));
     const combined = [...localOnly, ...backendEntries].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
     CirvioStore.setMessages(combined);
     refreshMsgBadge();
@@ -936,12 +938,14 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
 }
 
 let messagePollStarted = false;
+let messageStoreRevision = 0;
 async function syncMessagesFromBackend({ notify = false } = {}) {
     if (!window.CirvioAPI || !localStorage.getItem('cirvio_token')) return;
     const sessionToken = localStorage.getItem('cirvio_token');
+    const revision = messageStoreRevision;
     try {
         const { messages } = await CirvioAPI.myMessages();
-        if (sessionToken !== localStorage.getItem('cirvio_token')) return;
+        if (sessionToken !== localStorage.getItem('cirvio_token') || revision !== messageStoreRevision) return;
         mergeBackendMessages(messages || [], { notify });
     } catch (err) {
         console.warn('Could not sync messages:', err.message);
@@ -955,7 +959,7 @@ function startMessagePoll() {
     setInterval(() => syncMessagesFromBackend({ notify: true }), 7000);
 }
 
-window.CirvioMessages = { sync: syncMessagesFromBackend };
+window.CirvioMessages = { sync: syncMessagesFromBackend, upsert: thread => { messageStoreRevision++; mergeBackendMessages([thread], { partial: true }); } };
 
 async function ccSend() {
     const ta = document.getElementById('ccText');

@@ -573,6 +573,7 @@ async function loadUsers(options = {}) {
           <td><span class="badge badge-${u.status}">${u.status}</span></td>
           <td>${fmtDate(u.createdAt)}</td>
           <td>
+            <button type="button" class="row-btn btn-view" data-view-user="${esc(u._id)}">View profile</button>
             ${String(u._id) !== String(CURRENT_USER?._id || CURRENT_USER?.id) ? `<button type="button" class="row-btn btn-view" data-message-user="${esc(u._id)}">Message</button>` : ''}
             ${u.role === 'admin' || !isAdmin() ? `<span class="sub">${u.role}</span>` : `
               <button class="row-btn btn-suspend" onclick="toggleUserStatus('${u._id}','${u.status}')">${u.status === 'active' ? 'Suspend' : 'Activate'}</button>
@@ -750,7 +751,7 @@ async function viewListingImages(id) {
     document.getElementById('imageModalDetail').innerHTML = `
       <dl>
         <div><dt>Title</dt><dd>${esc(product.title || 'Untitled listing')}</dd></div>
-        <div><dt>Seller</dt><dd>${esc(product.seller ? `${product.seller.name} (${product.seller.email || 'no email'})` : 'No seller')}</dd></div>
+        <div><dt>Seller</dt><dd>${esc(product.seller ? `${product.seller.name} (${product.seller.email || 'no email'})` : 'No seller')} ${product.seller?._id ? `<button type="button" class="row-btn btn-view" data-view-user="${esc(product.seller._id)}">View profile</button>` : ''}</dd></div>
         <div><dt>Category</dt><dd>${esc(product.category || 'Uncategorised')}</dd></div>
         <div><dt>Class / Course / Item type</dt><dd>${esc(listingClassification(product) || 'Not specified')}</dd></div>
         <div><dt>Condition</dt><dd>${esc(product.condition || 'Not provided')}</dd></div>
@@ -1128,6 +1129,7 @@ function renderMessageSidePanel(id) {
             <span class="chat-topic">${iconSvg(direct && !message.productTitle ? 'messages' : 'product')} ${esc(product.title || message.productTitle || (direct ? 'Direct message' : 'Product enquiry'))} <small>${direct ? 'Only this user and CIRVIO staff' : (seller.name ? `Seller: ${esc(seller.name)}` : 'Seller unavailable')}</small></span>
           </div>
         </div>
+        ${sender._id ? `<button type="button" class="row-btn btn-view chat-profile-action" data-view-user="${esc(sender._id)}">View profile</button>` : ''}
       </div>
       <div class="chat-thread">
         <div class="chat-date"><span>${fmtDate(message.createdAt)}</span></div>

@@ -11,6 +11,7 @@ const Message = require('../models/Message');
 const { protect, adminOnly, staffOnly } = require('../middleware/auth');
 const notifications = require('../services/message-notifications');
 const listingNotifications = require('../services/listing-notifications');
+const { openDirectConversation } = require('../services/direct-conversations');
 
 const router = express.Router();
 const requireAdmin = [adminOnly];
@@ -235,6 +236,18 @@ router.get('/users', async (req, res) => {
     res.json({ count: result.length, users: result });
 });
 
+// GET /api/admin/users/:id — staff-only profile details
+router.get('/users/:id', async (req, res, next) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid user is required' });
+        const user = await User.findById(req.params.id).select('name email phone photo college course city role status verified createdAt updatedAt').lean();
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        // Keep profile details staff-only and explicitly exclude credentials and internal account fields.
+        const fields = ['_id', 'name', 'email', 'phone', 'photo', 'college', 'course', 'city', 'role', 'status', 'verified', 'createdAt', 'updatedAt'];
+        res.json({ user: Object.fromEntries(fields.map(field => [field, user[field]])) });
+    } catch (error) { next(error); }
+});
+
 // PUT /api/admin/users/:id/status — suspend or reactivate a user
 router.put('/users/:id/status', requireAdmin, async (req, res) => {
     const { status } = req.body; // 'active' | 'suspended'
@@ -410,23 +423,7 @@ router.post('/messages/conversations', async (req, res, next) => {
         if (String(userId) === String(req.user._id)) return res.status(400).json({ message: 'Choose another user to message' });
         const user = await User.findById(userId).select('_id');
         if (!user) return res.status(404).json({ message: 'User not found' });
-        const conversationKey = product ? `listing:${product._id}:${user._id}` : `direct:${user._id}`;
-        let message = await Message.findOne({ conversationKey });
-        let created = false;
-        if (!message) {
-            try {
-                message = await Message.create({
-                    conversationKey, conversationType: 'direct', sender: user._id,
-                    createdBy: req.user._id, senderRole: req.user.role, text: '',
-                    ...(product ? { product: product._id, productTitle: product.title, productImg: product.images?.[0] || '' } : {})
-                });
-                created = true;
-            } catch (err) {
-                if (err.code !== 11000) throw err;
-                message = await Message.findOne({ conversationKey });
-                if (!message) throw err;
-            }
-        }
+        const { message, created } = await openDirectConversation({ userId: user._id, actor: req.user, product });
         const populated = await populateAdminThread(Message.findById(message._id)).lean();
         res.status(created ? 201 : 200).json({ message: populated });
     } catch (err) { next(err); }

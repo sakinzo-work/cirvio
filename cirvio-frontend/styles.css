@@ -3867,6 +3867,9 @@ footer {
     stroke-linejoin: round;
 }
 
+.chat-admin-contact { padding: 0 18px 12px; }
+.chat-admin-contact button { width: 100%; min-height: 48px; white-space: normal; }
+@media (max-width: 480px) { .chat-room-actions a[aria-label="Back to home"] { display: none; } }
 .chat-search {
     padding: 12px 14px;
     border-bottom: 1px solid var(--border);

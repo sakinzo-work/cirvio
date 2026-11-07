@@ -78,6 +78,7 @@ async function openAdminConversation(context, trigger) {
         ADMIN_MESSAGES.set(String(message._id), message);
         document.getElementById('messageInboxList').dataset.signature = '';
         if (recipientDialog.open) recipientDialog.close();
+        window.CirvioAdminProfiles?.close();
         closeListingImages();
         // Release the listing modal's inert state before moving to the conversation.
         syncModalAccess();
@@ -90,6 +91,7 @@ async function openAdminConversation(context, trigger) {
         handleMessageRowClick(null, String(message._id));
         if (!mobileLayout.matches) document.getElementById('sideReplyText')?.focus();
     } catch (error) {
+        window.CirvioAdminProfiles?.showError(error.message);
         if (recipientDialog.open) recipientStatus.textContent = error.message;
         else showAdminNotice(error.message);
     } finally {

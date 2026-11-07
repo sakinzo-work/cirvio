@@ -27,6 +27,7 @@
                     </a>
                 </nav>
             </div>
+            <div class="chat-admin-contact"><button type="button" class="btn btn-primary" id="messageAdminBtn" data-message-admin>Message admin</button></div>
             <div class="chat-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input id="chatSearch" type="search" placeholder="Search chats">
@@ -40,6 +41,7 @@
                 <div class="message-icon chat-logo-mark"><img src="cirvio-logo-header.png" alt="CIRVIO"></div>
                 <h1>Your conversations</h1>
                 <p>Read messages from CIRVIO and join your product group chats in one place.</p>
+                <button type="button" class="btn btn-primary" data-message-admin>Message admin</button>
                 <a class="btn btn-terracotta" href="explore.html">Browse Products</a>
             </div>
 
@@ -100,6 +102,8 @@
         const pendingChatReplies = new Set();
         const chatLogo = 'cirvio-logo-header.png';
         const backendIdPattern = /^[a-f\d]{24}$/i;
+        const newAdminThreadId = 'new-admin-conversation';
+        let adminChatDraft = false;
 
         const listEl = document.getElementById('chatThreadList');
         const emptyEl = document.getElementById('chatEmpty');
@@ -158,6 +162,7 @@
 
         function groupThreads() {
             const byThread = new Map();
+            if (adminChatDraft) byThread.set(newAdminThreadId, { id: newAdminThreadId, conversationType: 'direct', productTitle: 'CIRVIO Admin', productImg: '', messages: [] });
             CirvioStore.getMessages().forEach((m) => {
                 const key = m.threadId || m.backendKey || String(m.id);
                 if (!byThread.has(key)) {
@@ -192,7 +197,7 @@
                             <strong>${escChat(t.productTitle)}</strong>
                             <time>${escChat(formatChatTime(t.latest?.createdAt))}</time>
                         </span>
-                        <small>${escChat(isOwnMessage(t.latest || {}) ? 'You' : (t.latest?.from === 'cirvio' ? 'CIRVIO Admin' : (t.latest?.from === 'seller' ? 'Seller' : 'Buyer')))}: ${escChat(t.latest?.text || '')}</small>
+                        <small>${t.latest ? `${escChat(isOwnMessage(t.latest) ? 'You' : (t.latest.from === 'cirvio' ? 'CIRVIO Admin' : (t.latest.from === 'seller' ? 'Seller' : 'Buyer')))}: ${escChat(t.latest.text || '')}` : 'Start a private conversation'}</small>
                     </span>
                 </button>
             `).join('') : '<div class="chat-list-empty">No chats yet.</div>';
@@ -264,6 +269,7 @@
                 if (window.CirvioAPI && validBackendId(thread.id)) {
                     await CirvioAPI.deleteMessage(thread.id);
                 }
+                if (thread.id === newAdminThreadId) adminChatDraft = false;
                 removeThreadFromLocal(thread.id);
                 activeThreadId = '';
                 roomEl.hidden = true;
@@ -303,6 +309,10 @@
 
         function renderMessages(thread) {
             const photo = profilePhoto();
+            if (!thread.messages.length) {
+                messagesEl.innerHTML = '<p class="chat-list-empty">Send a message to CIRVIO Admin. No listing is required.</p>';
+                return;
+            }
             messagesEl.innerHTML = thread.messages.map((m) => {
                 const mine = isOwnMessage(m);
                 const label = mine ? 'You' : (m.from === 'cirvio' ? 'CIRVIO Admin' : (m.from === 'seller' ? 'Seller' : 'Buyer'));
@@ -327,6 +337,13 @@
         });
 
         document.getElementById('chatSearch').addEventListener('input', renderThreadList);
+        document.querySelectorAll('[data-message-admin]').forEach(button => button.addEventListener('click', () => {
+            const existing = groupThreads().find(thread => thread.conversationType === 'direct' && !thread.productId && validBackendId(thread.id));
+            if (!existing) adminChatDraft = true;
+            document.getElementById('chatSearch').value = '';
+            selectThread(existing?.id || newAdminThreadId);
+            document.getElementById('chatInput').focus();
+        }));
         document.getElementById('chatMobileBack').addEventListener('click', () => {
             document.body.classList.remove('chat-open');
             window.CirvioActiveThread = '';
@@ -371,25 +388,34 @@
             const text = input.value.trim();
             const threadId = activeThreadId;
             const originalText = input.value;
+            const sessionToken = CirvioAPI.token();
             if (!threadId || !text || pendingChatReplies.has(threadId)) return;
             pendingChatReplies.add(threadId);
             try {
                 chatSendBtn.disabled = true;
                 const thread = groupThreads().find((t) => t.id === threadId);
                 let saved = null;
-                if (window.CirvioAPI && validBackendId(threadId)) {
+                if (threadId === newAdminThreadId) {
+                    saved = await CirvioAPI.messageAdmin(text);
+                } else if (window.CirvioAPI && validBackendId(threadId)) {
                     saved = await CirvioAPI.replyToMessage(threadId, text);
                 } else if (window.CirvioAPI && thread?.productId && validBackendId(thread.productId)) {
                     saved = await CirvioAPI.sendMessage(thread.productId, text);
                     if (activeThreadId === threadId) activeThreadId = saved?.message?._id || threadId;
                 }
-                if (validBackendId(threadId) && !saved?.message?._id) throw new Error('The server did not confirm your message. Please try again.');
+                if (sessionToken !== CirvioAPI.token()) return;
+                if ((threadId === newAdminThreadId || validBackendId(threadId)) && !saved?.message?._id) throw new Error('The server did not confirm your message. Please try again.');
                 if (activeThreadId === threadId ? input.value === originalText : chatDrafts.get(threadId) === originalText) {
                     chatDrafts.delete(threadId);
                     if (activeThreadId === threadId) input.value = '';
                 }
                 if (saved?.message && window.CirvioMessages) {
-                    await CirvioMessages.sync();
+                    if (threadId === newAdminThreadId) {
+                        adminChatDraft = false;
+                        if (chatDrafts.has(threadId)) { chatDrafts.set(saved.message._id, chatDrafts.get(threadId)); chatDrafts.delete(threadId); }
+                        if (activeThreadId === threadId) activeThreadId = saved.message._id;
+                    }
+                    CirvioMessages.upsert(saved.message);
                 } else if (thread) {
                     addLocalReply(thread, text);
                 }

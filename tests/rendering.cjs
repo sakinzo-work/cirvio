@@ -514,6 +514,8 @@ async function mockPush(page, { permission = 'default', nextPermission = 'grante
             await page.locator('#enableMessageNotifications').click();
             await page.waitForFunction(() => document.getElementById('pushNotificationStatus').textContent.includes('blocked'));
             await page.evaluate(() => { pushFixture.permission = 'granted'; });
+            await page.evaluate(() => maybeShowWebsitePushPrompt());
+            assert.equal(await page.locator('#notificationEnablePrompt').isVisible(), false, 'Settings is not interrupted by the visit popup');
             rejectPushSubscription = true;
             await page.locator('#enableMessageNotifications').click();
             await page.locator('#pushNotificationStatus').filter({ hasText: 'Notification save failed' }).waitFor();
@@ -623,6 +625,122 @@ async function mockPush(page, { permission = 'default', nextPermission = 'grante
             await page.locator('#enableAdminNotifications').click();
             await page.getByRole('button', { name: 'Enable notifications', exact: true }).waitFor();
         }, pushReply, true);
+
+        for (const width of [320, 1280]) {
+            let supportThread = null;
+            let supportSends = 0;
+            let supportReplies = 0;
+            let failSupport = true;
+            let releaseInitialInbox;
+            let inboxRequests = 0;
+            const initialInbox = new Promise(resolve => { releaseInitialInbox = resolve; });
+            await check(`User starts an admin chat without a listing and retries safely at ${width}px`, async (page, base) => {
+                await page.addInitScript(profile => localStorage.setItem('cirvio_profile', JSON.stringify(profile)), user);
+                await page.setViewportSize({ width, height: 844 });
+                await page.goto(base + '/messages.html');
+                await page.locator('#messageAdminBtn').click();
+                await page.locator('#chatRoom').waitFor({ state: 'visible' });
+                assert.equal(await page.locator('#chatProductTitle').innerText(), 'CIRVIO Admin');
+                assert.equal(await page.locator('.chat-message').count(), 0, 'Opening the composer creates no fake message');
+                assert.equal(supportSends, 0, 'No empty conversation is posted just by opening the composer');
+                await page.locator('#chatInput').fill('Help me contact CIRVIO');
+                await page.locator('#chatSendBtn').click();
+                await page.getByText('Support is unavailable. Retry.', { exact: true }).waitFor();
+                assert.equal(await page.locator('#chatInput').inputValue(), 'Help me contact CIRVIO');
+                assert.equal(await page.locator('.chat-message').count(), 0);
+                failSupport = false;
+                await page.locator('#chatComposer').evaluate(form => { form.requestSubmit(); form.requestSubmit(); });
+                await page.locator('.chat-message.mine').waitFor();
+                assert.equal(supportSends, 2, 'One failed attempt and one saved send despite repeated submit');
+                assert.equal(await page.locator('.chat-message.mine p').innerText(), 'Help me contact CIRVIO');
+                assert.equal(await page.locator('#chatInput').inputValue(), '');
+                releaseInitialInbox();
+                await page.waitForFunction(() => ![...CirvioAPI.pendingRequests.keys()].some(key => key.endsWith('/api/messages/my')));
+                assert.equal(await page.locator('.chat-message.mine').count(), 1, 'An older inbox response cannot erase a confirmed send');
+                if (width === 320) await page.locator('#chatMobileBack').click();
+                await page.locator('#messageAdminBtn').click();
+                assert.equal(await page.locator('.chat-thread').count(), 1, 'Message admin reopens the same conversation');
+                await page.locator('#chatInput').fill('A second question');
+                await page.locator('#chatSendBtn').click();
+                await page.waitForFunction(() => document.querySelectorAll('.chat-message.mine').length === 2);
+                assert.equal(supportSends, 2);
+                assert.equal(supportReplies, 1);
+                if (process.env.CIRVIO_SCREENSHOT_DIR && width === 320) await page.screenshot({ path: path.join(process.env.CIRVIO_SCREENSHOT_DIR, 'user-admin-chat-mobile.png') });
+                await page.reload();
+                await page.locator('#messageAdminBtn').click();
+                assert.equal(await page.locator('.chat-message.mine').count(), 2, 'Saved support conversation survives reloading');
+                assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+            }, async (pathname, route) => {
+                if (pathname === '/api/messages/my') {
+                    if (++inboxRequests === 1) { await initialInbox; return { body: { messages: [] } }; }
+                    return { body: { messages: supportThread ? [supportThread] : [] } };
+                }
+                if (pathname === '/api/messages/admin') {
+                    supportSends++;
+                    if (failSupport) return { status: 503, body: { message: 'Support is unavailable. Retry.' } };
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    supportThread = { _id: '000000000000000000000456', conversationType: 'direct', sender: user, text: '', replies: [{ _id: 'one', sender: { _id: user.id }, senderRole: 'buyer', text: route.request().postDataJSON().text, createdAt: '2026-11-08T10:00:00Z' }] };
+                    return { body: { message: supportThread } };
+                }
+                if (pathname === '/api/messages/000000000000000000000456/replies') {
+                    supportReplies++;
+                    supportThread.replies.push({ _id: 'two', sender: { _id: user.id }, senderRole: 'buyer', text: route.request().postDataJSON().text, createdAt: '2026-11-08T10:01:00Z' });
+                    return { body: { message: supportThread } };
+                }
+            }, true);
+        }
+
+        let failProfile = true;
+        const viewedUser = { ...users[0], name: 'Student <b>literal</b>', phone: '+91 9000000001', course: 'BCom', photo: '' };
+        await check('Admin user profiles load private details, retry and open the correct chat on a phone', async (page, base) => {
+            viewedUser.photo = base + '/icon-192.png';
+            await page.setViewportSize({ width: 320, height: 844 });
+            await page.goto(base + '/admin/#users');
+            await page.locator('#usersTable [data-view-user="u0"]').click();
+            const profile = page.getByRole('dialog', { name: 'User profile', exact: true });
+            await profile.waitFor();
+            await profile.getByText('Profile load failed', { exact: true }).waitFor();
+            assert.equal(await page.locator('#userProfileContent').innerText(), '');
+            failProfile = false;
+            await profile.getByRole('button', { name: 'Try again', exact: true }).click();
+            await profile.locator('h3').waitFor();
+            assert.equal(await profile.locator('h3').innerText(), viewedUser.name);
+            assert.equal(await profile.locator('h3 b').count(), 0);
+            assert.match(await profile.locator('dl').innerText(), /u0/);
+            assert.match(await profile.locator('dl').innerText(), /\+91 9000000001/);
+            await page.waitForFunction(() => document.querySelector('.admin-profile-avatar img')?.naturalWidth > 0);
+            const bounds = await profile.boundingBox();
+            assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 320);
+            if (process.env.CIRVIO_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.CIRVIO_SCREENSHOT_DIR, 'admin-user-profile-mobile.png') });
+            await profile.getByRole('button', { name: 'Message user', exact: true }).click();
+            await profile.waitFor({ state: 'hidden' });
+            await page.locator('#sideReplyText').waitFor({ state: 'visible' });
+            await page.locator('#sideReplyText').fill('Draft while inspecting user');
+            await page.locator('#messageSidePanel [data-view-user="u0"]').click();
+            await profile.locator('h3').waitFor();
+            await page.keyboard.press('Escape');
+            assert.equal(await page.locator('#sideReplyText').inputValue(), 'Draft while inspecting user');
+            await page.evaluate(() => CirvioAdminProfiles.open('u1'));
+            await profile.locator('h3').filter({ hasText: 'Person 1' }).waitFor();
+            assert.equal(await profile.locator('.admin-profile-avatar img').count(), 0, 'Unsafe photo URLs use initials');
+            assert.match(await profile.locator('dl').innerText(), /Not provided/);
+            await profile.getByRole('button', { name: 'Close', exact: true }).click();
+            await page.evaluate(async () => { await loadListings(); await viewListingImages('p0'); });
+            await page.locator('#listingImageModal [data-view-user="seller1"]').click();
+            await profile.locator('h3').filter({ hasText: 'Seller & Co' }).waitFor();
+            await profile.getByRole('button', { name: 'Message user', exact: true }).click();
+            await profile.waitFor({ state: 'hidden' });
+            assert.equal(await page.locator('#listingImageModal').evaluate(element => element.classList.contains('open')), false);
+            assert.equal(await page.locator('.main').evaluate(element => element.inert), false, 'Profile-to-chat releases the listing modal');
+        }, (pathname, route) => {
+            if (pathname === '/api/admin/users/u0') return failProfile ? { status: 503, body: { message: 'Profile load failed' } } : { body: { user: viewedUser } };
+            if (pathname === '/api/admin/users/u1') return { body: { user: { ...users[1], phone: '', photo: 'javascript:alert(1)' } } };
+            if (pathname === '/api/admin/users/seller1') return { body: { user: { _id: 'seller1', name: 'Seller & Co', phone: '', photo: '', role: 'user', status: 'active' } } };
+            if (pathname === '/api/admin/messages/conversations') {
+                const selected = route.request().postDataJSON().userId === 'seller1' ? { _id: 'seller1', name: 'Seller & Co' } : viewedUser;
+                return { body: { message: { _id: 'profile-chat-' + selected._id, conversationType: 'direct', sender: selected, text: '', replies: [] } } };
+            }
+        }, true);
 
         const directId = '000000000000000000000123';
         const directThread = { _id: directId, conversationType: 'direct', sender: user, text: '', createdAt: '2026-11-07', updatedAt: '2026-11-07', replies: [{ _id: 'first', sender: { _id: 'other-staff' }, senderRole: 'admin', text: 'Hello from CIRVIO support', createdAt: '2026-11-07' }] };

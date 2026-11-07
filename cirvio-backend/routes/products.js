@@ -48,7 +48,7 @@ function publicProduct(product) {
                 : 0
         }
         : obj.seller;
-    const { location, ...safeProduct } = obj;
+    const { location, selectedBuyer, selectedOrder, buyerSelectedAt, ...safeProduct } = obj;
     return { ...safeProduct, classificationSummary: describeClassification(obj.classification), location: '', seller };
 }
 
@@ -80,9 +80,11 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/products/mine — listings posted by logged-in user (any status)
-router.get('/mine', protect, async (req, res) => {
-    const products = await Product.find({ seller: req.user._id }).sort({ createdAt: -1 });
-    res.json({ count: products.length, products });
+router.get('/mine', protect, async (req, res, next) => {
+    try {
+        const products = await Product.find({ seller: req.user._id }).sort({ createdAt: -1 });
+        res.json({ count: products.length, products });
+    } catch (error) { next(error); }
 });
 
 // POST /api/products/uploads — upload listing photos before creating a product
@@ -158,25 +160,30 @@ router.post('/', protect, async (req, res) => {
 });
 
 // PUT /api/products/:id — seller can edit their own pending/rejected listing
-router.put('/:id', protect, async (req, res) => {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-    if (String(product.seller) !== String(req.user._id)) {
-        return res.status(403).json({ message: 'Not your listing' });
-    }
-    if (req.body.classification !== undefined || (req.body.category !== undefined && req.body.category !== product.category)) {
-        try { product.classification = normalizeClassification(req.body.category || product.category, req.body.classification); }
-        catch (err) { return res.status(400).json({ message: err.message }); }
-    }
-    const editable = ['title', 'category', 'condition', 'price', 'originalPrice', 'description', 'location', 'college', 'images'];
-    editable.forEach((f) => {
-        if (req.body[f] !== undefined) product[f] = f === 'images' ? normalizeImages(req.body[f]) : req.body[f];
-    });
-    // any edit sends it back for re-review
-    product.status = 'pending';
-    product.rejectReason = '';
-    await product.save();
-    res.json({ product });
+router.put('/:id', protect, async (req, res, next) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ message: 'Product not found' });
+        if (String(product.seller) !== String(req.user._id)) {
+            return res.status(403).json({ message: 'Not your listing' });
+        }
+        if (product.status === 'sold') return res.status(409).json({ message: 'A selected listing cannot be edited while its order is active' });
+        if (req.body.classification !== undefined || (req.body.category !== undefined && req.body.category !== product.category)) {
+            try { product.classification = normalizeClassification(req.body.category || product.category, req.body.classification); }
+            catch (err) { return res.status(400).json({ message: err.message }); }
+        }
+        const editable = ['title', 'category', 'condition', 'price', 'originalPrice', 'description', 'location', 'college', 'images'];
+        const changes = {};
+        editable.forEach((f) => {
+            if (req.body[f] !== undefined) changes[f] = f === 'images' ? normalizeImages(req.body[f]) : req.body[f];
+        });
+        if (req.body.classification !== undefined || changes.category !== undefined) changes.classification = product.classification;
+        // The same atomic guard used by checkout prevents editing a listing after a buyer claims it.
+        const updated = await Product.findOneAndUpdate({ _id: product._id, seller: req.user._id, status: { $ne: 'sold' } },
+            { $set: { ...changes, status: 'pending', rejectReason: '' }, $inc: { reviewRevision: 1 }, $unset: { reviewViewedAt: 1, reviewViewedBy: 1, decidedAt: 1 } }, { new: true, runValidators: true });
+        if (!updated) return res.status(409).json({ message: 'This listing changed during editing. Refresh before trying again.' });
+        res.json({ product: updated });
+    } catch (error) { next(error); }
 });
 
 // DELETE /api/products/:id — seller removes own listing

@@ -4930,6 +4930,17 @@ footer {
 .classification-fields input, .classification-fields select { max-width: 100%; }
 .p-classification { font-size: 12px; color: #666950; line-height: 1.5; margin: 5px 0; overflow-wrap: anywhere; }
 .p-classification:empty { display: none; }
+.listing-milestones .tracker-label { font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.listing-milestones .tracker-label small { display: block; margin-top: 5px; color: var(--text-muted, #777); font-size: 10px; }
+.buyer-selection-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.buyer-selection-details div { min-width: 0; }
+.buyer-selection-details dt { font-size: 12px; color: var(--text-muted, #777); }
+.buyer-selection-details dd { margin: 3px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.approval-card.notification-highlight { outline: 2px solid var(--olive, #586b30); outline-offset: 3px; }
+.approval-load-feedback { font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+.approval-load-feedback:empty { display: none; }
+#retryListingStatus[hidden] { display: none; }
+.status-summary { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .np-push-controls { padding: 14px; border-bottom: 1px solid #ddd8cc; }
 .np-push-controls button { min-height: 44px; padding: 10px 14px; background: #35492a; color: #fff; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
 .np-push-controls p { font-size: 12px; line-height: 1.5; margin: 8px 0 0; }

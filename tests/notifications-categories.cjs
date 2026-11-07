@@ -29,6 +29,13 @@ Product.create = async values => {
     createdProduct.save = async () => { await createdProduct.validate(); return createdProduct; };
     return createdProduct;
 };
+Product.findOneAndUpdate = async (_filter, update) => {
+    Object.assign(createdProduct, update.$set);
+    Object.entries(update.$inc || {}).forEach(([key, value]) => { createdProduct[key] = (createdProduct[key] || 0) + value; });
+    Object.keys(update.$unset || {}).forEach(key => { createdProduct[key] = undefined; });
+    await createdProduct.validate();
+    return createdProduct;
+};
 Setting.findOne = () => query(storedKeys ? { value: storedKeys } : null);
 Setting.findOneAndUpdate = async (_filter, update) => { storedKeys ||= update.$setOnInsert.value; return { value: storedKeys }; };
 Subscription.findOneAndUpdate = async (filter, update) => {
@@ -141,7 +148,26 @@ app.use((error, request, response, next) => response.status(500).json({ message:
             assert.deepEqual(opened, [alerts[0].data.url]);
         }
         console.log('PASS Site/admin worker notifications open the correct chat safely');
-        console.log('\n4 category and notification groups passed. No real push was sent.');
+        const listingEvents = {}; const listingAlerts = []; const focused = [];
+        vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../cirvio-frontend/sw.js'), 'utf8'), {
+            URL,
+            self: { addEventListener(name, callback) { listingEvents[name] = callback; }, registration: { scope: 'https://site.example.test/', async showNotification(title, options) { listingAlerts.push({ title, ...options }); } }, clients: { async matchAll() { return [{ url: 'https://site.example.test/status.html', postMessage(message) { focused.push(message); }, async focus() {} }]; }, async openWindow() { throw new Error('An existing status window should be focused'); } } }
+        });
+        for (const status of ['viewed', 'approved', 'rejected', 'buyer-selected']) {
+            let work;
+            listingEvents.push({ data: { json: () => ({ kind: 'listing', status, productId: id(10), notificationId: id(40), url: 'https://evil.example.test/', body: 'Listing update' }) }, waitUntil(promise) { work = promise; } });
+            await work;
+            const alert = listingAlerts.at(-1);
+            assert.ok(alert.data.url.startsWith('https://site.example.test/status.html?listing=' + id(10)));
+            assert.ok(alert.data.url.includes('notification=' + id(40)));
+            listingEvents.notificationclick({ notification: { ...alert, close() {} }, waitUntil(promise) { work = promise; } });
+            await work;
+            assert.equal(focused.at(-1).type, 'OPEN_LISTING_STATUS');
+            assert.equal(focused.at(-1).productId, id(10));
+            assert.equal(focused.at(-1).notificationId, id(40));
+        }
+        console.log('PASS Listing pushes preserve milestone types and focus the authenticated status page');
+        console.log('\n5 category and notification groups passed. No real push was sent.');
     } finally {
         server.closeAllConnections();
         await new Promise(resolve => server.close(resolve));

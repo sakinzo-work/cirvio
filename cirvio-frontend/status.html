@@ -209,9 +209,12 @@
                     <strong id="sumRejected">0</strong>
                     <span>Rejected</span>
                 </div>
+                <div class="status-summary-card approved"><strong id="sumSelected">0</strong><span>Buyer selected</span></div>
             </div>
 
             <!-- LIST -->
+            <p id="statusLoadFeedback" class="approval-load-feedback" role="status" aria-live="polite"></p>
+            <button type="button" id="retryListingStatus" class="btn btn-outline btn-sm" hidden>Retry status</button>
             <div class="approval-list" id="approvalList"></div>
 
             <div class="empty-state" id="statusEmpty" style="display:none;">
@@ -271,17 +274,9 @@
                 d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
         }
 
-        function timeLeft(ts) {
-            if (!ts) return 'waiting for admin review';
-            const ms = ts - Date.now();
-            if (ms <= 0) return 'Any moment now';
-            const s = Math.ceil(ms / 1000);
-            if (s < 60) return `~${s}s left`;
-            return `~${Math.ceil(s / 60)} min left`;
-        }
-
         /* ---------- status badge ---------- */
         function statusBadge(l) {
+            if (l.status === 'sold') return `<span class="status-badge approved">${sellingOrders.get(String(l.id))?.status === 'cancelled' ? 'Order cancelled' : (sellingOrders.has(String(l.id)) ? 'Buyer selected' : 'Unavailable')}</span>`;
             if (l.status === 'pending') {
                 return `<span class="status-badge pending"><span class="pulse-dot"></span>Pending Review</span>`;
             }
@@ -291,49 +286,38 @@
             return `<span class="status-badge rejected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>Rejected</span>`;
         }
 
-        /* ---------- 3-step tracker ---------- */
+        const sellingOrders = new Map();
+        /* ---------- Actual listing milestones ---------- */
         function tracker(l) {
-            const step2Done = l.status === 'approved' || l.status === 'rejected';
-            const step2Active = l.status === 'pending';
-            const step3Class = l.status === 'approved' ? 'done' : (l.status === 'rejected' ? 'rejected' : '');
-            const step3Icon = l.status === 'rejected'
-                ? '<path d="M18 6L6 18M6 6l12 12"/>'
-                : '<path d="M20 6L9 17l-5-5"/>';
-            return `
-      <div class="tracker">
-        <div class="tracker-step done">
-          <div class="tracker-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
-          <div class="tracker-line"></div>
-          <div class="tracker-label">Submitted</div>
-        </div>
-        <div class="tracker-step ${step2Done ? 'done' : (step2Active ? 'active' : '')}">
-          <div class="tracker-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="3">${step2Done ? '<path d="M20 6L9 17l-5-5"/>' : ''}</svg></div>
-          <div class="tracker-line"></div>
-          <div class="tracker-label">CIRVIO Review</div>
-        </div>
-        <div class="tracker-step ${step3Class}">
-          <div class="tracker-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="3">${step3Class ? step3Icon : ''}</svg></div>
-          <div class="tracker-label">${l.status === 'rejected' ? 'Rejected' : 'Live on CIRVIO'}</div>
-        </div>
-      </div>`;
+            const order = sellingOrders.get(String(l.id));
+            const approved = ['approved', 'sold'].includes(l.status);
+            const steps = [
+                ['Submitted', 'done', l.submittedAt],
+                ['CIRVIO viewed', l.reviewViewedAt ? 'done' : (l.status === 'pending' ? 'active' : ''), l.reviewViewedAt],
+                [l.status === 'rejected' ? 'Needs changes' : 'Approved', l.status === 'rejected' ? 'rejected' : (approved ? 'done' : (l.reviewViewedAt ? 'active' : '')), l.decidedAt],
+                [order?.status === 'cancelled' ? 'Order cancelled' : 'Buyer selected', order ? (order.status === 'cancelled' ? 'rejected' : 'done') : '', order?.createdAt]
+            ];
+            return `<div class="tracker listing-milestones">${steps.map(([label, state, date], index) => `<div class="tracker-step ${state}"><div class="tracker-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="3">${state === 'done' ? '<path d="M20 6L9 17l-5-5"/>' : ''}</svg></div>${index < steps.length - 1 ? '<div class="tracker-line"></div>' : ''}<div class="tracker-label">${label}${date ? `<small>${escapeHTML(fmtDate(date))}</small>` : ''}</div></div>`).join('')}</div>`;
         }
 
         /* ---------- note under tracker ---------- */
         function note(l) {
+            const order = sellingOrders.get(String(l.id));
+            if (order) return `<div class="approval-note approved-note">${order.status === 'cancelled' ? 'This buyer order was cancelled. Contact CIRVIO for the next step.' : 'A buyer placed an order. This does not confirm payment or delivery.'}</div><dl class="buyer-selection-details"><div><dt>Buyer</dt><dd>${escapeHTML(order.buyer?.name || 'Buyer')}</dd></div><div><dt>Order</dt><dd>#${escapeHTML(String(order._id).slice(-8).toUpperCase())} · ${escapeHTML(order.status || 'placed')}</dd></div><div><dt>Payment</dt><dd>${escapeHTML(order.paymentStatus || 'pending')}</dd></div><div><dt>Dispatch</dt><dd>${escapeHTML(order.dispatchStatus || 'not-dispatched')}</dd></div></dl>`;
+            if (l.status === 'sold') return '<div class="approval-note">This listing is unavailable. Buyer details will appear when its order is confirmed by the server.</div>';
             if (l.status === 'pending') {
-                return `<div class="approval-note">CIRVIO is reviewing your photos, price and description. This
-          usually takes just a few minutes — ${timeLeft(l.reviewDue)}.</div>`;
+                return `<div class="approval-note">${l.reviewViewedAt ? 'CIRVIO has viewed your listing. It is waiting for the final review decision.' : 'Your listing is waiting for CIRVIO to review its photos and details.'}</div>`;
             }
             if (l.status === 'approved') {
                 return `<div class="approval-note approved-note">Approved! Your listing is live and visible to
           students on CIRVIO.</div>`;
             }
-            return `<div class="approval-note rejected-note"><strong>Not approved:</strong> ${l.rejectReason || 'This listing didn\u2019t meet CIRVIO\u2019s marketplace guidelines.'}</div>`;
+            return `<div class="approval-note rejected-note"><strong>Not approved:</strong> ${escapeHTML(l.rejectReason || 'This listing needs changes before it can be approved.')}</div>`;
         }
 
         function approvalCard(l) {
             return `
-      <div class="approval-card reveal show" data-id="${l.id}">
+      <div class="approval-card reveal show" data-id="${escapeHTML(l.id)}" tabindex="-1">
         <div class="approval-thumb"><img src="${l.img || PLACEHOLDER_IMG}" alt="${escapeHTML(l.title)}" loading="lazy"></div>
         <div class="approval-body">
           <div class="approval-top">
@@ -362,6 +346,7 @@
             document.getElementById('sumPending').textContent = listings.filter(l => l.status === 'pending').length;
             document.getElementById('sumApproved').textContent = listings.filter(l => l.status === 'approved').length;
             document.getElementById('sumRejected').textContent = listings.filter(l => l.status === 'rejected').length;
+            document.getElementById('sumSelected').textContent = listings.filter(l => l.status === 'sold' && sellingOrders.has(String(l.id)) && sellingOrders.get(String(l.id)).status !== 'cancelled').length;
 
             const list = document.getElementById('approvalList');
             const empty = document.getElementById('statusEmpty');
@@ -375,6 +360,7 @@
                 listings.sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3) || (b.submittedAt || 0) - (a.submittedAt || 0));
                 list.innerHTML = listings.map(approvalCard).join('');
             }
+            focusLinkedListing(false);
         }
 
         document.getElementById('approvalList').addEventListener('click', (e) => {
@@ -386,25 +372,58 @@
             showToast('Listing removed');
         });
 
+        let statusLoading = false;
+        let focusedListing = '';
+        function focusLinkedListing(scroll = true) {
+            const id = new URLSearchParams(location.search).get('listing');
+            if (!id) return;
+            const card = document.querySelector(`.approval-card[data-id="${CSS.escape(id)}"]`);
+            if (!card) { if (scroll) document.getElementById('statusLoadFeedback').textContent = 'This listing is no longer available in your account.'; return; }
+            card.classList.add('notification-highlight');
+            if (scroll && focusedListing !== id) { card.scrollIntoView({ block: 'center', behavior: 'smooth' }); card.focus({ preventScroll: true }); focusedListing = id; }
+        }
         renderStatus();
         async function loadBackendStatus() {
-            if (!window.CirvioAPI || !window.cirvioProductToListing) return;
+            if (!window.CirvioAPI || !window.cirvioProductToListing || statusLoading) return;
+            statusLoading = true;
+            const token = localStorage.getItem('cirvio_token');
+            const feedback = document.getElementById('statusLoadFeedback');
+            const retry = document.getElementById('retryListingStatus');
+            feedback.textContent = 'Refreshing listing and buyer updates...';
+            retry.hidden = true;
             try {
-                const { products } = await CirvioAPI.myListings();
+                const results = await Promise.allSettled([CirvioAPI.myListings(), CirvioAPI.request('/api/orders/selling')]);
+                if (token !== localStorage.getItem('cirvio_token')) return;
+                if (results[0].status === 'rejected') throw results[0].reason;
+                const { products } = results[0].value;
+                if (results[1].status === 'fulfilled' && Array.isArray(results[1].value.orders)) {
+                    sellingOrders.clear();
+                    results[1].value.orders.forEach(order => order.items.forEach(item => {
+                        const id = String(item.product?._id || item.product);
+                        const previous = sellingOrders.get(id);
+                        if (!previous || new Date(order.createdAt || 0) > new Date(previous.createdAt || 0)) sellingOrders.set(id, order);
+                    }));
+                    feedback.textContent = '';
+                } else { feedback.textContent = 'Buyer details could not refresh. Please retry.'; retry.hidden = false; }
                 const backendListings = (products || []).map(cirvioProductToListing);
-                if (window.CirvioListings) {
-                    CirvioListings.syncLocalListingsWithBackend(backendListings, { silent: false });
-                } else {
-                    const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
-                    CirvioStore.setListings([...backendListings, ...localDrafts]);
-                }
-                renderStatus();
+                CirvioListings.syncLocalListingsWithBackend(backendListings);
+                renderStatus(); focusLinkedListing();
             } catch (err) {
-                console.warn('Could not load backend status:', err.message);
-            }
+                feedback.textContent = err.message || 'Could not refresh listing status.';
+                retry.hidden = false;
+            } finally { statusLoading = false; }
         }
+        document.getElementById('retryListingStatus').addEventListener('click', loadBackendStatus);
         if (CirvioAuth.requireLogin()) loadBackendStatus();
         window.addEventListener('cirvio:listings-synced', renderStatus);
+        window.addEventListener('cirvio:notifications-synced', loadBackendStatus);
+        window.CirvioListingStatus = { async open(id, notificationId) {
+            const url = new URL(location.href); url.searchParams.set('listing', id); history.replaceState(null, '', url);
+            if (notificationId) await CirvioNotifications.markRead(notificationId);
+            await loadBackendStatus(); focusLinkedListing();
+        } };
+        const linkedNotification = new URLSearchParams(location.search).get('notification');
+        if (linkedNotification && /^[a-f\d]{24}$/i.test(linkedNotification)) CirvioNotifications.markRead(linkedNotification);
 
         initCirvioChrome('status');
     </script>

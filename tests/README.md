@@ -12,6 +12,7 @@ node tests/rendering.cjs
 node tests/admin-mobile.cjs
 node tests/messaging-api.cjs
 node tests/notifications-categories.cjs
+node tests/listing-lifecycle.cjs
 ```
 
 The runner uses installed Google Chrome on Windows. Otherwise install Playwright's Chromium or set `CIRVIO_BROWSER_PATH` to a Chromium executable. The backend's existing dependencies must be installed.
@@ -25,3 +26,5 @@ Messaging checks cover recipient search, starting/reopening private chats from U
 Category and notification checks exercise school streams, degree/master's courses and years, general item types, clearing incompatible fields, draft/publish persistence, notification counts and chat links, explicit push permission, denied permission, failed subscription setup and opt-out. `notifications-categories.cjs` validates the actual category/subscription API routes, private-key handling, recipient selection, expired subscriptions and both worker click handlers. Browser push tests use a mocked push manager; no real push notification is sent. Device delivery must be checked on the deployed HTTPS app after enabling notifications.
 
 Use `$env:RENDER_TEST_FILTER = 'Push alerts'` to run one browser group; remove that environment variable before a full rendering run.
+
+`listing-lifecycle.cjs` runs authenticated review, approval, edit, checkout and notification-history routes against isolated model adapters and real schema validation. It checks deduplicated views/decisions, review resets, owner-only history/read state, invalid and failed checkout rollback, competing buyers, durable order notification retries and seller-order privacy. Browser checks cover the mobile milestone tracker, notification links, buyer-detail retries, persisted reads, no synthetic chat messages, and duplicate checkout prevention. Worker checks cover all listing alert types and focusing an existing status window. No test sends a real push or touches production data.

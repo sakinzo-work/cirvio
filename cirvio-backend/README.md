@@ -72,6 +72,16 @@ The server creates its VAPID key pair once and persists it in MongoDB `AppSettin
 
 New listings store these details in `Product.classification`; public product responses include `classificationSummary`. Changing category clears incompatible details. Existing listings still render without education metadata and can receive ordinary edits without a migration. Creating a new school/college listing requires its appropriate details.
 
+### Seller listing lifecycle notifications
+
+Opening a listing's **View Images/details** in the admin panel records a viewed event for its seller. Approving or rejecting records the decision. Repeated opens and repeated approval requests reuse their event keys; editing a listing clears the old review evidence and starts a new review cycle. Completed decisions retain their history.
+
+A **buyer selected** event is created after an order is successfully saved. Adding an item to a cart does not notify the seller. Listings are single-copy: checkout validates the whole cart, claims each listing conditionally, and releases its claims if order creation fails. Concurrent buyers cannot claim the same listing, and selected listings cannot be edited or approved again. Buyer selection, payment confirmation and dispatch remain separate states.
+
+Events persist in the `Notification` collection independently of browser storage and push permission. Sellers can read and mark only their own events. **Listing Status** shows Submitted → CIRVIO viewed → Approved → Buyer selected, actual timestamps, and the buyer/order/payment/dispatch details returned by their seller-order API. Buyer contact details, other sellers' order items, delivery addresses and staff notes are excluded. Push alerts open and highlight the exact status card.
+
+Order notification failures retain `Order.notificationPending`; a backend task retries up to 20 pending orders every 30 seconds. Unique event keys prevent duplicate history and push attempts when a job is retried. A saved order still succeeds when notification storage is temporarily unavailable. Existing listings need no data migration; new lifecycle events are recorded as the actions happen.
+
 | Method | Route                              | Access        | Purpose |
 |--------|-------------------------------------|---------------|---------|
 | POST   | `/api/auth/register`                | public        | student signup |
@@ -100,6 +110,9 @@ New listings store these details in `Product.classification`; public product res
 | GET    | `/api/products/categories`          | public        | education levels, courses, streams and item types |
 | GET    | `/api/notifications/push-key`        | logged in     | public VAPID key only |
 | POST/DELETE | `/api/notifications/subscriptions` | logged in | enable/disable this device's push subscription |
+| GET    | `/api/notifications`                | logged in     | own stored listing notifications and unread count |
+| PUT    | `/api/notifications/:id/read`       | owner         | persist a read notification |
+| PUT    | `/api/notifications/read-all`       | logged in     | mark own stored notifications read |
 
 ## Data model
 

@@ -36,16 +36,20 @@ async function notifyMessage(message, actor) {
         staff.forEach(user => recipients.add(String(user._id)));
     }
     recipients.delete(String(actor._id));
+    return sendPushNotifications([...recipients], { title: 'CIRVIO · New message', body: 'You have a new message. Tap to open the conversation.', threadId: String(message._id), tag: `cirvio-message-${message._id}` });
+}
+
+async function sendPushNotifications(recipientIds, payload, { app } = {}) {
+    const recipients = new Set(recipientIds.map(String));
     const subscriptions = await PushSubscription.find({ user: { $in: [...recipients] } }).lean();
     if (!subscriptions.length) return;
     const keys = await getVapidKeys();
     // Recheck account status/role so a suspended or demoted account receives no staff alerts.
     const allowedUsers = await User.find({ _id: { $in: [...recipients] }, status: 'active' }).select('_id role').lean();
     const roles = new Map(allowedUsers.map(user => [String(user._id), user.role]));
-    await Promise.allSettled(subscriptions.filter(subscription => roles.has(String(subscription.user)) && (subscription.app !== 'admin' || ['admin', 'employee'].includes(roles.get(String(subscription.user))))).map(async subscription => {
-        const payload = JSON.stringify({ title: 'CIRVIO · New message', body: 'You have a new message. Tap to open the conversation.', threadId: String(message._id), tag: `cirvio-message-${message._id}` });
+    await Promise.allSettled(subscriptions.filter(subscription => (!app || subscription.app === app) && roles.has(String(subscription.user)) && (subscription.app !== 'admin' || ['admin', 'employee'].includes(roles.get(String(subscription.user))))).map(async subscription => {
         try {
-            await webpush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, payload, { TTL: 86400, urgency: 'high', timeout: 5000, vapidDetails: { subject: process.env.VAPID_SUBJECT || 'https://cirvio.onrender.com', ...keys } });
+            await webpush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, JSON.stringify(payload), { TTL: 86400, urgency: 'high', timeout: 5000, vapidDetails: { subject: process.env.VAPID_SUBJECT || 'https://cirvio.onrender.com', ...keys } });
         } catch (error) {
             if ([404, 410].includes(error.statusCode)) await PushSubscription.deleteOne({ _id: subscription._id });
             else console.warn('Message push delivery failed:', error.statusCode || 'unavailable');
@@ -57,4 +61,4 @@ function queueMessageNotification(message, actor) {
     notifyMessage(message, actor).catch(() => console.warn('Message notification could not be delivered'));
 }
 
-module.exports = { getVapidKeys, notifyMessage, queueMessageNotification };
+module.exports = { getVapidKeys, notifyMessage, queueMessageNotification, sendPushNotifications };

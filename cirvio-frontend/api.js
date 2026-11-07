@@ -358,6 +358,9 @@ window.cirvioProductToListing = function cirvioProductToListing(product) {
         time: p.time,
         status: p.status || 'pending',
         reviewViewedAt: p.reviewViewedAt || '',
+        decidedAt: p.decidedAt || '',
+        buyerSelectedAt: p.buyerSelectedAt || '',
+        selectedOrder: p.selectedOrder || '',
         submittedAt: p.createdAt ? new Date(p.createdAt).getTime() : Date.now(),
         rejectReason: p.rejectReason || ''
     };

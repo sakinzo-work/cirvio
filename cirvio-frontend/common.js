@@ -72,7 +72,7 @@ const CirvioStore = {
     getNotifications() { return this._read('cirvio_notifications', []); },
     setNotifications(arr) { this._write('cirvio_notifications', arr); },
     /* ---------- cart (persists across pages) ---------- */
-    getCart() { return this._read('cirvio_cart', []); },
+    getCart() { return this._read('cirvio_cart', []).map(item => ({ ...item, qty: 1 })); },
     setCart(arr) { this._write('cirvio_cart', arr); }
 };
 
@@ -222,8 +222,9 @@ function refreshMsgBadge() {
     });
 }
 
+let listingUnreadExtra = 0;
 function refreshNotificationBadge() {
-    const count = CirvioStore.getNotifications().filter(n => !n.read).length;
+    const count = CirvioStore.getNotifications().filter(n => !n.read).length + listingUnreadExtra;
     ['notifCount', 'mpNotifCount'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -274,7 +275,11 @@ function ensureNotificationPanel() {
     `;
     document.body.appendChild(panel);
     setupWebsitePush();
-    document.getElementById('npMarkRead').addEventListener('click', () => {
+    document.getElementById('npMarkRead').addEventListener('click', async () => {
+        try {
+            if (localStorage.getItem('cirvio_token')) await CirvioAPI.request('/api/notifications/read-all', { method: 'PUT' });
+        } catch (error) { showToast(error.message || 'Could not mark notifications read'); return; }
+        listingUnreadExtra = 0;
         CirvioStore.setNotifications(CirvioStore.getNotifications().map(n => ({ ...n, read: true })));
         refreshNotificationBadge();
         renderNotificationPanel();
@@ -283,6 +288,8 @@ function ensureNotificationPanel() {
         const item = event.target.closest('[data-notification-id]');
         if (!item) return;
         CirvioStore.setNotifications(CirvioStore.getNotifications().map(notification => notification.id === item.dataset.notificationId ? { ...notification, read: true } : notification));
+        const notification = CirvioStore.getNotifications().find(entry => entry.id === item.dataset.notificationId);
+        if (notification?.backendId) markStoredNotificationRead(notification.backendId);
         refreshNotificationBadge();
     });
     document.addEventListener('click', (e) => {
@@ -331,66 +338,44 @@ function setupWebsitePush() {
     document.head.appendChild(script);
 }
 
-function addListingNotification(listing, status) {
-    const notifications = CirvioStore.getNotifications();
-    const exists = notifications.some(n => String(n.productId) === String(listing.id) && n.status === status);
-    if (exists) return;
-
-    let text = `"${listing.title}" needs changes before it can go live.`;
-    if (status === 'approved') {
-        text = `"${listing.title}" approved. It is now live for buyers.`;
-    } else if (status === 'viewed') {
-        text = `CIRVIO has viewed the photos/details for "${listing.title}". It is still pending final approval.`;
-    }
-
-    notifications.unshift({
-        id: Date.now() + Math.random(),
-        productId: listing.id,
-        title: listing.title,
-        status,
-        text,
-        read: false,
-        createdAt: Date.now()
-    });
-    CirvioStore.setNotifications(notifications);
-
-    const messages = CirvioStore.getMessages();
-    messages.push({
-        id: Date.now() + Math.random(),
-        productId: listing.id,
-        productTitle: listing.title,
-        productImg: listing.img || '',
-        text,
-        from: 'cirvio',
-        read: false,
-        time: 'Just now'
-    });
-    CirvioStore.setMessages(messages);
+function markStoredNotificationRead(id) {
+    return CirvioAPI.request('/api/notifications/' + encodeURIComponent(id) + '/read', { method: 'PUT', keepalive: true })
+        .then(() => {
+            CirvioStore.setNotifications(CirvioStore.getNotifications().map(notification => notification.backendId === id ? { ...notification, read: true } : notification));
+            refreshNotificationBadge(); renderNotificationPanel();
+        }).catch(() => { /* The next sync restores the authoritative unread state if saving fails. */ });
 }
+
+async function syncStoredNotifications({ silent = true } = {}) {
+    const token = localStorage.getItem('cirvio_token');
+    if (!token || !window.CirvioAPI) return;
+    try {
+        const { notifications, unreadCount } = await CirvioAPI.request('/api/notifications');
+        if (token !== localStorage.getItem('cirvio_token') || !Array.isArray(notifications)) return;
+        const current = CirvioStore.getNotifications();
+        const previousIds = new Set(current.map(notification => notification.backendId));
+        const other = current.filter(notification => notification.type !== 'listing' && !['viewed', 'approved', 'rejected', 'buyer-selected'].includes(notification.status));
+        listingUnreadExtra = Math.max(0, Number(unreadCount || 0) - notifications.filter(notification => !notification.read).length);
+        CirvioStore.setNotifications([...notifications, ...other].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 200));
+        refreshNotificationBadge(); renderNotificationPanel();
+        window.dispatchEvent(new CustomEvent('cirvio:notifications-synced'));
+        const latest = notifications.find(notification => !notification.read && !previousIds.has(notification.backendId));
+        if (!silent && latest) showToast(latest.title);
+    } catch (error) { console.warn('Could not sync listing notifications:', error.message); }
+}
+window.CirvioNotifications = { sync: syncStoredNotifications, markRead: markStoredNotificationRead };
+navigator.serviceWorker?.addEventListener('message', event => {
+    if (event.data?.type !== 'OPEN_LISTING_STATUS') return;
+    const id = String(event.data.productId || '');
+    if (!/^[a-f\d]{24}$/i.test(id)) return;
+    if (window.CirvioListingStatus) window.CirvioListingStatus.open(id, event.data.notificationId);
+});
 
 let listingNotificationPollStarted = false;
 let notificationClickListenerStarted = false;
 
 function syncLocalListingsWithBackend(backendListings, { silent = true } = {}) {
-    const before = CirvioStore.getListings().filter(l => l.status !== 'draft');
-    const beforeById = Object.fromEntries(before.flatMap(l => {
-        const keys = [l.id, l.backendId].filter(v => v !== undefined && v !== null && v !== '');
-        return keys.map(key => [String(key), l]);
-    }));
     const localDrafts = CirvioStore.getListings().filter(l => l.status === 'draft');
-
-    backendListings.forEach((listing) => {
-        const previous = beforeById[String(listing.id)] || beforeById[String(listing.backendId)];
-        if (listing.status === 'pending' && listing.reviewViewedAt && (!previous || !previous.reviewViewedAt)) {
-            addListingNotification(listing, 'viewed');
-            if (!silent) showToast('CIRVIO viewed your listing');
-        }
-        const finalStatus = ['approved', 'rejected'].includes(listing.status);
-        if (!finalStatus) return;
-        if (previous && previous.status === listing.status) return;
-        addListingNotification(listing, listing.status);
-        if (!silent) showToast(listing.status === 'approved' ? 'Listing approved and now live' : 'Listing review update');
-    });
 
     CirvioStore.setListings([...backendListings, ...localDrafts]);
     refreshNotificationBadge();
@@ -401,8 +386,10 @@ window.CirvioListings = { syncLocalListingsWithBackend };
 
 async function syncListingStatusNotifications({ silent = true } = {}) {
     if (!window.CirvioAPI || !window.cirvioProductToListing || !localStorage.getItem('cirvio_token')) return;
+    const token = localStorage.getItem('cirvio_token');
     try {
         const { products } = await CirvioAPI.myListings();
+        if (token !== localStorage.getItem('cirvio_token')) return;
         const backendListings = (products || []).map(cirvioProductToListing);
         syncLocalListingsWithBackend(backendListings, { silent });
     } catch (err) {
@@ -414,6 +401,8 @@ function startListingNotificationPoll() {
     if (listingNotificationPollStarted || !localStorage.getItem('cirvio_token')) return;
     listingNotificationPollStarted = true;
     syncListingStatusNotifications();
+    syncStoredNotifications();
+    setInterval(() => syncStoredNotifications({ silent: false }), 10000);
     setInterval(() => syncListingStatusNotifications({ silent: false }), 45000);
 }
 
@@ -444,7 +433,7 @@ function cartAdd(product) {
     const items = CirvioStore.getCart();
     const idKey = String(product.id);
     const existing = items.find(it => String(it.id) === idKey);
-    if (existing) existing.qty += 1;
+    if (existing) { showToast('This listing is already in your cart. Each listing has one available copy.'); return; }
     else items.push({
         id: product.id,
         title: product.title || 'Item',
@@ -474,7 +463,7 @@ function cartSetQty(id, qty) {
     const items = CirvioStore.getCart();
     const it = items.find(x => String(x.id) === String(id));
     if (!it) return;
-    it.qty = qty;
+    it.qty = 1;
     CirvioStore.setCart(items);
     refreshCartBadge();
     renderCartDrawer();
@@ -567,7 +556,7 @@ function renderCartDrawer() {
         <div class="cd-qty">
           <button data-cart-dec="${it.id}" aria-label="Decrease quantity">−</button>
           <span>${it.qty}</span>
-          <button data-cart-inc="${it.id}" aria-label="Increase quantity">+</button>
+          <span class="cd-single-copy">One copy</span>
         </div>
       </div>
       <button class="cd-remove" data-cart-remove="${it.id}" aria-label="Remove item">
@@ -590,21 +579,30 @@ function cartClose() {
     document.body.style.overflow = '';
 }
 
+let cartOrderPending = false;
 async function cartPlaceOrder() {
+    if (cartOrderPending) return;
     const items = CirvioStore.getCart();
     if (!items.length) { showToast('Your cart is empty'); return; }
     const total = cartTotal();
     const count = items.reduce((s, it) => s + it.qty, 0);
-    if (window.CirvioAPI) {
-        try {
-            const address = (document.getElementById('cdAddress')?.value || '').trim();
-            await CirvioAPI.checkout(items, address);
-        } catch (err) {
-            showToast(err.message || 'Could not place order');
-            return;
-        }
+    if (!window.CirvioAPI) { showToast('Checkout is unavailable. Reload the page and try again.'); return; }
+    const button = document.getElementById('cdPlaceBtn');
+    cartOrderPending = true;
+    if (button) { button.disabled = true; button.textContent = 'Placing order...'; }
+    try {
+        const address = (document.getElementById('cdAddress')?.value || '').trim();
+        const result = await CirvioAPI.checkout(items, address);
+        if (!result.order?._id) throw new Error('The server did not confirm your order. Please check your orders before retrying.');
+    } catch (err) {
+        showToast(err.message || 'Could not place order');
+        return;
+    } finally {
+        cartOrderPending = false;
+        if (button) { button.disabled = false; button.textContent = 'Place Order'; }
     }
-    CirvioStore.setCart([]);
+    const orderedIds = new Set(items.map(item => String(item.id)));
+    CirvioStore.setCart(CirvioStore.getCart().filter(item => !orderedIds.has(String(item.id))));
     refreshCartBadge();
     document.getElementById('cdSuccessMsg').textContent =
         `${count} item${count > 1 ? 's' : ''} for Rs ${total} placed. Payment is pending manual confirmation; CIRVIO admin will update dispatch status.`;

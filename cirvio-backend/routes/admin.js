@@ -10,6 +10,7 @@ const AppSetting = require('../models/AppSetting');
 const Message = require('../models/Message');
 const { protect, adminOnly, staffOnly } = require('../middleware/auth');
 const notifications = require('../services/message-notifications');
+const listingNotifications = require('../services/listing-notifications');
 
 const router = express.Router();
 const requireAdmin = [adminOnly];
@@ -262,40 +263,47 @@ router.get('/products', async (req, res) => {
 });
 
 // PUT /api/admin/products/:id/review-viewed — mark photos/details as seen by staff
-router.put('/products/:id/review-viewed', async (req, res) => {
-    const product = await Product.findByIdAndUpdate(
-        req.params.id,
-        { reviewViewedAt: new Date(), reviewViewedBy: req.user._id },
-        { new: true }
-    ).populate('seller', 'name email college city');
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-    res.json({ product });
+router.put('/products/:id/review-viewed', async (req, res, next) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid listing is required' });
+        let product = await Product.findOneAndUpdate({ _id: req.params.id, reviewViewedAt: null },
+            { $set: { reviewViewedAt: new Date(), reviewViewedBy: req.user._id } }, { new: true });
+        if (!product) product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ message: 'Product not found' });
+        await listingNotifications.recordListingEvent(product, 'viewed', { occurredAt: product.reviewViewedAt });
+        await product.populate('seller', 'name email college city');
+        res.json({ product });
+    } catch (error) { next(error); }
 });
 
 // PUT /api/admin/products/:id/approve
-router.put('/products/:id/approve', async (req, res) => {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-    if (!product.reviewViewedAt) {
-        return res.status(400).json({ message: 'View listing images/details before approving this product' });
-    }
-    product.status = 'approved';
-    product.decidedAt = new Date();
-    product.rejectReason = '';
-    await product.save();
-    res.json({ product });
+router.put('/products/:id/approve', async (req, res, next) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid listing is required' });
+        const product = await Product.findOneAndUpdate({ _id: req.params.id, status: { $in: ['pending', 'rejected'] }, reviewViewedAt: { $ne: null } },
+            { $set: { status: 'approved', decidedAt: new Date(), rejectReason: '' }, $inc: { decisionRevision: 1 } }, { new: true });
+        const current = product || await Product.findById(req.params.id);
+        if (!current) return res.status(404).json({ message: 'Product not found' });
+        if (!current.reviewViewedAt) return res.status(400).json({ message: 'View listing images/details before approving this product' });
+        if (current.status !== 'approved') return res.status(409).json({ message: 'This listing cannot be approved in its current state' });
+        await listingNotifications.recordListingEvent(current, 'viewed', { occurredAt: current.reviewViewedAt });
+        await listingNotifications.recordListingEvent(current, 'approved', { occurredAt: current.decidedAt });
+        res.json({ product: current });
+    } catch (error) { next(error); }
 });
 
 // PUT /api/admin/products/:id/reject   body: { reason }
-router.put('/products/:id/reject', async (req, res) => {
-    const { reason } = req.body;
-    const product = await Product.findByIdAndUpdate(
-        req.params.id,
-        { status: 'rejected', decidedAt: new Date(), rejectReason: reason || 'Does not meet CIRVIO guidelines' },
-        { new: true }
-    );
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-    res.json({ product });
+router.put('/products/:id/reject', async (req, res, next) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid listing is required' });
+        const product = await Product.findOneAndUpdate({ _id: req.params.id, status: { $in: ['pending', 'approved'] } },
+            { $set: { status: 'rejected', decidedAt: new Date(), rejectReason: String(req.body.reason || 'Does not meet CIRVIO guidelines').slice(0, 1000) }, $inc: { decisionRevision: 1 } }, { new: true });
+        const current = product || await Product.findById(req.params.id);
+        if (!current) return res.status(404).json({ message: 'Product not found' });
+        if (current.status !== 'rejected') return res.status(409).json({ message: 'This listing cannot be rejected in its current state' });
+        await listingNotifications.recordListingEvent(current, 'rejected', { occurredAt: current.decidedAt });
+        res.json({ product: current });
+    } catch (error) { next(error); }
 });
 
 // DELETE /api/admin/products/:id

@@ -43,6 +43,8 @@ const defaults = pathname => {
     if (pathname === '/api/admin/site-media') return { media: {} };
     if (pathname === '/api/admin/client-origins') return { origins: [], envOrigins: [] };
     if (pathname === '/api/messages/my') return { messages: [] };
+    if (pathname === '/api/notifications') return { notifications: [], unreadCount: 0 };
+    if (pathname === '/api/orders/selling') return { orders: [] };
     if (pathname === '/api/products/mine') return { products: [] };
     if (pathname === '/api/products') return { products };
     if (pathname === '/api/products/categories') return require('../cirvio-backend/services/listing-categories').taxonomy;
@@ -318,6 +320,83 @@ const defaults = pathname => {
             assert.equal(await page.locator('#trustAverage').innerText(), '—');
             assert.equal(await page.locator('#trustStars button:not(:disabled)').count(), 0);
         }, pathname => pathname === '/api/auth/users/missing' ? { status: 404, body: { message: 'User not found' } } : undefined, true);
+
+        const lifecycleProduct = { ...products[0], _id: '000000000000000000000777', status: 'sold', reviewViewedAt: '2026-11-07T08:00:00Z', decidedAt: '2026-11-07T09:00:00Z', buyerSelectedAt: '2026-11-07T10:00:00Z', seller: user };
+        const lifecycleOrder = { _id: '000000000000000000000778', buyer: { name: 'Buyer <b>name</b>' }, items: [{ product: lifecycleProduct._id, seller: user._id, title: lifecycleProduct.title, price: 100, qty: 1 }], status: 'placed', paymentStatus: 'pending', dispatchStatus: 'not-dispatched', createdAt: '2026-11-07T10:00:00Z' };
+        const lifecycleAlerts = ['viewed', 'approved', 'buyer-selected'].map((status, index) => ({ id: '00000000000000000000078' + index, backendId: '00000000000000000000078' + index, type: 'listing', status, productId: lifecycleProduct._id, title: ['CIRVIO viewed your listing', 'Your listing is approved', 'A buyer selected your listing'][index], text: lifecycleProduct.title, link: 'status.html?listing=' + lifecycleProduct._id, read: false, createdAt: '2026-11-07T10:0' + index + ':00Z' }));
+        await check('Seller notifications persist and show viewed, approved and buyer-selected milestones', async (page, base) => {
+            await page.setViewportSize({ width: 390, height: 844 });
+            await page.goto(base + '/index.html');
+            await page.waitForFunction(() => CirvioStore.getNotifications().filter(item => item.type === 'listing').length === 3);
+            await page.locator('button[aria-label="Notifications"]').first().click();
+            assert.equal(await page.locator('#npList .np-item').count(), 3);
+            await page.getByText('A buyer selected your listing', { exact: true }).click();
+            await page.locator('.buyer-selection-details').waitFor();
+            assert.equal(await page.locator('#sumSelected').innerText(), '1');
+            assert.match(await page.locator('.buyer-selection-details').innerText(), /Buyer <b>name<\/b>/);
+            assert.equal(await page.locator('.buyer-selection-details b').count(), 0);
+            assert.match(await page.locator('.buyer-selection-details').innerText(), /pending/);
+            assert.equal(await page.locator('.listing-milestones .tracker-step.done').count(), 4);
+            assert.equal(await page.locator('.status-badge.rejected').count(), 0, 'A selected listing is never labeled rejected');
+            assert.equal(await page.locator('.notification-highlight').count(), 1);
+            if (process.env.CIRVIO_SCREENSHOT_DIR) await page.locator('.approval-card').screenshot({ path: path.join(process.env.CIRVIO_SCREENSHOT_DIR, 'listing-lifecycle-mobile.png') });
+            assert.equal(await page.evaluate(() => CirvioStore.getMessages().length), 0, 'Listing updates do not manufacture chat messages');
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+            await page.reload();
+            await page.locator('.buyer-selection-details').waitFor();
+            await page.locator('button[aria-label="Notifications"]').first().click();
+            await page.locator('#npMarkRead').click();
+            await page.waitForFunction(() => CirvioStore.getNotifications().every(notification => notification.read));
+            assert.equal(lifecycleAlerts.filter(alert => !alert.read).length, 0);
+            assert.equal(await page.locator('#npList .np-item').count(), 3, 'Refreshing does not duplicate stored events');
+        }, (pathname, route) => {
+            if (pathname === '/api/notifications') return { body: { notifications: lifecycleAlerts, unreadCount: lifecycleAlerts.filter(item => !item.read).length } };
+            if (pathname === '/api/notifications/read-all') { lifecycleAlerts.forEach(item => { item.read = true; }); return { body: { unreadCount: 0 } }; }
+            if (pathname.endsWith('/read') && pathname.startsWith('/api/notifications/')) { const alert = lifecycleAlerts.find(item => pathname.includes(item.id)); if (alert) alert.read = true; return { body: { read: true } }; }
+            if (pathname === '/api/products/mine') return { body: { products: [lifecycleProduct] } };
+            if (pathname === '/api/orders/selling') return { body: { orders: [lifecycleOrder] } };
+        }, true);
+
+        let failBuyerStatus = true;
+        await check('Buyer status retries and a listing push focuses its exact card', async (page, base) => {
+            await page.goto(base + '/status.html?listing=' + lifecycleProduct._id);
+            await page.locator('#retryListingStatus').waitFor({ state: 'visible' });
+            assert.equal(await page.locator('.status-badge.rejected').count(), 0);
+            assert.equal(await page.locator('.buyer-selection-details').count(), 0);
+            failBuyerStatus = false;
+            await page.locator('#retryListingStatus').click();
+            await page.locator('.buyer-selection-details').waitFor();
+            await page.evaluate(id => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'OPEN_LISTING_STATUS', productId: id } })), lifecycleProduct._id);
+            await page.locator('.notification-highlight').waitFor();
+            assert.equal(await page.locator('.notification-highlight').getAttribute('data-id'), lifecycleProduct._id);
+        }, pathname => {
+            if (pathname === '/api/products/mine') return { body: { products: [lifecycleProduct] } };
+            if (pathname === '/api/orders/selling') return failBuyerStatus ? { status: 503, body: { message: 'Buyer details unavailable' } } : { body: { orders: [lifecycleOrder] } };
+        }, true);
+
+        let checkoutCount = 0;
+        let failCheckout = true;
+        await check('Single-copy cart avoids duplicate checkout and keeps items after failure', async (page, base) => {
+            await page.goto(base + '/index.html');
+            await page.evaluate(() => { CirvioCart.add({ id: 'book-in-cart', title: 'One book', price: 100 }); CirvioCart.add({ id: 'book-in-cart', title: 'One book', price: 100 }); CirvioCart.open(); });
+            assert.equal(await page.evaluate(() => CirvioStore.getCart()[0].qty), 1);
+            await page.locator('#cdPlaceBtn').click();
+            await page.getByText('Checkout failed', { exact: true }).waitFor();
+            assert.equal(await page.evaluate(() => CirvioStore.getCart().length), 1);
+            failCheckout = false;
+            await page.locator('#cdPlaceBtn').click();
+            await page.evaluate(() => cartPlaceOrder());
+            await page.locator('#cdSuccess').waitFor({ state: 'visible' });
+            assert.equal(checkoutCount, 2, 'One failed attempt and one successful request');
+            assert.equal(await page.evaluate(() => CirvioStore.getCart().length), 0);
+        }, async (pathname, route) => {
+            if (pathname !== '/api/orders') return;
+            checkoutCount++;
+            assert.equal(route.request().postDataJSON().items[0].qty, 1);
+            if (failCheckout) return { status: 503, body: { message: 'Checkout failed' } };
+            await new Promise(resolve => setTimeout(resolve, 400));
+            return { body: { order: { _id: '000000000000000000000779' } } };
+        }, true);
 
         await check('School classes, streams, higher education and general item categories work on a phone', async (page, base) => {
             await page.setViewportSize({ width: 390, height: 844 });

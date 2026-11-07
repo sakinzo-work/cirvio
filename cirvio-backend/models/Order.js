@@ -18,6 +18,7 @@ const orderItemSchema = new mongoose.Schema(
 const orderSchema = new mongoose.Schema(
     {
         buyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        notificationPending: { type: Boolean, default: false, select: false },
         items: { type: [orderItemSchema], required: true },
         totalAmount: { type: Number, required: true },
         status: {
@@ -56,5 +57,7 @@ const orderSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+orderSchema.index({ notificationPending: 1, createdAt: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);

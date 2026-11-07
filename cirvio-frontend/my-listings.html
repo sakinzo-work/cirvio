@@ -125,7 +125,7 @@
     <script src="api.js"></script>
     <script src="common.js"></script>
     <script>
-        const STATUS_LABEL = { draft: 'Draft', pending: 'Pending Review', approved: 'Live', rejected: 'Rejected' };
+        const STATUS_LABEL = { draft: 'Draft', pending: 'Pending Review', approved: 'Live', rejected: 'Rejected', sold: 'Buyer selected' };
 
         function discountPct(p) {
             if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
@@ -138,6 +138,7 @@
             if (l.status === 'draft') tag = '<div class="p-tag draft">Draft</div>';
             else if (l.status === 'pending') tag = '<div class="p-tag pending">Pending Review</div>';
             else if (l.status === 'rejected') tag = '<div class="p-tag rejected">Rejected</div>';
+            else if (l.status === 'sold') tag = '<div class="p-tag approved">Buyer selected</div>';
             else if (l.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
             else if (l.type === 'free') tag = '<div class="p-tag free">Free</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;

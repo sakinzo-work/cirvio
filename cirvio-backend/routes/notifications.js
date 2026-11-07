@@ -1,6 +1,8 @@
 const express = require('express');
 const { createHash } = require('crypto');
 const PushSubscription = require('../models/PushSubscription');
+const Notification = require('../models/Notification');
+const mongoose = require('mongoose');
 const { protect } = require('../middleware/auth');
 const { getVapidKeys } = require('../services/message-notifications');
 const router = express.Router();
@@ -18,6 +20,35 @@ function validSubscription(subscription) {
 }
 
 router.use(protect);
+router.get('/', async (req, res, next) => {
+    try {
+        const limit = Math.min(100, Math.max(1, Math.floor(Number(req.query.limit) || 100)));
+        const [notifications, unreadCount] = await Promise.all([
+            Notification.find({ recipient: req.user._id }).sort({ createdAt: -1, _id: -1 }).limit(limit).lean(),
+            Notification.countDocuments({ recipient: req.user._id, readAt: null })
+        ]);
+        res.json({ notifications: notifications.map(notification => ({
+            id: String(notification._id), backendId: String(notification._id), type: 'listing', status: notification.status,
+            productId: String(notification.product), orderId: notification.order ? String(notification.order) : undefined,
+            title: notification.title, text: notification.text, read: !!notification.readAt, createdAt: notification.createdAt,
+            link: 'status.html?listing=' + encodeURIComponent(notification.product)
+        })), unreadCount });
+    } catch (error) { next(error); }
+});
+router.put('/read-all', async (req, res, next) => {
+    try {
+        await Notification.updateMany({ recipient: req.user._id, readAt: null }, { $set: { readAt: new Date() } });
+        res.json({ unreadCount: 0 });
+    } catch (error) { next(error); }
+});
+router.put('/:id/read', async (req, res, next) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid notification is required' });
+        const notification = await Notification.findOneAndUpdate({ _id: req.params.id, recipient: req.user._id }, { $set: { readAt: new Date() } }, { new: true });
+        if (!notification) return res.status(404).json({ message: 'Notification not found' });
+        res.json({ id: String(notification._id), read: true });
+    } catch (error) { next(error); }
+});
 router.get('/push-key', async (req, res, next) => {
     try { res.json({ publicKey: (await getVapidKeys()).publicKey }); }
     catch (error) { next(error); }

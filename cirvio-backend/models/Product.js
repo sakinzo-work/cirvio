@@ -30,6 +30,11 @@ const productSchema = new mongoose.Schema(
         decidedAt: { type: Date },
         reviewViewedAt: { type: Date },
         reviewViewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        reviewRevision: { type: Number, default: 0, min: 0 },
+        decisionRevision: { type: Number, default: 0, min: 0 },
+        selectedOrder: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
+        selectedBuyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        buyerSelectedAt: { type: Date },
 
         views: { type: Number, default: 0 }
     },

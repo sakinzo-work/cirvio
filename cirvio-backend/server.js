@@ -14,7 +14,7 @@ const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
-connectDB();
+connectDB().then(() => require('./services/listing-notifications').startNotificationRetries());
 
 app.set('trust proxy', 1);
 

@@ -1844,6 +1844,43 @@ body[data-theme="light"] .messages-layout {
   overflow: hidden;
 }
 
+.message-compose {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(var(--app-height, 100dvh) - 24px);
+  margin: auto;
+  padding: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  background: var(--bg-soft);
+  color: var(--text);
+  font: inherit;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.message-compose::backdrop { background: rgba(0, 12, 16, .78); }
+.message-compose-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.message-compose-head > div { min-width: 0; }
+.message-compose-head h2 { font-size: 22px; margin: 0 0 6px; }
+.message-compose-head p, .conversation-start-hint { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.message-compose-head p { margin: 0; }
+.message-compose button { min-height: 44px; }
+.message-recipient-search { display: grid; gap: 8px; font-size: 13px; color: var(--muted); }
+.message-recipient-search input { width: 100%; min-width: 0; min-height: 46px; padding: 12px; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.message-recipient-list { display: grid; gap: 8px; margin-top: 12px; }
+.message-recipient { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 72px; padding: 12px; text-align: left; font: inherit; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); cursor: pointer; }
+.message-recipient:hover { background: var(--panel-strong); border-color: var(--green-deep); }
+.message-recipient > span:nth-child(2) { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.message-recipient strong, .message-recipient small { display: block; }
+.message-recipient strong { font-size: 14px; }
+.message-recipient small { margin-top: 3px; font-size: 12px; color: var(--muted); }
+.recipient-action { font-size: 12px; color: var(--green-deep); }
+.conversation-start-hint { margin: 12px 0; }
+@media (max-width: 480px) {
+  .message-compose { padding: 16px; }
+  .message-recipient-search input { font-size: 16px; }
+  .message-recipient { gap: 8px; }
+}
+
 body[data-theme="light"] .message-inbox {
   background: rgba(246, 252, 250, .82);
 }

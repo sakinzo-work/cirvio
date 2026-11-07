@@ -14,8 +14,12 @@ const replySchema = new mongoose.Schema(
 const messageSchema = new mongoose.Schema(
     {
         sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-        text: { type: String, required: true, trim: true, maxlength: 2000 },
+        product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: function () { return this.conversationType !== 'direct'; } },
+        conversationType: { type: String, enum: ['product', 'direct'], default: 'product' },
+        conversationKey: { type: String },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        senderRole: { type: String, enum: ['buyer', 'seller', 'admin', 'employee'], default: 'buyer' },
+        text: { type: String, default: '', required: function () { return this.conversationType !== 'direct'; }, trim: true, maxlength: 2000 },
         recipientRole: { type: String, enum: ['admin'], default: 'admin' },
         productTitle: { type: String, default: '' },
         productImg: { type: String, default: '' },
@@ -25,6 +29,9 @@ const messageSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// One staff conversation per user/context, including simultaneous opens from different devices.
+messageSchema.index({ conversationKey: 1 }, { unique: true, partialFilterExpression: { conversationKey: { $type: 'string' } } });
 
 messageSchema.pre('validate', function normalizeLegacyReplyRoles(next) {
     if (Array.isArray(this.replies)) {

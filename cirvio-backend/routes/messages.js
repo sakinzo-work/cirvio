@@ -9,6 +9,7 @@ const router = express.Router();
 function populateThread(query) {
     return query
         .populate('sender', 'name college')
+        .populate('createdBy', 'name')
         .populate('replies.sender', 'name')
         .populate('product', 'title category images seller')
         .sort({ updatedAt: -1 });
@@ -18,6 +19,7 @@ async function canAccessThread(message, user) {
     if (!message || !user) return false;
     if (String(message.sender) === String(user._id)) return true;
     if (['admin', 'employee'].includes(user.role)) return true;
+    if (message.conversationType === 'direct' || !message.product) return false;
     const product = await Product.findById(message.product).select('seller').lean();
     return product && String(product.seller) === String(user._id);
 }
@@ -30,6 +32,7 @@ router.post('/', protect, async (req, res) => {
         if (!productId) return res.status(400).json({ message: 'Product is required' });
         if (!mongoose.Types.ObjectId.isValid(productId)) return res.status(400).json({ message: 'Valid product is required' });
         if (!cleanText) return res.status(400).json({ message: 'Message is required' });
+        if (cleanText.length > 2000) return res.status(400).json({ message: 'Messages can be up to 2000 characters' });
 
         const product = await Product.findById(productId);
         if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -50,33 +53,36 @@ router.post('/', protect, async (req, res) => {
     }
 });
 
-// GET /api/messages/my — group threads where this user is buyer or seller.
-router.get('/my', protect, async (req, res) => {
-    const sellingProducts = await Product.find({ seller: req.user._id }).select('_id').lean();
-    const productIds = sellingProducts.map((p) => p._id);
-    const messages = await populateThread(Message.find({
-        $or: [
-            { sender: req.user._id },
-            { product: { $in: productIds } }
-        ]
-    })).lean();
-    res.json({ count: messages.length, messages });
+// GET /api/messages/my — own private conversations and buyer/seller product groups.
+router.get('/my', protect, async (req, res, next) => {
+    try {
+        const sellingProducts = await Product.find({ seller: req.user._id }).select('_id').lean();
+        const productIds = sellingProducts.map((p) => p._id);
+        const messages = await populateThread(Message.find({
+            $or: [
+                { sender: req.user._id },
+                { conversationType: { $ne: 'direct' }, product: { $in: productIds } }
+            ]
+        })).lean();
+        res.json({ count: messages.length, messages });
+    } catch (err) { next(err); }
 });
 
-// POST /api/messages/:id/replies — buyer/seller can reply in their product group thread.
+// POST /api/messages/:id/replies — participants can reply in their conversation.
 router.post('/:id/replies', protect, async (req, res) => {
     try {
         const cleanText = String(req.body.text || '').trim();
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid message is required' });
         if (!cleanText) return res.status(400).json({ message: 'Reply is required' });
+        if (cleanText.length > 2000) return res.status(400).json({ message: 'Messages can be up to 2000 characters' });
 
         const message = await Message.findById(req.params.id);
         if (!message) return res.status(404).json({ message: 'Message not found' });
         if (!(await canAccessThread(message, req.user))) {
             return res.status(403).json({ message: 'Not allowed in this chat' });
         }
-        const product = await Product.findById(message.product).select('seller').lean();
-        const senderRole = product && String(product.seller) === String(req.user._id) ? 'seller' : 'buyer';
+        const product = message.product ? await Product.findById(message.product).select('seller').lean() : null;
+        const senderRole = ['admin', 'employee'].includes(req.user.role) ? req.user.role : (product && String(product.seller) === String(req.user._id) ? 'seller' : 'buyer');
 
         message.replies.push({
             sender: req.user._id,

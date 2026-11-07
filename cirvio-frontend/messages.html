@@ -38,8 +38,8 @@
         <section class="chat-main" id="chatMain">
             <div class="chat-empty" id="chatEmpty">
                 <div class="message-icon chat-logo-mark"><img src="cirvio-logo-header.png" alt="CIRVIO"></div>
-                <h1>Product group chats</h1>
-                <p>Select a chat to talk with the buyer, seller and CIRVIO admin in one safe place.</p>
+                <h1>Your conversations</h1>
+                <p>Read messages from CIRVIO and join your product group chats in one place.</p>
                 <a class="btn btn-terracotta" href="explore.html">Browse Products</a>
             </div>
 
@@ -70,7 +70,7 @@
                     <button class="chat-tool-btn" type="button" aria-label="Attach file" title="Attach file">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="m21.4 11.6-8.5 8.5a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>
                     </button>
-                    <textarea id="chatInput" placeholder="Type a message..." rows="1"></textarea>
+                    <textarea id="chatInput" aria-label="Message" placeholder="Type a message..." maxlength="2000" rows="1"></textarea>
                     <button class="chat-tool-btn chat-emoji-btn" type="button" aria-label="Emoji" title="Emoji">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.3 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
                     </button>
@@ -96,6 +96,8 @@
     <script>
         let activeThreadId = '';
         let activeThreads = [];
+        const chatDrafts = new Map();
+        const pendingChatReplies = new Set();
         const chatLogo = 'cirvio-logo-header.png';
         const backendIdPattern = /^[a-f\d]{24}$/i;
 
@@ -162,6 +164,7 @@
                     byThread.set(key, {
                         id: key,
                         productId: m.productId,
+                        conversationType: m.conversationType || 'product',
                         productTitle: m.productTitle || 'Product chat',
                         productImg: m.productImg || '',
                         messages: []
@@ -211,6 +214,7 @@
         }
 
         function selectThread(id) {
+            if (activeThreadId) chatDrafts.set(activeThreadId, document.getElementById('chatInput').value);
             activeThreadId = id;
             const thread = groupThreads().find((t) => t.id === id);
             if (!thread) return;
@@ -220,7 +224,10 @@
             document.body.classList.add('chat-open');
             document.getElementById('chatProductTitle').textContent = thread.productTitle;
             const shortId = thread.productId ? `Product ID ${String(thread.productId).slice(-6).toUpperCase()} - ` : '';
-            document.getElementById('chatParties').textContent = `${shortId}Buyer, Seller, CIRVIO Admin`;
+            document.getElementById('chatParties').textContent = thread.conversationType === 'direct' ? `${shortId}You and CIRVIO Admin · Private conversation` : `${shortId}Buyer, Seller, CIRVIO Admin`;
+            document.getElementById('chatInput').value = chatDrafts.get(id) || '';
+            document.getElementById('chatSendBtn').disabled = pendingChatReplies.has(id);
+            resizeComposer();
             const productImg = document.getElementById('chatProductImg');
             productImg.onerror = () => {
                 productImg.onerror = null;
@@ -326,6 +333,11 @@
         }
 
         function openFirstThreadOnDesktop() {
+            const requested = new URLSearchParams(location.search).get('thread');
+            if (!activeThreadId && requested && groupThreads().some(thread => thread.id === requested)) {
+                selectThread(requested);
+                return;
+            }
             if (!activeThreadId && isDesktopChat()) {
                 const first = groupThreads()[0];
                 if (first) selectThread(first.id);
@@ -352,38 +364,50 @@
             e.preventDefault();
             const input = chatInput;
             const text = input.value.trim();
-            if (!activeThreadId || !text) return;
+            const threadId = activeThreadId;
+            const originalText = input.value;
+            if (!threadId || !text || pendingChatReplies.has(threadId)) return;
+            pendingChatReplies.add(threadId);
             try {
                 chatSendBtn.disabled = true;
-                const thread = groupThreads().find((t) => t.id === activeThreadId);
+                const thread = groupThreads().find((t) => t.id === threadId);
                 let saved = null;
-                if (window.CirvioAPI && validBackendId(activeThreadId)) {
-                    saved = await CirvioAPI.replyToMessage(activeThreadId, text);
+                if (window.CirvioAPI && validBackendId(threadId)) {
+                    saved = await CirvioAPI.replyToMessage(threadId, text);
                 } else if (window.CirvioAPI && thread?.productId && validBackendId(thread.productId)) {
                     saved = await CirvioAPI.sendMessage(thread.productId, text);
-                    activeThreadId = saved?.message?._id || activeThreadId;
+                    if (activeThreadId === threadId) activeThreadId = saved?.message?._id || threadId;
+                }
+                if (validBackendId(threadId) && !saved?.message?._id) throw new Error('The server did not confirm your message. Please try again.');
+                if (activeThreadId === threadId ? input.value === originalText : chatDrafts.get(threadId) === originalText) {
+                    chatDrafts.delete(threadId);
+                    if (activeThreadId === threadId) input.value = '';
                 }
                 if (saved?.message && window.CirvioMessages) {
                     await CirvioMessages.sync();
                 } else if (thread) {
                     addLocalReply(thread, text);
                 }
-                input.value = '';
                 resizeComposer();
                 selectThread(activeThreadId);
                 showToast('Message sent');
             } catch (err) {
                 showToast(err.message || 'Could not send message');
             } finally {
-                chatSendBtn.disabled = false;
+                pendingChatReplies.delete(threadId);
+                chatSendBtn.disabled = pendingChatReplies.has(activeThreadId);
             }
         });
 
         window.addEventListener('cirvio:messages-synced', () => {
             renderThreadList();
-            if (activeThreadId) {
+            if (activeThreadId && activeThreads.some(thread => thread.id === activeThreadId)) {
                 selectThread(activeThreadId);
             } else {
+                activeThreadId = '';
+                roomEl.hidden = true;
+                emptyEl.hidden = false;
+                document.body.classList.remove('chat-open');
                 openFirstThreadOnDesktop();
             }
         });

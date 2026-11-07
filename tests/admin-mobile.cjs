@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const directory = path.resolve(__dirname, '../cirvio-backend/admin-panel');
 const image = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="320" height="240" fill="#d5d9c8"/></svg>');
 const fixtureUser = { id: 'staff', _id: 'staff', name: 'Test Administrator', email: 'admin@example.test', role: 'admin', status: 'active' };
-const products = Array.from({ length: 23 }, (_, index) => ({ _id: 'p' + index, title: 'Listing ' + index + ' with a long description for a student marketplace', category: 'Books', type: 'sell', price: 150, images: [image], condition: 'Good', status: 'pending', createdAt: '2026-10-01', seller: { name: 'Test Seller', email: 'seller@example.test' } }));
+const products = Array.from({ length: 23 }, (_, index) => ({ _id: 'p' + index, title: 'Listing ' + index + ' with a long description for a student marketplace', category: 'Books', type: 'sell', price: 150, images: [image], condition: 'Good', status: 'pending', createdAt: '2026-10-01', seller: { _id: 'seller', name: 'Test Seller', email: 'seller@example.test' } }));
 const users = Array.from({ length: 23 }, (_, index) => ({ _id: 'u' + index, name: 'Student ' + index, email: 'student' + index + '@example.test', role: index === 1 ? 'employee' : 'user', status: 'active', listingsCount: 1, ordersCount: 0, college: 'Test College', city: 'Mumbai', createdAt: '2026-10-01' }));
 const initialMessages = [
     { _id: 'm1', sender: users[0], product: products[0], text: 'Can I collect this book?', createdAt: '2026-10-01', updatedAt: '2026-10-03', replies: [{ senderRole: 'admin', text: 'Yes, we can arrange it.', createdAt: '2026-10-02' }, { senderRole: 'buyer', text: 'What time is available?', createdAt: '2026-10-03' }] },
@@ -38,6 +38,25 @@ app.use('/api', async (request, response) => {
     if (route === '/admin/products') return response.json({ products });
     if (route === '/admin/purchases') return response.json({ purchases: state.purchases });
     if (route === '/admin/messages') return response.json({ messages: state.messages });
+    if (route === '/admin/message-recipients') {
+        if (state.failSearch) return response.status(503).json({ message: 'Could not load users. Try again.' });
+        const search = String(request.query.q || '').toLowerCase();
+        if (search === 'student 1') await new Promise(resolve => setTimeout(resolve, 450));
+        return response.json({ users: users.filter(user => `${user.name} ${user.email}`.toLowerCase().includes(search)) });
+    }
+    if (route === '/admin/messages/conversations') {
+        state.openCount = (state.openCount || 0) + 1;
+        if (state.failOpen) return response.status(503).json({ message: 'Could not open chat. Try again.' });
+        const product = products.find(product => product._id === request.body.productId);
+        const sender = product?.seller || users.find(user => user._id === request.body.userId);
+        const key = product ? `listing:${product._id}` : `direct:${sender._id}`;
+        let message = state.messages.find(message => message.conversationKey === key);
+        if (!message) {
+            message = { _id: key, conversationKey: key, conversationType: 'direct', sender, product: product || null, text: '', replies: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+            state.messages.push(message);
+        }
+        return response.json({ message });
+    }
     if (route === '/admin/site-media') return response.json({ media: {} });
     if (route === '/admin/client-origins') return response.json({ origins: [], envOrigins: [] });
     const reply = route.match(/^\/admin\/messages\/([^/]+)\/reply$/);
@@ -130,6 +149,65 @@ app.use('/api', async (request, response) => {
                 if (process.env.CIRVIO_SCREENSHOT_DIR && width === 390) await page.screenshot({ path: path.join(process.env.CIRVIO_SCREENSHOT_DIR, 'admin-mobile-users.png') });
             }
         }, { context: { viewport: { width, height: 844 }, isMobile: width <= 780 } });
+
+        for (const width of [320, 1280]) await check(`Start a user conversation, retry and reuse it at ${width}px`, async page => {
+            await boot(page); await navigate(page, 'messages');
+            await page.locator('[data-message-filter="needs-reply"]').click();
+            await page.locator('#messagesSearchInput').fill('hide-every-thread');
+            state.failSearch = true;
+            await page.locator('#newMessageBtn').click();
+            await page.locator('#retryMessageRecipients').waitFor({ state: 'visible' });
+            state.failSearch = false;
+            await page.locator('#retryMessageRecipients').click();
+            await page.locator('#messageRecipientList button').first().waitFor();
+            await page.locator('#messageRecipientSearch').fill('student 1');
+            await page.waitForRequest(request => request.url().includes('message-recipients?q=student%201'));
+            await page.locator('#messageRecipientSearch').fill('student4@');
+            await page.locator('#messageRecipientList button').waitFor();
+            assert.equal(await page.locator('#messageRecipientList button').count(), 1);
+            if (process.env.CIRVIO_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.CIRVIO_SCREENSHOT_DIR, `admin-new-message-${width}.png`) });
+            state.failOpen = true;
+            await page.locator('#messageRecipientList button').click();
+            await page.getByText('Could not open chat. Try again.', { exact: true }).waitFor();
+            assert.equal(await page.locator('#messageRecipientList strong').innerText(), 'Student 4', 'Opening failures preserve the recipient card');
+            assert.equal(await page.locator('#messageRecipientSearch').inputValue(), 'student4@');
+            state.failOpen = false;
+            await page.locator('#messageRecipientList button').click();
+            await page.locator('#newMessageDialog').waitFor({ state: 'hidden' });
+            await page.locator('#sideReplyText').waitFor({ state: 'visible' });
+            assert.match(await page.locator('.chat-contact').innerText(), /Student 4/);
+            assert.equal(await page.locator('.reply-bubble').count(), 0, 'No fabricated empty opening message');
+            assert.equal(await page.locator('[data-message-filter="all"]').getAttribute('aria-pressed'), 'true');
+            assert.equal(await page.locator('#messagesSearchInput').inputValue(), '');
+            await page.locator('#sideReplyText').fill('Hello, how can we help?');
+            await page.locator('#sideReplySend').click();
+            await page.locator('.reply-bubble.from-admin').waitFor();
+            await navigate(page, 'users');
+            await page.locator('#usersTable [data-message-user="u4"]').click();
+            await page.locator('#sideReplyText').waitFor({ state: 'visible' });
+            assert.equal(await page.locator('.reply-bubble.from-admin').innerText().then(text => text.includes('Hello, how can we help?')), true);
+            assert.equal(state.messages.filter(message => message.conversationKey === 'direct:u4').length, 1);
+            await noOverflow(page);
+        }, { context: { viewport: { width, height: 844 }, isMobile: width <= 780 } });
+
+        await check('Listing actions and review open the same seller conversation on a phone', async page => {
+            await boot(page); await navigate(page, 'listings');
+            await page.locator('#listingsTable [data-message-listing="p0"]').click();
+            await page.locator('#sideReplyText').waitFor({ state: 'visible' });
+            assert.match(await page.locator('.chat-contact').innerText(), /Test Seller/);
+            assert.match(await page.locator('.chat-topic').innerText(), /Listing 0/);
+            assert.equal(await page.evaluate(() => activeMessageId), 'listing:p0');
+            await page.locator('#sideReplyText').fill('Please add a clearer photo.');
+            await navigate(page, 'listings');
+            await page.locator('#listingsTable tbody tr').first().getByRole('button', { name: 'View Images' }).click();
+            await page.locator('#imageModalDetail [data-message-listing="p0"]').click();
+            await page.locator('#listingImageModal').waitFor({ state: 'hidden' });
+            await page.locator('#sideReplyText').waitFor({ state: 'visible' });
+            assert.equal(await page.locator('#sideReplyText').inputValue(), 'Please add a clearer photo.');
+            assert.equal(await page.locator('.main').evaluate(element => element.inert), false);
+            assert.equal(state.messages.filter(message => message.conversationKey === 'listing:p0').length, 1);
+            await noOverflow(page);
+        });
 
         await check('Phone inbox, reply filters, Back and drafts work', async page => {
             await boot(page);

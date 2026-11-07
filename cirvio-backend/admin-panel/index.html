@@ -298,6 +298,7 @@
               <strong>Inbox</strong>
               <span id="messageInboxCount">0 conversations</span>
             </div>
+            <button type="button" class="row-btn btn-view" id="newMessageBtn">New message</button>
           </div>
           <label class="message-search">
             <svg class="field-icon"><use href="#icon-search"></use></svg>
@@ -311,7 +312,7 @@
           <div class="chat-empty">
             <span class="page-icon"><svg class="ui-icon"><use href="#icon-messages"></use></svg></span>
             <strong>Select a conversation</strong>
-            <p>Open a product enquiry to reply from the side panel.</p>
+            <p>Select a chat or start a new message to any user.</p>
           </div>
         </aside>
       </div>
@@ -319,8 +320,22 @@
   </main>
 </div>
 
+<dialog id="newMessageDialog" class="message-compose" aria-labelledby="newMessageTitle">
+  <div class="message-compose-head">
+    <div><h2 id="newMessageTitle">New message</h2><p>Choose a user to open a private conversation.</p></div>
+    <button type="button" class="soft-btn" id="closeNewMessage">Close</button>
+  </div>
+  <label class="message-recipient-search" for="messageRecipientSearch">Find a user
+    <input id="messageRecipientSearch" type="search" placeholder="Name, email or phone" autocomplete="off" maxlength="100">
+  </label>
+  <p id="messageRecipientStatus" class="conversation-start-hint" role="status" aria-live="polite"></p>
+  <button type="button" class="soft-btn" id="retryMessageRecipients" hidden>Try again</button>
+  <div id="messageRecipientList" class="message-recipient-list" aria-label="Users"></div>
+</dialog>
+
 <script src="admin-pwa.js"></script>
 <script src="data-tables.js"></script>
 <script src="admin.js"></script>
+<script src="admin-conversations.js"></script>
 </body>
 </html>

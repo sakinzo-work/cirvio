@@ -10,6 +10,7 @@ npm.cmd install --prefix $testPrefix --no-save --no-package-lock playwright@1.56
 $env:NODE_PATH = Join-Path $testPrefix 'node_modules'
 node tests/rendering.cjs
 node tests/admin-mobile.cjs
+node tests/messaging-api.cjs
 ```
 
 The runner uses installed Google Chrome on Windows. Otherwise install Playwright's Chromium or set `CIRVIO_BROWSER_PATH` to a Chromium executable. The backend's existing dependencies must be installed.
@@ -17,3 +18,5 @@ The runner uses installed Google Chrome on Windows. Otherwise install Playwright
 `admin-mobile.cjs` checks every admin section at 320, 390, 768 and 1280 pixels, the mobile menu, card tables, chat filtering and navigation, drafts, failed and duplicate sends, order editing, staff permissions and login. PWA checks use a temporary regular browser profile, a real service worker and Chromium installability checks. Offline recovery is tested with a simulated transport failure; no staff API responses may appear in Cache Storage. Temporary browser profiles are removed after the run.
 
 To investigate a single group in PowerShell, set `$env:ADMIN_TEST_FILTER = 'Manifest'` (or another test-name fragment). Remove it with `Remove-Item Env:ADMIN_TEST_FILTER` before the full run.
+
+Messaging checks cover recipient search, starting/reopening private chats from Users and listing reviews, search/open failures, phone and desktop layouts, and user replies without a product. `messaging-api.cjs` exercises the actual authenticated Express routes and Mongoose validation with isolated model adapters: concurrent opens, the unique conversation index, literal search, input limits, staff access, private participant isolation and legacy group chats. It also checks that the website worker bypasses private API calls and preserves the admin cache during updates. It requires only the backend dependencies.

@@ -736,6 +736,10 @@ function markThreadRead(threadId) {
 
 function openContactThreadFromMessage(message) {
     if (!message) return;
+    if (message.conversationType === 'direct') {
+        window.location.href = 'messages.html?thread=' + encodeURIComponent(message.threadId);
+        return;
+    }
     const product = {
         id: message.productId,
         title: message.productTitle || 'Selected product',
@@ -756,18 +760,19 @@ function ccClose() {
 
 function messageEntryFromThread(thread, part, index = -1, existing = null) {
     const isRoot = index < 0;
-    const role = isRoot ? 'buyer' : (part.senderRole === 'user' ? 'buyer' : (part.senderRole || 'buyer'));
+    const role = isRoot ? (thread.senderRole || 'buyer') : (part.senderRole === 'user' ? 'buyer' : (part.senderRole || 'buyer'));
     const fromAdmin = ['admin', 'employee'].includes(role);
     const fromSeller = role === 'seller';
-    const sender = isRoot ? thread.sender : part.sender;
+    const sender = isRoot ? (thread.createdBy || thread.sender) : part.sender;
     const senderId = sender && typeof sender === 'object' ? sender._id : sender;
     const createdAt = part.createdAt || thread.createdAt || new Date().toISOString();
     return {
         id: isRoot ? `${thread._id}:root` : `${thread._id}:reply:${part._id || index}`,
         backendKey: isRoot ? `${thread._id}:root` : `${thread._id}:reply:${part._id || index}`,
         threadId: thread._id,
+        conversationType: thread.conversationType || 'product',
         productId: thread.product?._id || thread.product || null,
-        productTitle: thread.product?.title || thread.productTitle || null,
+        productTitle: thread.product?.title || thread.productTitle || (thread.conversationType === 'direct' ? 'CIRVIO Admin' : null),
         productImg: thread.productImg || (thread.product?.images && thread.product.images[0]) || null,
         senderId,
         senderRole: role,
@@ -782,25 +787,25 @@ function messageEntryFromThread(thread, part, index = -1, existing = null) {
 function mergeBackendMessages(threads, { notify = false } = {}) {
     const existing = CirvioStore.getMessages();
     const existingByKey = Object.fromEntries(existing.filter(m => m.backendKey).map(m => [m.backendKey, m]));
-    const backendKeys = new Set();
     const backendEntries = [];
     let newAdminReply = null;
 
     (threads || []).forEach((thread) => {
-        const root = messageEntryFromThread(thread, { text: thread.text, createdAt: thread.createdAt }, -1, existingByKey[`${thread._id}:root`]);
-        backendKeys.add(root.backendKey);
-        backendEntries.push(root);
+        if (thread.text) {
+            const root = messageEntryFromThread(thread, { text: thread.text, createdAt: thread.createdAt }, -1, existingByKey[`${thread._id}:root`]);
+            backendEntries.push(root);
+            if (notify && !isOwnMessage(root) && !existingByKey[root.backendKey]) newAdminReply = root;
+        }
 
         (thread.replies || []).forEach((reply, index) => {
             const key = `${thread._id}:reply:${reply._id || index}`;
             const entry = messageEntryFromThread(thread, reply, index, existingByKey[key]);
-            backendKeys.add(entry.backendKey);
             backendEntries.push(entry);
-            if (notify && entry.from !== 'user' && !existingByKey[key]) newAdminReply = entry;
+            if (notify && !isOwnMessage(entry) && !existingByKey[key]) newAdminReply = entry;
         });
     });
 
-    const localOnly = existing.filter(m => !m.backendKey || !backendKeys.has(m.backendKey));
+    const localOnly = existing.filter(m => !m.backendKey);
     const combined = [...localOnly, ...backendEntries].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
     CirvioStore.setMessages(combined);
     refreshMsgBadge();
@@ -815,7 +820,7 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
                 id,
                 type: 'message',
                 title: 'New message received',
-                text: `Message about "${newAdminReply.productTitle || 'your product'}". Open Messages to read it.`,
+                text: newAdminReply.conversationType === 'direct' ? 'CIRVIO sent you a message. Open Messages to reply.' : `Message about "${newAdminReply.productTitle || 'your product'}". Open Messages to read it.`,
                 link: 'messages.html',
                 read: false,
                 createdAt: newAdminReply.createdAt || Date.now()
@@ -831,8 +836,10 @@ function mergeBackendMessages(threads, { notify = false } = {}) {
 let messagePollStarted = false;
 async function syncMessagesFromBackend({ notify = false } = {}) {
     if (!window.CirvioAPI || !localStorage.getItem('cirvio_token')) return;
+    const sessionToken = localStorage.getItem('cirvio_token');
     try {
         const { messages } = await CirvioAPI.myMessages();
+        if (sessionToken !== localStorage.getItem('cirvio_token')) return;
         mergeBackendMessages(messages || [], { notify });
     } catch (err) {
         console.warn('Could not sync messages:', err.message);

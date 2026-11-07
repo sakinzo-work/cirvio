@@ -317,6 +317,42 @@ const defaults = pathname => {
             assert.equal(await page.locator('#trustStars button:not(:disabled)').count(), 0);
         }, pathname => pathname === '/api/auth/users/missing' ? { status: 404, body: { message: 'User not found' } } : undefined, true);
 
+        const directId = '000000000000000000000123';
+        const directThread = { _id: directId, conversationType: 'direct', sender: user, text: '', createdAt: '2026-11-07', updatedAt: '2026-11-07', replies: [{ _id: 'first', sender: { _id: 'other-staff' }, senderRole: 'admin', text: 'Hello from CIRVIO support', createdAt: '2026-11-07' }] };
+        let failDirectReply = true;
+        let directReplyCount = 0;
+        await check('Users receive private admin chats and can reply without a product', async (page, base) => {
+            await page.addInitScript(profile => localStorage.setItem('cirvio_profile', JSON.stringify(profile)), user);
+            await page.setViewportSize({ width: 390, height: 844 });
+            await page.goto(base + '/messages.html?thread=' + directId);
+            await page.locator('#chatRoom').waitFor({ state: 'visible' });
+            assert.equal(await page.locator('#chatProductTitle').innerText(), 'CIRVIO Admin');
+            assert.match(await page.locator('#chatParties').innerText(), /You and CIRVIO Admin/);
+            assert.equal(await page.locator('.chat-message').count(), 1, 'No empty root bubble');
+            assert.equal(await page.locator('.chat-message strong').innerText(), 'CIRVIO Admin');
+            await page.locator('#chatInput').fill('Thank you for contacting me');
+            await page.locator('#chatSendBtn').click();
+            await page.getByText('Please try again', { exact: true }).waitFor();
+            assert.equal(await page.locator('#chatInput').inputValue(), 'Thank you for contacting me');
+            failDirectReply = false;
+            await page.locator('#chatSendBtn').click();
+            await page.waitForFunction(() => !document.getElementById('chatSendBtn').disabled);
+            assert.equal(await page.locator('.chat-message.mine p').innerText(), 'Thank you for contacting me');
+            assert.equal(await page.locator('#chatInput').inputValue(), '');
+            assert.equal(directReplyCount, 2);
+            await page.evaluate(() => CirvioAPI.setSession('different-user-token', { id: 'different-user', name: 'Different User' }));
+            assert.equal(await page.evaluate(() => localStorage.getItem('cirvio_messages')), null, 'Account switching clears private messages');
+        }, async (pathname, route) => {
+            if (pathname === '/api/messages/my') return { body: { messages: [directThread] } };
+            if (pathname === `/api/messages/${directId}/replies`) {
+                directReplyCount++;
+                assert.equal(route.request().postDataJSON().text, 'Thank you for contacting me');
+                if (failDirectReply) return { status: 503, body: { message: 'Please try again' } };
+                directThread.replies.push({ _id: 'reply', sender: { _id: user.id }, senderRole: 'buyer', text: route.request().postDataJSON().text, createdAt: '2026-11-07T10:00:00Z' });
+                return { body: { message: directThread } };
+            }
+        }, true);
+
         await check('Public listing API returns seller summaries without private contact or rating entries', async (_page, base) => {
             const original = Product.find;
             Product.find = () => ({

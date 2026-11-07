@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
@@ -362,49 +363,100 @@ router.get('/purchases', async (req, res) => {
     res.json({ count: rows.length, purchases: rows });
 });
 
-// GET /api/admin/messages — product-related messages sent to CIRVIO admins.
-router.get('/messages', async (req, res) => {
-    const messages = await Message.find({ recipientRole: 'admin' })
+function populateAdminThread(query) {
+    return query
         .populate('sender', 'name email college city phone')
+        .populate('createdBy', 'name')
         .populate('replies.sender', 'name email')
-        .populate({
-            path: 'product',
-            select: 'title category location images seller',
-            populate: { path: 'seller', select: 'name email college city phone' }
-        })
-        .sort({ updatedAt: -1 })
-        .lean();
+        .populate({ path: 'product', select: 'title category location images seller', populate: { path: 'seller', select: 'name email college city phone' } });
+}
 
-    res.json({ count: messages.length, messages });
+// Staff can find a recipient without downloading every account and its marketplace totals.
+router.get('/message-recipients', async (req, res, next) => {
+    try {
+        const search = String(req.query.q || '').trim().slice(0, 100);
+        const filter = { _id: { $ne: req.user._id } };
+        if (search) {
+            const literal = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            filter.$or = ['name', 'email', 'phone'].map(field => ({ [field]: { $regex: literal, $options: 'i' } }));
+        }
+        const users = await User.find(filter).select('name email phone college city status role').sort({ name: 1, _id: 1 }).limit(30).lean();
+        res.json({ users });
+    } catch (err) { next(err); }
+});
+
+// Opening a listing creates a private seller/staff thread, separate from buyer group enquiries.
+router.post('/messages/conversations', async (req, res, next) => {
+    try {
+        let { userId, productId } = req.body;
+        let product = null;
+        if (productId) {
+            if (!mongoose.Types.ObjectId.isValid(productId)) return res.status(400).json({ message: 'Valid listing is required' });
+            product = await Product.findById(productId);
+            if (!product) return res.status(404).json({ message: 'Listing not found' });
+            if (userId && String(userId) !== String(product.seller)) return res.status(400).json({ message: 'Choose the listing seller for this conversation' });
+            userId = product.seller;
+        }
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) return res.status(400).json({ message: 'Valid user is required' });
+        if (String(userId) === String(req.user._id)) return res.status(400).json({ message: 'Choose another user to message' });
+        const user = await User.findById(userId).select('_id');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        const conversationKey = product ? `listing:${product._id}:${user._id}` : `direct:${user._id}`;
+        let message = await Message.findOne({ conversationKey });
+        let created = false;
+        if (!message) {
+            try {
+                message = await Message.create({
+                    conversationKey, conversationType: 'direct', sender: user._id,
+                    createdBy: req.user._id, senderRole: req.user.role, text: '',
+                    ...(product ? { product: product._id, productTitle: product.title, productImg: product.images?.[0] || '' } : {})
+                });
+                created = true;
+            } catch (err) {
+                if (err.code !== 11000) throw err;
+                message = await Message.findOne({ conversationKey });
+                if (!message) throw err;
+            }
+        }
+        const populated = await populateAdminThread(Message.findById(message._id)).lean();
+        res.status(created ? 201 : 200).json({ message: populated });
+    } catch (err) { next(err); }
+});
+
+// GET /api/admin/messages — user conversations and product group enquiries.
+router.get('/messages', async (req, res, next) => {
+    try {
+        const messages = await populateAdminThread(Message.find({ recipientRole: 'admin' }))
+            .sort({ updatedAt: -1 })
+            .lean();
+
+        res.json({ count: messages.length, messages });
+    } catch (err) { next(err); }
 });
 
 // POST /api/admin/messages/:id/reply — CIRVIO staff replies to the user enquiry.
-router.post('/messages/:id/reply', async (req, res) => {
-    const text = String(req.body.text || '').trim();
-    if (!text) return res.status(400).json({ message: 'Reply is required' });
+router.post('/messages/:id/reply', async (req, res, next) => {
+    try {
+        const text = String(req.body.text || '').trim();
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ message: 'Valid conversation is required' });
+        if (!text) return res.status(400).json({ message: 'Reply is required' });
+        if (text.length > 2000) return res.status(400).json({ message: 'Messages can be up to 2000 characters' });
 
-    const message = await Message.findById(req.params.id);
-    if (!message) return res.status(404).json({ message: 'Message not found' });
+        const message = await Message.findById(req.params.id);
+        if (!message) return res.status(404).json({ message: 'Message not found' });
 
-    message.replies.push({
-        sender: req.user._id,
-        senderRole: req.user.role === 'admin' ? 'admin' : 'employee',
-        text
-    });
-    message.readByAdminAt = message.readByAdminAt || new Date();
-    await message.save();
+        message.replies.push({
+            sender: req.user._id,
+            senderRole: req.user.role === 'admin' ? 'admin' : 'employee',
+            text
+        });
+        message.readByAdminAt = message.readByAdminAt || new Date();
+        await message.save();
 
-    const updated = await Message.findById(message._id)
-        .populate('sender', 'name email college city phone')
-        .populate('replies.sender', 'name email')
-        .populate({
-            path: 'product',
-            select: 'title category location images seller',
-            populate: { path: 'seller', select: 'name email college city phone' }
-        })
-        .lean();
+        const updated = await populateAdminThread(Message.findById(message._id)).lean();
 
-    res.status(201).json({ message: updated });
+        res.status(201).json({ message: updated });
+    } catch (err) { next(err); }
 });
 
 // PUT /api/admin/orders/:id/status   body: { status }

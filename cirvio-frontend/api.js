@@ -101,6 +101,12 @@ const CirvioAPI = {
         return localStorage.getItem('cirvio_token') || '';
     },
     setSession(token, user) {
+        let previousUser = {};
+        try { previousUser = JSON.parse(localStorage.getItem('cirvio_profile') || '{}'); } catch (err) { /* Treat invalid profiles as a different account. */ }
+        if (user && String(previousUser.id || previousUser._id || '') !== String(user.id || user._id || '')) {
+            localStorage.removeItem('cirvio_messages');
+            localStorage.removeItem('cirvio_notifications');
+        }
         if (token) localStorage.setItem('cirvio_token', token);
         if (token) localStorage.setItem('cirvio_session_api_base', API_BASE);
         if (user) localStorage.setItem('cirvio_profile', JSON.stringify(user));
@@ -109,6 +115,8 @@ const CirvioAPI = {
         localStorage.removeItem('cirvio_token');
         localStorage.removeItem('cirvio_session_api_base');
         localStorage.removeItem('cirvio_profile');
+        localStorage.removeItem('cirvio_messages');
+        localStorage.removeItem('cirvio_notifications');
     },
     logout() {
         this.clearSession();

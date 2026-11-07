@@ -3,7 +3,7 @@
    App-shell precache + runtime caching so the site installs as a
    PWA and keeps working (mostly) offline.
 ============================================================ */
-const CIRVIO_CACHE = 'cirvio-cache-v11';
+const CIRVIO_CACHE = 'cirvio-cache-v12';
 
 const APP_SHELL = [
     './',
@@ -52,7 +52,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) =>
-            Promise.all(keys.filter((k) => k !== CIRVIO_CACHE).map((k) => caches.delete(k)))
+            Promise.all(keys.filter((k) => k.startsWith('cirvio-cache-') && k !== CIRVIO_CACHE).map((k) => caches.delete(k)))
         ).then(() => self.clients.claim())
     );
 });
@@ -62,6 +62,8 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
 
     const url = new URL(req.url);
+    // Conversations and authenticated data always use the network, including cross-origin API calls.
+    if (url.pathname === '/api' || url.pathname.startsWith('/api/') || req.headers.has('authorization')) return;
 
     /* page navigations: network-first, fall back to cache, then offline page */
     if (req.mode === 'navigate') {

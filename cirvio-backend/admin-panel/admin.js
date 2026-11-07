@@ -39,6 +39,7 @@ const ADMIN_PRODUCTS = new Map();
 const ADMIN_MESSAGES = new Map();
 const messageDrafts = new Map();
 const pendingReplies = new Set();
+let messageRevision = 0;
 let activeMessageFilter = 'all';
 const ADMIN_PURCHASES = new Map();
 let adminMessagePollStarted = false;
@@ -279,6 +280,7 @@ function listingActions(p) {
     return `
     <div class="action-stack">
       <button class="row-btn btn-view" onclick="viewListingImages('${p._id}')">View Images</button>
+      ${p.seller ? `<button type="button" class="row-btn btn-view" data-message-listing="${esc(p._id)}">Message seller</button>` : ''}
       ${['pending', 'rejected'].includes(p.status) ? `<button class="row-btn btn-approve" ${viewed ? '' : 'disabled title="View images/details first"'} onclick="approveProduct('${p._id}')">Approve</button>` : ''}
       ${p.status !== 'rejected' && p.status !== 'sold' ? `<button class="row-btn btn-reject" onclick="rejectProduct('${p._id}')">Reject</button>` : ''}
       ${isAdmin() ? `<button class="row-btn btn-delete" onclick="deleteProduct('${p._id}')">Delete</button>` : ''}
@@ -561,6 +563,7 @@ async function loadUsers(options = {}) {
           <td><span class="badge badge-${u.status}">${u.status}</span></td>
           <td>${fmtDate(u.createdAt)}</td>
           <td>
+            ${String(u._id) !== String(CURRENT_USER?._id || CURRENT_USER?.id) ? `<button type="button" class="row-btn btn-view" data-message-user="${esc(u._id)}">Message</button>` : ''}
             ${u.role === 'admin' || !isAdmin() ? `<span class="sub">${u.role}</span>` : `
               <button class="row-btn btn-suspend" onclick="toggleUserStatus('${u._id}','${u.status}')">${u.status === 'active' ? 'Suspend' : 'Activate'}</button>
               <button class="row-btn btn-delete" onclick="deleteUser('${u._id}')">Delete</button>
@@ -744,6 +747,7 @@ async function viewListingImages(id) {
         <div><dt>Location</dt><dd>${esc(product.location || '-')}</dd></div>
         <div><dt>Description</dt><dd>${esc(product.description || 'No description provided.')}</dd></div>
       </dl>
+      ${product.seller ? `<button type="button" class="row-btn btn-view" data-message-listing="${esc(product._id)}">Message seller</button>` : ''}
     `;
     document.getElementById('listingImageModal').classList.add('open');
     try {
@@ -948,15 +952,16 @@ async function saveOrderOps() {
 function messageNeedsReply(message) {
     const replies = message.replies || [];
     const last = replies[replies.length - 1];
-    return !last || !['admin', 'employee'].includes(last.senderRole);
+    return last ? !['admin', 'employee'].includes(last.senderRole) : !!message.text && !['admin', 'employee'].includes(message.senderRole);
 }
 
 async function loadMessages({ notify = false, signal } = {}) {
     const inbox = document.getElementById('messageInboxList');
     if (!inbox) return;
     const previous = new Map(ADMIN_MESSAGES);
+    const revision = messageRevision;
     const { messages } = await api('/api/admin/messages', { signal });
-    if (signal?.aborted) return;
+    if (signal?.aborted || revision !== messageRevision) return;
     const signature = JSON.stringify(messages);
     if (inbox.dataset.signature === signature) return;
     inbox.dataset.signature = signature;
@@ -967,7 +972,7 @@ async function loadMessages({ notify = false, signal } = {}) {
     if (notify) {
         const changed = messages.find((m) => {
             const old = previous.get(String(m._id));
-            if (!old) return true;
+            if (!old) return messageNeedsReply(m);
             const replies = m.replies || [];
             const oldReplies = old.replies || [];
             const lastReply = replies[replies.length - 1];
@@ -1001,12 +1006,12 @@ function renderAdminMessages() {
           <span class="avatar">${iconSvg('user')}</span>
           <span class="message-thread-main">
             <span class="thread-top">
-              <strong>${esc(sender.name || 'Buyer')}</strong>
+              <strong>${esc(sender.name || 'User')}</strong>
               <small>${fmtDate(m.updatedAt || m.createdAt)}</small>
             </span>
-            <span class="thread-product">${esc(product.title || m.productTitle || 'Product enquiry')}</span>
-            <span class="thread-preview">${esc(lastText || 'No message text')}</span>
-            <span class="thread-meta">${esc(sender.email || sender.phone || '')}${seller.name ? ` | Seller: ${esc(seller.name)}` : ''}</span>
+            <span class="thread-product">${esc(product.title || m.productTitle || (m.conversationType === 'direct' ? 'Direct message' : 'Product enquiry'))}</span>
+            <span class="thread-preview">${esc(lastText || 'Start this conversation')}</span>
+            <span class="thread-meta">${esc(sender.email || sender.phone || '')}${m.conversationType === 'direct' ? ' | Private chat' : (seller.name ? ` | Seller: ${esc(seller.name)}` : '')}</span>
           </span>
           ${needsReply ? '<span class="thread-unread">New</span>' : ''}
         </button>`;
@@ -1014,7 +1019,7 @@ function renderAdminMessages() {
       <div class="chat-empty inbox-empty">
         <span class="page-icon">${iconSvg('messages')}</span>
         <strong>No messages yet</strong>
-        <p>New product enquiries will appear here.</p>
+        <p>Start a new message or open a listing to contact its seller.</p>
       </div>`;
     filterMessageInbox();
     inbox.scrollTop = inboxScroll;
@@ -1029,10 +1034,10 @@ function renderAdminMessages() {
     applyActiveSearchFilter();
 }
 
-function messageParticipantLabel(role) {
+function messageParticipantLabel(role, direct = false) {
     if (['admin', 'employee'].includes(role)) return 'CIRVIO Admin';
     if (role === 'seller') return 'Seller';
-    return 'Buyer';
+    return direct ? 'User' : 'Buyer';
 }
 
 function startAdminMessagePoll() {
@@ -1086,7 +1091,7 @@ function renderMessageSidePanel(id) {
           <div class="chat-empty">
             <span class="page-icon">${iconSvg('messages')}</span>
             <strong>Select a conversation</strong>
-            <p>Open a product enquiry to reply from the side panel.</p>
+            <p>Select a chat or start a new message to any user.</p>
           </div>`;
         document.querySelectorAll('.message-thread').forEach((row) => row.classList.remove('active-row'));
         return;
@@ -1096,7 +1101,8 @@ function renderMessageSidePanel(id) {
     const product = message.product || {};
     const seller = product.seller || {};
     const sender = message.sender || {};
-    const thread = [{ text: message.text, senderRole: 'buyer', createdAt: message.createdAt }, ...(message.replies || [])];
+    const direct = message.conversationType === 'direct';
+    const thread = [...(message.text ? [{ text: message.text, senderRole: message.senderRole || 'buyer', createdAt: message.createdAt }] : []), ...(message.replies || [])];
     document.querySelectorAll('.message-thread').forEach((row) => {
         row.classList.toggle('active-row', row.dataset.messageId === activeMessageId);
     });
@@ -1106,23 +1112,23 @@ function renderMessageSidePanel(id) {
         <div class="chat-contact">
           <span class="avatar">${iconSvg('user')}</span>
           <div>
-            <strong>${esc(sender.name || 'Buyer')}</strong>
+            <strong>${esc(sender.name || 'User')}</strong>
             <span class="sub">${esc(sender.email || sender.phone || '')}</span>
-            <span class="chat-topic">${iconSvg('product')} ${esc(product.title || message.productTitle || 'Product enquiry')} <small>${seller.name ? `Seller: ${esc(seller.name)}` : 'Seller: -'}</small></span>
+            <span class="chat-topic">${iconSvg(direct && !message.productTitle ? 'messages' : 'product')} ${esc(product.title || message.productTitle || (direct ? 'Direct message' : 'Product enquiry'))} <small>${direct ? 'Only this user and CIRVIO staff' : (seller.name ? `Seller: ${esc(seller.name)}` : 'Seller unavailable')}</small></span>
           </div>
         </div>
       </div>
       <div class="chat-thread">
         <div class="chat-date"><span>${fmtDate(message.createdAt)}</span></div>
-        ${thread.map((part) => `
+        ${thread.length ? thread.map((part) => `
           <div class="reply-bubble ${['admin', 'employee'].includes(part.senderRole) ? 'from-admin' : 'from-buyer'}">
-            <strong>${messageParticipantLabel(part.senderRole)}</strong>
+            <strong>${messageParticipantLabel(part.senderRole, direct)}</strong>
             <p>${esc(part.text || '')}</p>
             <small>${part.createdAt && Number.isFinite(Date.parse(part.createdAt)) ? new Date(part.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Time unavailable'}</small>
-          </div>`).join('')}
+          </div>`).join('') : '<p class="conversation-start-hint">Send a message to start this private conversation.</p>'}
       </div>
       <div class="chat-input">
-        <textarea id="sideReplyText" aria-label="Reply to conversation" placeholder="Type your reply..." rows="1"></textarea>
+        <textarea id="sideReplyText" aria-label="Reply to conversation" placeholder="Type your message..." maxlength="2000" rows="1"></textarea>
         <button type="button" class="row-btn btn-approve" id="sideReplySend" data-sending="${pendingReplies.has(activeMessageId)}" ${pendingReplies.has(activeMessageId) || navigator.onLine === false ? 'disabled' : ''}>${pendingReplies.has(activeMessageId) ? 'Sending...' : 'Send'}</button>
         <span id="sideReplyStatus" class="side-reply-status sub" role="status"></span>
       </div>`;
@@ -1180,6 +1186,7 @@ async function sendSidePanelReply() {
             body: JSON.stringify({ text })
         });
         if (!message?._id) throw new Error('The server did not confirm your reply. Please refresh this conversation.');
+        messageRevision++;
         ADMIN_MESSAGES.set(String(message._id), message);
         adminLoads.get('messages')?.controller.abort();
         document.getElementById('messageInboxList').dataset.signature = '';

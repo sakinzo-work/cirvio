@@ -50,6 +50,12 @@ Choose **Install** in the toolbar or **Install admin app** on the login screen. 
 
 The PWA stores only public application files and icons. Staff records, API responses and conversations are never placed in the service-worker cache. An offline screen and connection banner explain when a connection is required. Reconnect to load data or save changes. Available app updates are offered with an **Update app** button so staff can save changes before reloading.
 
+### Start a conversation with a user or seller
+
+In **Messages → New message**, search by name, email or phone and select a user. **Users → Message** opens the same private user conversation. In Listings, the dashboard's latest listings, or the listing image review, choose **Message seller** to open a private chat tied to that listing. Reopening the same user/listing reuses its conversation; opening a chat does not send a message. Type a message and choose **Send**.
+
+The user receives it in the website's **Messages** page and can reply there. Listing chats between staff and the seller stay separate from buyer/seller product groups. Admins and employees can start and reply to conversations; other users can only access their own private threads or their existing product groups. The `Message.conversationKey` partial unique index prevents concurrent opens from creating duplicate staff conversations; existing messages need no migration.
+
 ## API overview
 
 | Method | Route                              | Access        | Purpose |
@@ -71,6 +77,12 @@ The PWA stores only public application files and icons. Staff records, API respo
 | PUT    | `/api/admin/products/:id/reject`    | admin         | reject with a reason |
 | GET    | `/api/admin/orders`                 | admin         | full orders, populated |
 | GET    | `/api/admin/purchases`              | admin         | **flattened buyer + product + seller rows** — this feeds the Purchases tab |
+| GET    | `/api/admin/message-recipients?q=`  | staff         | search up to 30 users by name, email or phone |
+| POST   | `/api/admin/messages/conversations`| staff         | open/reuse a chat with `{ userId }` or a listing seller with `{ productId }` |
+| GET    | `/api/admin/messages`              | staff         | all staff conversations and product groups |
+| POST   | `/api/admin/messages/:id/reply`     | staff         | send a message to an existing conversation |
+| GET    | `/api/messages/my`                 | logged in     | own private conversations and product groups |
+| POST   | `/api/messages/:id/replies`         | participant   | reply to a private conversation or product group |
 
 ## Data model
 

@@ -3,7 +3,7 @@
    App-shell precache + runtime caching so the site installs as a
    PWA and keeps working (mostly) offline.
 ============================================================ */
-const CIRVIO_CACHE = 'cirvio-cache-v17';
+const CIRVIO_CACHE = 'cirvio-cache-v18';
 
 const APP_SHELL = [
     './',
@@ -24,6 +24,7 @@ const APP_SHELL = [
     'api.js',
     'common.js',
     'sell-categories.js',
+    'seo.js',
     'manifest.json',
     'cirvio-logo-header.png',
     'cirvio-logo-footer.png',

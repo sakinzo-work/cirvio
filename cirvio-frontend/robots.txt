@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /login.html
+Disallow: /messages.html
+Disallow: /my-listings.html
+Disallow: /profile.html
+Disallow: /saved.html
+Disallow: /status.html
+Disallow: /offline.html
+
+Sitemap: https://cirvio.netlify.app/sitemap.xml

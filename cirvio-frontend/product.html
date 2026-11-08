@@ -4,8 +4,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Item Details — CIRVIO</title>
-    <meta name="description" content="View full details, seller info and similar listings for this item on CIRVIO.">
+    <!-- Search and sharing metadata -->
+    <meta name="description" content="View approved CIRVIO listings for used books, notes, calculators and study materials from student sellers.">
+    <meta name="robots" content="index,follow,max-image-preview:large">
+    <meta name="keywords" content="used book listing, buy second hand books, student study materials, book rental India">
+    <link rel="canonical" href="https://cirvio.netlify.app/product.html">
+    <meta property="og:site_name" content="CIRVIO">
+    <meta property="og:locale" content="en_IN">
+    <meta property="og:type" content="product">
+    <meta property="og:title" content="Used Book &amp; Study Material Listings | CIRVIO">
+    <meta property="og:description" content="View approved CIRVIO listings for used books, notes, calculators and study materials from student sellers.">
+    <meta property="og:url" content="https://cirvio.netlify.app/product.html">
+    <meta property="og:image" content="https://cirvio.netlify.app/cirvio-app-icon.png">
+    <meta property="og:image:alt" content="CIRVIO student marketplace">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Used Book &amp; Study Material Listings | CIRVIO">
+    <meta name="twitter:description" content="View approved CIRVIO listings for used books, notes, calculators and study materials from student sellers.">
+    <meta name="twitter:image" content="https://cirvio.netlify.app/cirvio-app-icon.png">
+
+    <title>Used Book &amp; Study Material Listings | CIRVIO</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -440,6 +457,7 @@
             }
         }
     </style>
+    <script src="seo.js"></script>
 </head>
 
 <body>
@@ -863,7 +881,7 @@
             productState.replaceChildren();
             productState.setAttribute('aria-busy', 'false');
             productDetail.style.display = '';
-            document.title = product.title + ' — CIRVIO';
+            if (window.CirvioSEO) window.CirvioSEO.setProduct(product);
             document.getElementById('crumbCat').textContent = product.title;
             document.getElementById('pdCat').textContent = product.cat;
             document.getElementById('pdClassification').textContent = product.classificationSummary || '';

@@ -92,4 +92,52 @@ function describeClassification(data = {}) {
     return parts.filter(Boolean).join(' · ');
 }
 
-module.exports = { taxonomy, normalizeClassification, describeClassification };
+function normalizeEducationProfile(input = {}) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Choose your current education level');
+    const take = key => String(input[key] || '').trim();
+    const level = take('level');
+    const stage = taxonomy.levels[level];
+    if (!stage) throw new Error('Choose a valid education level');
+    const result = { level };
+    if (stage.classes) {
+        const className = take('className');
+        if (!stage.classes.includes(className)) throw new Error('Choose your current class');
+        result.className = className;
+        if (level === 'higher-secondary') {
+            const stream = take('stream');
+            if (!taxonomy.streams.includes(stream)) throw new Error('Choose your Class 11 / 12 stream');
+            result.stream = stream;
+            if (stream === 'Other') {
+                const streamOther = take('streamOther');
+                if (!streamOther) throw new Error('Enter your stream name');
+                result.streamOther = streamOther;
+            }
+        }
+    } else {
+        const course = take('course');
+        const selectedCourse = stage.courses?.find(item => item.name === course);
+        if (!selectedCourse) throw new Error('Choose your course');
+        const year = take('year');
+        if (!/^[1-6]$/.test(year) || Number(year) > selectedCourse.years) throw new Error('Choose your current study year');
+        result.course = course;
+        result.year = year;
+        if (course.startsWith('Other')) {
+            const courseOther = take('courseOther');
+            if (!courseOther) throw new Error('Enter your course name');
+            result.courseOther = courseOther;
+        }
+    }
+    return result;
+}
+
+function normalizeInterests(input = []) {
+    if (!Array.isArray(input)) throw new Error('Choose at least one interest');
+    const valid = new Set(taxonomy.categories.map(category => category.name));
+    const interests = [...new Set(input.map(value => String(value || '').trim()).filter(Boolean))];
+    if (!interests.length) throw new Error('Choose at least one interest');
+    if (interests.length > 8) throw new Error('Choose up to 8 interests');
+    if (interests.some(interest => !valid.has(interest))) throw new Error('Choose valid interests');
+    return interests;
+}
+
+module.exports = { taxonomy, normalizeClassification, describeClassification, normalizeEducationProfile, normalizeInterests };

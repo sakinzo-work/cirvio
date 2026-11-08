@@ -198,6 +198,7 @@
                             <div class="pill-group" id="typePills">
                                 <button type="button" class="pill-choice active" data-type="sell">Sell for a
                                     price</button>
+                                <button type="button" class="pill-choice" data-type="rent">Rent a book</button>
                                 <button type="button" class="pill-choice" data-type="donate">Donate</button>
                                 <button type="button" class="pill-choice" data-type="free">Give away free</button>
                             </div>
@@ -252,7 +253,7 @@
 
                         <div class="field-row">
                             <div class="field-group" id="priceGroup">
-                                <label for="itemPrice">Your price</label>
+                                <label for="itemPrice" id="priceLabel">Selling price</label>
                                 <div class="price-field">
                                     <span class="cur">₹</span>
                                     <input type="number" id="itemPrice" min="0" placeholder="0">
@@ -261,13 +262,24 @@
                                 </div>
                             </div>
                             <div class="field-group">
-                                <label for="itemOrig">Original / MRP <span
-                                        style="font-weight:500;color:#8a856f;">(optional)</span></label>
+                                <label for="itemOrig" id="origLabel">Original / MRP <span
+                                        style="font-weight:500;color:#8a856f;">(required for sale)</span></label>
                                 <div class="price-field">
                                     <span class="cur">₹</span>
                                     <input type="number" id="itemOrig" min="0" placeholder="0">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="field-group" id="rentalTermGroup" hidden>
+                            <label for="rentalTerm">Rental period</label>
+                            <select id="rentalTerm" disabled>
+                                <option value="">Choose rental period</option>
+                                <option value="week">1 week</option>
+                                <option value="semester">1 semester</option>
+                            </select>
+                            <div class="hint">The rent price is charged for the period selected above. Rent listings are shown as contact-only, not checkout items.</div>
+                            <div class="field-error">Choose whether this book is available for one week or one semester.</div>
                         </div>
 
                         <div class="field-group">
@@ -407,7 +419,7 @@
         /* ============================================================
             STATE
         ============================================================ */
-        let listingType = 'sell'; // sell | donate | free
+        let listingType = 'sell'; // sell | rent | donate | free
         let photos = []; // array of dataURLs
         let photoFiles = [];
         let photoMeta = [];
@@ -418,7 +430,7 @@
         }
 
         const params = new URLSearchParams(location.search);
-        if (params.get('type') === 'donate') listingType = 'donate';
+        if (['donate', 'rent'].includes(params.get('type'))) listingType = params.get('type');
 
         /* ---------- listing type pills ---------- */
         const typePills = document.getElementById('typePills');
@@ -430,16 +442,39 @@
             const priceHint = document.getElementById('priceHint');
             const priceField = priceGroup.querySelector('.price-field');
             const pageTitle = document.getElementById('pageTitle');
+            const priceLabel = document.getElementById('priceLabel');
+            const origLabel = document.getElementById('origLabel');
+            const rentalTermGroup = document.getElementById('rentalTermGroup');
+            const rentalTerm = document.getElementById('rentalTerm');
             if (t === 'sell') {
                 priceField.classList.remove('disabled');
                 priceInput.disabled = false;
+                priceLabel.textContent = 'Selling price';
                 priceHint.textContent = 'Set a fair price based on the edition and condition of your item.';
+                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(required for sale)</span>';
+                rentalTermGroup.hidden = true;
+                rentalTerm.disabled = true;
+                rentalTerm.value = '';
                 pageTitle.textContent = 'List a Book, Note or Study Item';
+            } else if (t === 'rent') {
+                priceField.classList.remove('disabled');
+                priceInput.disabled = false;
+                priceLabel.textContent = 'Rent price';
+                priceHint.textContent = 'Set the amount for the selected rental period. Rental books are arranged directly with the owner.';
+                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(required for rentals)</span>';
+                rentalTermGroup.hidden = false;
+                rentalTerm.disabled = false;
+                pageTitle.textContent = 'Rent Out a Book';
             } else {
                 priceField.classList.add('disabled');
                 priceInput.disabled = true;
                 priceInput.value = '0';
-                priceHint.textContent = t === 'donate' ? 'Donations are listed at ₹0 with a "Donation" tag.' : 'Free items are listed at ₹0 with a "Free" tag.';
+                priceLabel.textContent = 'Your price';
+                priceHint.textContent = t === 'donate' ? 'Donations are listed at \u20B90 with a "Donation" tag.' : 'Free items are listed at \u20B90 with a "Free" tag.';
+                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(optional)</span>';
+                rentalTermGroup.hidden = true;
+                rentalTerm.disabled = true;
+                rentalTerm.value = '';
                 pageTitle.textContent = t === 'donate' ? 'Donate a Book or Study Item' : 'Give Away an Item for Free';
             }
             updatePreview();
@@ -580,11 +615,13 @@
             const loc = document.getElementById('itemLoc').value.trim() || 'Pickup location';
             const price = Number(document.getElementById('itemPrice').value) || 0;
             const orig = Number(document.getElementById('itemOrig').value) || 0;
+            const rentalTerm = document.getElementById('rentalTerm').value;
             const disc = (orig && listingType === 'sell' && price) ? Math.round(((orig - price) / orig) * 100) : null;
 
             let tag = '';
             if (listingType === 'donate') tag = '<div class="p-tag donate">Donation</div>';
             else if (listingType === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (listingType === 'rent') tag = '<div class="p-tag">For rent</div>';
             else if (disc && disc > 0) tag = `<div class="p-tag">${disc}% OFF</div>`;
 
             document.getElementById('previewCard').innerHTML = `
@@ -597,8 +634,8 @@
           <div class="p-title">${escapeHTML(title)}</div>
           <div class="p-classification">${escapeHTML(window.SellCategories?.summary() || '')}</div>
           <div class="p-price-row">
-            <span class="p-price">${(listingType === 'sell' && price) ? '₹' + price : (listingType === 'sell' ? '₹0' : (listingType === 'donate' ? 'Donation' : 'Free'))}</span>
-            ${orig && listingType === 'sell' ? `<span class="p-orig">₹${orig}</span>` : ''}
+            <span class="p-price">${(['sell', 'rent'].includes(listingType) && price) ? '\u20B9' + price + (listingType === 'rent' ? ' / ' + (rentalTerm || 'period') : '') : (['sell', 'rent'].includes(listingType) ? '\u20B90' : (listingType === 'donate' ? 'Donation' : 'Free'))}</span>
+            ${orig && ['sell', 'rent'].includes(listingType) ? `<span class="p-orig">\u20B9${orig}</span>` : ''}
             ${disc && disc > 0 ? `<span class="p-disc">${disc}% off</span>` : ''}
           </div>
           <div class="p-meta">
@@ -611,7 +648,7 @@
           </div>
         </div>`;
         }
-        ['itemTitle', 'itemCategory', 'itemCondition', 'itemPrice', 'itemOrig', 'itemLoc'].forEach(id => {
+        ['itemTitle', 'itemCategory', 'itemCondition', 'itemPrice', 'itemOrig', 'rentalTerm', 'itemLoc'].forEach(id => {
             document.getElementById(id).addEventListener('input', updatePreview);
             document.getElementById(id).addEventListener('change', updatePreview);
         });
@@ -636,8 +673,9 @@
                 cat: document.getElementById('itemCategory').value,
                 classification: window.SellCategories?.value() || {},
                 cond: document.getElementById('itemCondition').value,
-                price: listingType === 'sell' ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
+                price: ['sell', 'rent'].includes(listingType) ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
                 orig: Number(document.getElementById('itemOrig').value) || 0,
+                rentalTerm: listingType === 'rent' ? document.getElementById('rentalTerm').value : '',
                 desc: document.getElementById('itemDesc').value.trim(),
                 loc: document.getElementById('itemLoc').value.trim(),
                 college: document.getElementById('itemCollege').value.trim(),
@@ -656,7 +694,7 @@
                     'Confirm karte hi compressed base64 photos listing ke saath database me save hongi aur admin review queue me pending status ke saath jayegi.';
                 document.getElementById('confirmBookName').textContent = listing.title || 'Untitled';
                 document.getElementById('confirmBookPrice').textContent =
-                    listing.type === 'sell' ? `Rs ${listing.price}` : (listing.type === 'donate' ? 'Donation' : 'Free');
+                    listing.type === 'rent' ? `Rs ${listing.price} rent / ${listing.rentalTerm || 'period'}` : (listing.type === 'sell' ? `Rs ${listing.price}` : (listing.type === 'donate' ? 'Donation' : 'Free'));
                 document.getElementById('confirmBookPhotos').textContent = photoFiles.length
                     ? photoFiles.map(file => file.name).join(', ')
                     : 'No photos selected';
@@ -718,8 +756,9 @@
                 cat: document.getElementById('itemCategory').value,
                 classification: window.SellCategories?.value() || {},
                 cond: document.getElementById('itemCondition').value,
-                price: listingType === 'sell' ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
+                price: ['sell', 'rent'].includes(listingType) ? (Number(document.getElementById('itemPrice').value) || 0) : 0,
                 orig: Number(document.getElementById('itemOrig').value) || 0,
+                rentalTerm: listingType === 'rent' ? document.getElementById('rentalTerm').value : '',
                 desc: document.getElementById('itemDesc').value.trim(),
                 loc: document.getElementById('itemLoc').value.trim(),
                 college: document.getElementById('itemCollege').value.trim(),
@@ -752,6 +791,7 @@
                 type: listing.type,
                 price: listing.price,
                 originalPrice: listing.orig,
+                rentalTerm: listing.rentalTerm,
                 description: listing.desc,
                 location: listing.loc,
                 college: listing.college,
@@ -779,7 +819,24 @@
             ok = validateField('itemDesc', document.getElementById('itemDesc').value.trim().length > 0) && ok;
             ok = validateField('itemLoc', document.getElementById('itemLoc').value.trim().length > 0) && ok;
             if (listingType === 'sell') {
+                const sellingPrice = Number(document.getElementById('itemPrice').value);
+                const originalPrice = Number(document.getElementById('itemOrig').value);
+                ok = validateField('itemPrice', sellingPrice > 0) && ok;
+                ok = validateField('itemOrig', originalPrice > 0) && ok;
+                if (sellingPrice > originalPrice) {
+                    ok = false;
+                    setPublishStatus('Selling price cannot be higher than Original / MRP.', 'error');
+                }
+            }
+            if (listingType === 'rent') {
+                const isBook = ['School Books', 'College Books'].includes(document.getElementById('itemCategory').value);
                 ok = validateField('itemPrice', Number(document.getElementById('itemPrice').value) > 0) && ok;
+                ok = validateField('itemOrig', Number(document.getElementById('itemOrig').value) > 0) && ok;
+                ok = validateField('rentalTerm', ['week', 'semester'].includes(document.getElementById('rentalTerm').value)) && ok;
+                if (!isBook) {
+                    ok = false;
+                    setPublishStatus('Rent is available only for School Books and College Books.', 'error');
+                }
             }
             if (!photos.length) {
                 ok = false;
@@ -790,7 +847,7 @@
                 const invalidField = document.querySelector('.field-group.invalid') || document.getElementById('dropzone');
                 invalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 if (photos.length) {
-                    setPublishStatus('Please complete the highlighted fields. Sale listings need a price greater than 0.', 'error');
+                    setPublishStatus('Please complete the highlighted fields. Complete the required price and rental fields before publishing.', 'error');
                 }
                 showToast('Please fill in the highlighted fields');
                 return;

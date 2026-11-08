@@ -11,9 +11,10 @@ const productSchema = new mongoose.Schema(
         category: { type: String, required: true }, // books / notes / calculators / stationery ...
         classification: { type: classificationSchema, default: () => ({}) },
         condition: { type: String, required: true }, // new / like-new / good / fair
-        type: { type: String, enum: ['sell', 'donate', 'free'], default: 'sell' },
+        type: { type: String, enum: ['sell', 'rent', 'donate', 'free'], default: 'sell' },
         price: { type: Number, default: 0, min: 0 },
         originalPrice: { type: Number, default: 0, min: 0 },
+        rentalTerm: { type: String, enum: ['', 'week', 'semester'], default: '' },
         description: { type: String, default: '' },
         location: { type: String, required: true },
         college: { type: String, default: '' },

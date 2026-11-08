@@ -613,6 +613,20 @@
         </div>
     </section>
 
+    <!-- ============ PERSONALIZED PRODUCTS ============ -->
+    <section id="recommendedSection" style="background:var(--sand-light);" hidden>
+        <div class="container">
+            <div class="section-head reveal">
+                <div>
+                    <span class="eyebrow">Picked for you</span>
+                    <h2>Books for Your Study Path</h2>
+                </div>
+                <p>Suggestions use the class, course and interests you selected when creating your CIRVIO account.</p>
+            </div>
+            <div class="product-grid reveal" id="recommendedGrid"></div>
+        </div>
+    </section>
+
     <!-- ============ FEATURED PRODUCTS ============ -->
     <section id="browse" style="background:var(--ivory);">
         <div class="container">
@@ -924,7 +938,7 @@
    </select>`;
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
+            if (p.type === 'rent' || !p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -934,6 +948,7 @@
             let tag = '';
             if (p.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
             else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (p.type === 'rent') tag = '<div class="p-tag">For rent</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
   <a class="p-card" data-id="${p.id}" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
@@ -950,8 +965,8 @@
       <div class="p-classification">${escapeHTML(p.classificationSummary || '')}</div>
       <div class="p-title">${escapeHTML(p.title)}</div>
       <div class="p-price-row">
-        <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
-        ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
+        <span class="p-price">${p.type === 'rent' ? '\u20B9' + p.price + ' / ' + (p.rentalTerm === 'semester' ? 'semester' : 'week') : (p.price === 0 ? (p.type === 'donate' ? 'Donation' : 'Free') : '\u20B9' + p.price)}</span>
+        ${p.orig && ['sell', 'rent'].includes(p.type) ? `<span class="p-orig">\u20B9${p.orig}</span>` : ''}
         ${disc ? `<span class="p-disc">${disc}% off</span>` : ''}
       </div>
       <div class="p-meta">
@@ -964,14 +979,29 @@
       </div>
     </div>
     <div class="p-card-actions">
-      <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
+      ${p.type === 'rent' ? '<span class="p-rent-note">Contact to rent</span>' : `      <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
         data-id="${p.id}" data-title="${escapeHTML(p.title)}" data-price="${p.price}" data-img="${escapeHTML(p.img)}">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
         Add to Cart
-      </button>
+      </button>`}
       <button type="button" class="btn btn-outline btn-sm" data-contact-product="${p.id}">Contact</button>
     </div>
   </a>`;
+        }
+
+        async function loadRecommendations() {
+            const section = document.getElementById('recommendedSection');
+            const grid = document.getElementById('recommendedGrid');
+            if (!window.CirvioAPI?.token?.()) return;
+            try {
+                const { products, personalised } = await CirvioAPI.getRecommendedProducts();
+                if (!personalised || !products.length) return;
+                grid.innerHTML = products.slice(0, 4).map(productCard).join('');
+                section.hidden = false;
+                section.querySelectorAll('.reveal').forEach(element => element.classList.add('show'));
+            } catch (error) {
+                console.warn('Could not load recommendations:', error.message);
+            }
         }
 
         function getFiltered() {
@@ -1093,7 +1123,9 @@
             document.getElementById('modalImg').alt = p.title;
             document.getElementById('modalCat').textContent = p.cat;
             document.getElementById('modalTitle').textContent = p.title;
-            document.getElementById('modalPrice').textContent = p.price === 0 ? 'Free' : '₹' + p.price;
+            const modalAddCartBtn = document.getElementById('modalAddCartBtn');
+            modalAddCartBtn.hidden = p.type === 'rent';
+            document.getElementById('modalPrice').textContent = p.type === 'rent' ? '\u20B9' + p.price + ' / ' + (p.rentalTerm === 'semester' ? 'semester' : 'week') : (p.price === 0 ? 'Free' : '\u20B9' + p.price);
             document.getElementById('modalOrig').textContent = p.orig ? '₹' + p.orig : '';
             const disc = discountPct(p);
             document.getElementById('modalDisc').textContent = disc ? disc + '% off' : '';
@@ -1126,7 +1158,7 @@
         });
         document.getElementById('modalAddCartBtn').addEventListener('click', (e) => {
             e.preventDefault();
-            if (!modalProduct) return;
+            if (!modalProduct || modalProduct.type === 'rent') return;
             CirvioCart.add(modalProduct);
         });
 
@@ -1196,6 +1228,7 @@
                 });
                 visibleCount = 8;
                 renderProducts();
+                loadRecommendations();
             } catch (err) {
                 console.warn('Could not load products:', err.message);
                 productsState = 'error';

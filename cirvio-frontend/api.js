@@ -76,6 +76,7 @@ function normalizeProduct(product = {}) {
         college: String(product.college || (typeof seller === 'object' && seller.college) || '').trim(),
         price: ['donate', 'free'].includes(product.type) ? 0 : amount(product.price),
         orig: amount(product.orig ?? product.originalPrice),
+        rentalTerm: String(product.rentalTerm || ''),
         desc: String(product.desc || product.description || ''),
         loc: String(product.loc || product.location || 'Pickup handled by CIRVIO admin'),
         seller: String(typeof seller === 'string' ? (product.sellerName || (/^[a-f\d]{24}$/i.test(seller) ? 'CIRVIO Seller' : seller)) : (seller.name || product.sellerName || 'CIRVIO Seller')),
@@ -249,6 +250,15 @@ const CirvioAPI = {
         if (data.user) localStorage.setItem('cirvio_profile', JSON.stringify(data.user));
         return data;
     },
+    async updatePreferences(education, interests) {
+        await this.ensureSession();
+        const data = await this.request('/api/auth/me/preferences', {
+            method: 'PUT',
+            body: JSON.stringify({ education, interests })
+        });
+        if (data.user) localStorage.setItem('cirvio_profile', JSON.stringify(data.user));
+        return data;
+    },
     async publicProfile(userId) {
         await this.ensureSession();
         return this.request('/api/auth/users/' + encodeURIComponent(userId));
@@ -270,6 +280,12 @@ const CirvioAPI = {
     async getProducts(query = '') {
         const data = await this.request('/api/products' + query);
         if (!Array.isArray(data.products)) throw new Error('Listings could not be read. Please try again.');
+        return { ...data, products: data.products.filter(Boolean).map(normalizeProduct) };
+    },
+    async getRecommendedProducts() {
+        await this.ensureSession();
+        const data = await this.request('/api/products/recommended');
+        if (!Array.isArray(data.products)) throw new Error('Recommendations could not be read. Please try again.');
         return { ...data, products: data.products.filter(Boolean).map(normalizeProduct) };
     },
     async getProduct(id) {
@@ -353,6 +369,7 @@ window.cirvioProductToListing = function cirvioProductToListing(product) {
         cond: p.cond,
         price: p.price,
         orig: p.orig,
+        rentalTerm: p.rentalTerm || '',
         desc: p.desc,
         loc: p.loc,
         college: p.college || '',

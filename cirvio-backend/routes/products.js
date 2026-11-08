@@ -18,7 +18,31 @@ const upload = multer({
 });
 
 function normalizeListingType(type) {
-    return ['sell', 'donate', 'free'].includes(type) ? type : 'sell';
+    return ['sell', 'rent', 'donate', 'free'].includes(type) ? type : 'sell';
+}
+
+const RENTABLE_CATEGORIES = new Set(['School Books', 'College Books']);
+
+function normalizeMoney(value) {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount : 0;
+}
+
+function validateListingPricing({ type, category, price, originalPrice, rentalTerm }, { requireOriginal = true } = {}) {
+    const listingType = normalizeListingType(type);
+    const listingPrice = ['sell', 'rent'].includes(listingType) ? normalizeMoney(price) : 0;
+    const original = normalizeMoney(originalPrice);
+    const term = listingType === 'rent' ? String(rentalTerm || '').trim() : '';
+    if (listingType === 'sell' && requireOriginal && original <= 0) throw new Error('Original / MRP is required for sale listings');
+    if (listingType === 'sell' && listingPrice <= 0) throw new Error('Selling price must be greater than 0');
+    if (listingType === 'sell' && original > 0 && listingPrice > original) throw new Error('Selling price cannot be higher than the original / MRP');
+    if (listingType === 'rent') {
+        if (!RENTABLE_CATEGORIES.has(category)) throw new Error('Only school and college books can be listed for rent');
+        if (original <= 0) throw new Error('Original / MRP is required for book rentals');
+        if (listingPrice <= 0) throw new Error('Rent price must be greater than 0');
+        if (!['week', 'semester'].includes(term)) throw new Error('Choose a rental period of one week or one semester');
+    }
+    return { type: listingType, price: listingPrice, originalPrice: original, rentalTerm: term };
 }
 
 function listingStatusOnCreate() {
@@ -79,6 +103,37 @@ router.get('/', async (req, res) => {
     }
 });
 
+function recommendationScore(product, user) {
+    const education = user.education || {};
+    const classification = product.classification || {};
+    const interests = new Set(user.interests || []);
+    let score = interests.has(product.category) ? 10 : 0;
+    if (education.level && classification.level === education.level) score += 7;
+    if (education.className && classification.className === education.className) score += 8;
+    if (education.stream && classification.stream === education.stream) score += 5;
+    if (education.course && classification.course === education.course) score += 8;
+    if (education.year && classification.year === education.year) score += 4;
+    return score;
+}
+
+// GET /api/products/recommended — tailored to the user's study profile and interests.
+router.get('/recommended', protect, async (req, res, next) => {
+    try {
+        const products = await Product.find({ status: 'approved', seller: { $ne: req.user._id } })
+            .populate('seller', 'name college verified createdAt trustRatings.value')
+            .slice('images', 1)
+            .sort({ createdAt: -1, _id: -1 })
+            .limit(200)
+            .lean();
+        const ranked = products
+            .map(product => ({ product, score: recommendationScore(product, req.user) }))
+            .sort((a, b) => b.score - a.score || new Date(b.product.createdAt) - new Date(a.product.createdAt))
+            .slice(0, 12)
+            .map(({ product }) => publicProduct(product));
+        res.json({ count: ranked.length, products: ranked, personalised: req.user.onboardingCompleted === true });
+    } catch (error) { next(error); }
+});
+
 // GET /api/products/mine — listings posted by logged-in user (any status)
 router.get('/mine', protect, async (req, res, next) => {
     try {
@@ -121,7 +176,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/products — create a new listing (goes to "pending" for admin review)
 router.post('/', protect, async (req, res) => {
     try {
-        const { title, category, condition, type, price, originalPrice, description, location, college, images } = req.body;
+        const { title, category, condition, type, price, originalPrice, rentalTerm, description, location, college, images } = req.body;
         const listingImages = normalizeImages(images);
         if (!title || !category || !condition || !location) {
             return res.status(400).json({ message: 'title, category, condition and location are required' });
@@ -132,19 +187,18 @@ router.post('/', protect, async (req, res) => {
         let classification;
         try { classification = normalizeClassification(category, req.body.classification); }
         catch (err) { return res.status(400).json({ message: err.message }); }
-        const listingType = normalizeListingType(type);
-        const listingPrice = listingType === 'sell' ? Number(price) || 0 : 0;
-        if (listingType === 'sell' && listingPrice <= 0) {
-            return res.status(400).json({ message: 'Price must be greater than 0 for sale listings' });
-        }
+        let pricing;
+        try { pricing = validateListingPricing({ type, category, price, originalPrice, rentalTerm }); }
+        catch (err) { return res.status(400).json({ message: err.message }); }
         const product = await Product.create({
             title: String(title).trim(),
             category,
             classification,
             condition,
-            type: listingType,
-            price: listingPrice,
-            originalPrice: Number(originalPrice) || 0,
+            type: pricing.type,
+            price: pricing.price,
+            originalPrice: pricing.originalPrice,
+            rentalTerm: pricing.rentalTerm,
             description: String(description || '').trim(),
             location: String(location).trim(),
             college: String(college || '').trim(),
@@ -172,12 +226,27 @@ router.put('/:id', protect, async (req, res, next) => {
             try { product.classification = normalizeClassification(req.body.category || product.category, req.body.classification); }
             catch (err) { return res.status(400).json({ message: err.message }); }
         }
-        const editable = ['title', 'category', 'condition', 'price', 'originalPrice', 'description', 'location', 'college', 'images'];
+        const editable = ['title', 'category', 'condition', 'type', 'price', 'originalPrice', 'rentalTerm', 'description', 'location', 'college', 'images'];
         const changes = {};
         editable.forEach((f) => {
             if (req.body[f] !== undefined) changes[f] = f === 'images' ? normalizeImages(req.body[f]) : req.body[f];
         });
         if (req.body.classification !== undefined || changes.category !== undefined) changes.classification = product.classification;
+        let pricing;
+        try {
+            pricing = validateListingPricing({
+                type: changes.type ?? product.type,
+                category: changes.category ?? product.category,
+                price: changes.price ?? product.price,
+                originalPrice: changes.originalPrice ?? product.originalPrice,
+                rentalTerm: changes.rentalTerm ?? product.rentalTerm
+            }, {
+                // Older listings may predate the MRP requirement. They can still edit text/photos,
+                // but changing their price, type or category requires completing the current pricing details.
+                requireOriginal: Number(product.originalPrice || 0) > 0 || ['type', 'price', 'originalPrice', 'category'].some(field => req.body[field] !== undefined)
+            });
+        } catch (err) { return res.status(400).json({ message: err.message }); }
+        Object.assign(changes, pricing);
         // The same atomic guard used by checkout prevents editing a listing after a buyer claims it.
         const updated = await Product.findOneAndUpdate({ _id: product._id, seller: req.user._id, status: { $ne: 'sold' } },
             { $set: { ...changes, status: 'pending', rejectReason: '' }, $inc: { reviewRevision: 1 }, $unset: { reviewViewedAt: 1, reviewViewedBy: 1, decidedAt: 1 } }, { new: true, runValidators: true });

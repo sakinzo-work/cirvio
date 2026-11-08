@@ -14,7 +14,7 @@ app.use('/admin', express.static(path.join(root, 'cirvio-backend/admin-panel')))
 app.use(express.static(path.join(root, 'cirvio-frontend')));
 app.use('/fixture-products', require('../cirvio-backend/routes/products'));
 const image = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#ded9c4"/></svg>');
-const user = { _id: 'staff1', id: 'staff1', name: 'Test Staff', email: 'staff@example.test', role: 'admin', status: 'active', city: 'Bengaluru', createdAt: '2025-03-01', trustRatingAverage: 4.2, trustRatingCount: 5 };
+const user = { _id: 'staff1', id: 'staff1', name: 'Test Staff', email: 'staff@example.test', role: 'admin', status: 'active', city: 'Bengaluru', createdAt: '2025-03-01', trustRatingAverage: 4.2, trustRatingCount: 5, onboardingCompleted: true };
 const products = Array.from({ length: 61 }, (_, index) => ({
     _id: 'p' + index, title: index === 0 ? 'Book "quoted" <b>literal</b> & notes' : 'Book ' + index,
     category: index % 2 ? 'Notes' : 'School Books', condition: 'Good', type: index === 1 ? 'free' : 'sell',
@@ -46,6 +46,7 @@ const defaults = pathname => {
     if (pathname === '/api/notifications') return { notifications: [], unreadCount: 0 };
     if (pathname === '/api/orders/selling') return { orders: [] };
     if (pathname === '/api/products/mine') return { products: [] };
+    if (pathname === '/api/products/recommended') return { products, personalised: true };
     if (pathname === '/api/products') return { products };
     if (pathname === '/api/products/categories') return require('../cirvio-backend/services/listing-categories').taxonomy;
     if (pathname.startsWith('/api/products/')) return { product: products[0] };
@@ -463,6 +464,7 @@ async function mockPush(page, { permission = 'default', nextPermission = 'grante
             await page.locator('#classification-board').selectOption('CBSE / NCERT');
             await page.locator('#itemCondition').selectOption('Good');
             await page.locator('#itemPrice').fill('100');
+            await page.locator('#itemOrig').fill('300');
             await page.locator('#itemDesc').fill('Physics textbook');
             await page.locator('#itemLoc').fill('Test City');
             await page.locator('#fileInput').setInputFiles({ name: 'book.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6lGAAAAAASUVORK5CYII=', 'base64') });

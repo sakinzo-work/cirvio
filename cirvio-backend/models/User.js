@@ -1,6 +1,16 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const educationSchema = new mongoose.Schema({
+    level: { type: String, default: '' },
+    className: { type: String, default: '' },
+    stream: { type: String, default: '' },
+    streamOther: { type: String, default: '' },
+    course: { type: String, default: '' },
+    courseOther: { type: String, default: '' },
+    year: { type: String, default: '' }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true },
@@ -11,6 +21,9 @@ const userSchema = new mongoose.Schema(
         city: { type: String, default: '' },
         phone: { type: String, default: '' },
         photo: { type: String, default: '' },
+        education: { type: educationSchema, default: () => ({}) },
+        interests: [{ type: String, trim: true, maxlength: 100 }],
+        onboardingCompleted: { type: Boolean, default: false },
         authProvider: { type: String, enum: ['password', 'google', 'phone'], default: 'password' },
         passwordSet: { type: Boolean, default: true },
         trustRatings: [

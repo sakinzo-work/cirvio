@@ -775,7 +775,7 @@
         const PRODUCTS = [];
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
+            if (p.type === 'rent' || !p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -794,6 +794,7 @@
             let tag = '';
             if (p.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
             else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (p.type === 'rent') tag = '<div class="p-tag">For rent</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
   <a class="p-card" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;display:block;">
@@ -808,8 +809,8 @@
       <div class="p-cat">${escapeHTML(p.cat)}</div>
       <div class="p-title">${escapeHTML(p.title)}</div>
       <div class="p-price-row">
-        <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
-        ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
+        <span class="p-price">${p.type === 'rent' ? '\u20B9' + p.price + ' / ' + (p.rentalTerm === 'semester' ? 'semester' : 'week') : (p.price === 0 ? (p.type === 'donate' ? 'Donation' : 'Free') : '\u20B9' + p.price)}</span>
+        ${p.orig && ['sell', 'rent'].includes(p.type) ? `<span class="p-orig">\u20B9${p.orig}</span>` : ''}
         ${disc ? `<span class="p-disc">${disc}% off</span>` : ''}
       </div>
       <div class="p-meta">
@@ -822,11 +823,11 @@
       </div>
     </div>
     <div class="p-card-actions">
-      <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
+      ${p.type === 'rent' ? '<span class="p-rent-note">Contact to rent</span>' : `      <button type="button" class="btn btn-terracotta btn-sm" data-add-cart
         data-id="${p.id}" data-title="${escapeHTML(p.title)}" data-price="${p.price}" data-img="${escapeHTML(p.img)}">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l1.2 6.4M6.1 9.4 7.6 16h11l2-9H6.1z"/></svg>
         Add to Cart
-      </button>
+      </button>`}
     </div>
   </a>`;
         }
@@ -889,17 +890,20 @@
             sellerProfileLink.href = product.sellerId ? `profile.html?user=${encodeURIComponent(product.sellerId)}` : 'index.html#browse';
             window.CirvioCurrentProduct = product;
 
-            document.getElementById('pdPrice').textContent = product.price === 0
-                ? (product.type === 'donate' ? 'Donation' : 'Free')
-                : '₹' + product.price;
-            if (product.orig && product.type === 'sell') {
-                document.getElementById('pdOrig').textContent = '₹' + product.orig;
-            }
+            const isRental = product.type === 'rent';
+            document.getElementById('pdPrice').textContent = isRental
+                ? '\u20B9' + product.price + ' / ' + (product.rentalTerm === 'semester' ? 'semester' : 'week')
+                : (product.price === 0 ? (product.type === 'donate' ? 'Donation' : 'Free') : '\u20B9' + product.price);
+            const originalPrice = document.getElementById('pdOrig');
+            originalPrice.textContent = product.orig && ['sell', 'rent'].includes(product.type) ? '\u20B9' + product.orig + ' MRP' : '';
             const disc = discountPct(product);
             const tagEl = document.getElementById('pdTag');
             const discEl = document.getElementById('pdDisc');
+            tagEl.style.display = 'none';
+            discEl.style.display = 'none';
             if (product.type === 'donate') { tagEl.textContent = 'Donation'; tagEl.className = 'p-tag donate'; tagEl.style.display = 'block'; }
             else if (product.type === 'free') { tagEl.textContent = 'Free'; tagEl.className = 'p-tag free'; tagEl.style.display = 'block'; }
+            else if (isRental) { tagEl.textContent = 'For rent'; tagEl.className = 'p-tag'; tagEl.style.display = 'block'; }
             else if (disc) { tagEl.textContent = disc + '% OFF'; tagEl.className = 'p-tag'; tagEl.style.display = 'block'; discEl.textContent = disc + '% off'; discEl.style.display = 'inline-block'; }
 
             /* gallery */
@@ -914,7 +918,8 @@
             document.getElementById('specTable').innerHTML = `
         <div class="spec-row"><span>Category</span><span>${escapeHTML(product.cat)}</span></div>
         <div class="spec-row"><span>Condition</span><span>${escapeHTML(product.cond)}</span></div>
-        <div class="spec-row"><span>Listing type</span><span>${product.type === 'sell' ? 'For Sale' : (product.type === 'donate' ? 'Donation' : 'Free')}</span></div>
+        <div class="spec-row"><span>Listing type</span><span>${product.type === 'rent' ? 'For rent' : (product.type === 'sell' ? 'For Sale' : (product.type === 'donate' ? 'Donation' : 'Free'))}</span></div>
+        ${product.type === 'rent' ? `<div class="spec-row"><span>Rental period</span><span>${product.rentalTerm === 'semester' ? '1 semester' : '1 week'}</span></div>` : ''}
         <div class="spec-row"><span>Pickup details</span><span>${escapeHTML(product.loc)}</span></div>
         <div class="spec-row"><span>Posted</span><span>${escapeHTML(product.time)}</span></div>
         <div class="spec-row"><span>Seller</span><span>${escapeHTML(product.seller)}</span></div>
@@ -926,6 +931,10 @@
             addCartBtn.dataset.title = product.title;
             addCartBtn.dataset.price = product.price;
             addCartBtn.dataset.img = product.img;
+            addCartBtn.hidden = isRental;
+            addCartBtn.toggleAttribute('data-add-cart', !isRental);
+            document.getElementById('pdContactBtn').textContent = isRental ? 'Ask about rental' : 'Contact';
+            document.getElementById('pdOfferBtn').hidden = isRental;
 
             /* wishlist state */
             updateWishState();

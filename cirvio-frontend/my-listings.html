@@ -128,7 +128,7 @@
         const STATUS_LABEL = { draft: 'Draft', pending: 'Pending Review', approved: 'Live', rejected: 'Rejected', sold: 'Buyer selected' };
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
+            if (p.type === 'rent' || !p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -141,6 +141,7 @@
             else if (l.status === 'sold') tag = '<div class="p-tag approved">Buyer selected</div>';
             else if (l.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
             else if (l.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (l.type === 'rent') tag = '<div class="p-tag">For rent</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
                 <div class="p-card">
@@ -149,8 +150,8 @@
                         <div class="p-cat">${escapeHTML(l.cat || 'Study Material')}</div>
                         <div class="p-title">${escapeHTML(l.title || 'Untitled listing')}</div>
                         <div class="p-price-row">
-                            <span class="p-price">${l.type === 'sell' ? 'Rs ' + (l.price || 0) : (l.type === 'donate' ? 'Donation' : 'Free')}</span>
-                            ${l.orig && l.type === 'sell' ? `<span class="p-orig">Rs ${l.orig}</span>` : ''}
+                            <span class="p-price">${l.type === 'rent' ? 'Rs ' + (l.price || 0) + ' / ' + (l.rentalTerm === 'semester' ? 'semester' : 'week') : (l.type === 'sell' ? 'Rs ' + (l.price || 0) : (l.type === 'donate' ? 'Donation' : 'Free'))}</span>
+                            ${l.orig && ['sell', 'rent'].includes(l.type) ? `<span class="p-orig">Rs ${l.orig}</span>` : ''}
                         </div>
                         <div class="p-meta"><span class="cond">${escapeHTML(l.cond || 'Not specified')}</span><span>${escapeHTML(l.loc || 'Pickup details unavailable')}</span></div>
                         <div class="p-foot"><span>${escapeHTML(l.time || 'Just now')}</span><span>${STATUS_LABEL[l.status] || 'Live'}</span></div>

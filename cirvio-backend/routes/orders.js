@@ -54,6 +54,9 @@ router.post('/', protect, async (req, res) => {
             if (product.status !== 'approved') {
                 return res.status(400).json({ message: `"${product.title}" is not available for purchase` });
             }
+            if (product.type === 'rent') {
+                return res.status(400).json({ message: `"${product.title}" is available for rent. Contact the owner to arrange the rental.` });
+            }
             if (String(product.seller) === String(req.user._id)) {
                 return res.status(400).json({ message: `You can't buy your own listing "${product.title}"` });
             }
@@ -72,7 +75,7 @@ router.post('/', protect, async (req, res) => {
 
         // Validate the entire cart before reserving. Only one buyer can claim each single-copy listing.
         for (const item of orderItems) {
-            const product = await Product.findOneAndUpdate({ _id: item.product, status: 'approved', price: item.price, title: item.title, seller: item.seller },
+            const product = await Product.findOneAndUpdate({ _id: item.product, status: 'approved', type: { $ne: 'rent' }, price: item.price, title: item.title, seller: item.seller },
                 { $set: { status: 'sold', selectedOrder: orderId, selectedBuyer: req.user._id, buyerSelectedAt: new Date() } }, { new: true });
             if (!product) {
                 await release();

@@ -4,6 +4,7 @@ const https = require('https');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
+const { normalizeEducationProfile, normalizeInterests } = require('../services/listing-categories');
 
 const router = express.Router();
 const phoneOtps = new Map();
@@ -30,6 +31,9 @@ function sendUser(user) {
         city: user.city,
         phone: user.phone,
         photo: user.photo,
+        education: user.education || {},
+        interests: Array.isArray(user.interests) ? user.interests : [],
+        onboardingCompleted: user.onboardingCompleted === true,
         authProvider: user.authProvider,
         passwordSet: user.passwordSet !== false,
         role: user.role,
@@ -379,6 +383,20 @@ router.put('/me', protect, async (req, res) => {
         res.json({ user: sendUser(user) });
     } catch (err) {
         res.status(500).json({ message: 'Profile update failed', error: err.message });
+    }
+});
+
+// PUT /api/auth/me/preferences — used to personalise book suggestions.
+router.put('/me/preferences', protect, async (req, res) => {
+    try {
+        const education = normalizeEducationProfile(req.body.education);
+        const interests = normalizeInterests(req.body.interests);
+        const user = await User.findByIdAndUpdate(req.user._id, {
+            $set: { education, interests, onboardingCompleted: true }
+        }, { new: true, runValidators: true });
+        res.json({ user: sendUser(user) });
+    } catch (err) {
+        res.status(400).json({ message: err.message || 'Could not save your preferences' });
     }
 });
 

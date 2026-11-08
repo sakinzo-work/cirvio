@@ -241,7 +241,8 @@ document.getElementById('retrySessionBtn').addEventListener('click', async event
 const inr = (n) => 'Rs ' + Number(n || 0).toLocaleString('en-IN');
 const fmtDate = (d) => d && Number.isFinite(Date.parse(d)) ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const isAdmin = () => CURRENT_USER && CURRENT_USER.role === 'admin';
-const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : inr(p.price));
+const listingPrice = (p) => p.type === 'donate' ? 'Donate' : (p.type === 'free' ? 'Free' : (p.type === 'rent' ? `Rent ${inr(p.price)} / ${p.rentalTerm === 'semester' ? 'semester' : 'week'}` : inr(p.price)));
+const listingPricingDetails = (p) => `${listingPrice(p)}<span class="sub">Original / MRP: ${Number(p.originalPrice || 0) > 0 ? inr(p.originalPrice) : 'Not provided'}</span>`;
 const listingThumb = (p) => (p.images && p.images[0]) ? p.images[0] : '';
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const titleCase = (value = '') => String(value || '').replace(/-/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
@@ -638,7 +639,7 @@ async function loadListings(options = {}) {
           <td>${listingBookCell(p)}</td>
           <td>${listingImagesCell(p)}</td>
           <td>${esc(p.category)}</td>
-          <td>${listingPrice(p)}</td>
+          <td>${listingPricingDetails(p)}</td>
           <td class="pair-cell">${p.seller ? esc(p.seller.name) : '-'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
@@ -650,7 +651,7 @@ async function loadListings(options = {}) {
         <tr>
           <td>${listingBookCell(p)}</td>
           <td>${listingImagesCell(p)}</td>
-          <td>${listingPrice(p)}</td>
+          <td>${listingPricingDetails(p)}</td>
           <td class="pair-cell">${p.seller ? esc(p.seller.name) : '-'}<span class="sub">${p.seller ? esc(p.seller.email) : ''}</span></td>
           <td><span class="badge badge-${p.status}">${p.status}</span></td>
           <td>${fmtDate(p.createdAt)}</td>
@@ -752,10 +753,15 @@ async function viewListingImages(id) {
       <dl>
         <div><dt>Title</dt><dd>${esc(product.title || 'Untitled listing')}</dd></div>
         <div><dt>Seller</dt><dd>${esc(product.seller ? `${product.seller.name} (${product.seller.email || 'no email'})` : 'No seller')} ${product.seller?._id ? `<button type="button" class="row-btn btn-view" data-view-user="${esc(product.seller._id)}">View profile</button>` : ''}</dd></div>
+        <div><dt>Seller ID</dt><dd>${esc(product.seller?._id || 'Not available')}</dd></div>
+        <div><dt>Seller phone</dt><dd>${esc(product.seller?.phone || 'Not provided')}</dd></div>
         <div><dt>Category</dt><dd>${esc(product.category || 'Uncategorised')}</dd></div>
         <div><dt>Class / Course / Item type</dt><dd>${esc(listingClassification(product) || 'Not specified')}</dd></div>
         <div><dt>Condition</dt><dd>${esc(product.condition || 'Not provided')}</dd></div>
-        <div><dt>Price</dt><dd>${esc(listingPrice(product))}</dd></div>
+        <div><dt>Original / MRP</dt><dd>${Number(product.originalPrice || 0) > 0 ? esc(inr(product.originalPrice)) : 'Not provided'}</dd></div>
+        <div><dt>${product.type === 'rent' ? 'Rent price' : 'Selling price'}</dt><dd>${esc(listingPrice(product))}</dd></div>
+        ${product.type === 'rent' ? `<div><dt>Rental period</dt><dd>${product.rentalTerm === 'semester' ? '1 semester' : '1 week'}</dd></div>` : ''}
+        <div><dt>Uploaded photos</dt><dd>${images.length} clear book photo${images.length === 1 ? '' : 's'} available for review</dd></div>
         <div><dt>Location</dt><dd>${esc(product.location || '-')}</dd></div>
         <div><dt>Description</dt><dd>${esc(product.description || 'No description provided.')}</dd></div>
       </dl>

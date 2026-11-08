@@ -468,7 +468,7 @@
         let profileSubject = profileIsPublic ? {} : null;
 
         function discountPct(p) {
-            if (!p.orig || p.price === 0 || p.orig <= p.price) return null;
+            if (p.type === 'rent' || !p.orig || p.price === 0 || p.orig <= p.price) return null;
             return Math.round(((p.orig - p.price) / p.orig) * 100);
         }
 
@@ -585,6 +585,7 @@
             else if (l.status === 'rejected') tag = '<div class="p-tag rejected">Rejected</div>';
             else if (l.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
             else if (l.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (l.type === 'rent') tag = '<div class="p-tag">For rent</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
       <div class="p-card">
@@ -593,8 +594,8 @@
           <div class="p-cat">${escapeHTML(l.cat || 'Uncategorised')}</div>
           <div class="p-title">${escapeHTML(l.title)}</div>
           <div class="p-price-row">
-            <span class="p-price">${l.type === 'sell' ? (l.price ? '₹' + l.price : '₹0') : (l.type === 'donate' ? 'Donation' : 'Free')}</span>
-            ${l.orig && l.type === 'sell' ? `<span class="p-orig">₹${l.orig}</span>` : ''}
+            <span class="p-price">${l.type === 'rent' ? 'Rs ' + (l.price || 0) + ' / ' + (l.rentalTerm === 'semester' ? 'semester' : 'week') : (l.type === 'sell' ? 'Rs ' + (l.price || 0) : (l.type === 'donate' ? 'Donation' : 'Free'))}</span>
+            ${l.orig && ['sell', 'rent'].includes(l.type) ? `<span class="p-orig">Rs ${l.orig}</span>` : ''}
           </div>
           <div class="p-meta"><span class="cond">${escapeHTML(l.cond || '—')}</span><span>${escapeHTML(l.loc || '—')}</span></div>
           <div class="p-foot"><span>${escapeHTML(l.time)}</span><span>${STATUS_LABEL[l.status] || 'Live'}</span></div>
@@ -639,6 +640,7 @@
             let tag = '';
             if (p.type === 'donate') tag = '<div class="p-tag donate">Donation</div>';
             else if (p.type === 'free') tag = '<div class="p-tag free">Free</div>';
+            else if (p.type === 'rent') tag = '<div class="p-tag">For rent</div>';
             else if (disc) tag = `<div class="p-tag">${disc}% OFF</div>`;
             return `
       <a class="p-card" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
@@ -653,8 +655,8 @@
           <div class="p-cat">${escapeHTML(p.cat)}</div>
           <div class="p-title">${escapeHTML(p.title)}</div>
           <div class="p-price-row">
-            <span class="p-price">${p.price === 0 ? 'Free' : '₹' + p.price}</span>
-            ${p.orig ? `<span class="p-orig">₹${p.orig}</span>` : ''}
+            <span class="p-price">${p.type === 'rent' ? '\u20B9' + p.price + ' / ' + (p.rentalTerm === 'semester' ? 'semester' : 'week') : (p.price === 0 ? (p.type === 'donate' ? 'Donation' : 'Free') : '\u20B9' + p.price)}</span>
+            ${p.orig && ['sell', 'rent'].includes(p.type) ? `<span class="p-orig">\u20B9${p.orig}</span>` : ''}
           </div>
           <div class="p-meta"><span class="cond">${escapeHTML(p.cond)}</span><span>${escapeHTML(p.loc)}</span></div>
           <div class="p-foot"><span class="p-seller">${p.sellerVerified ? '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' : ''}${escapeHTML(p.seller)}</span><span>${escapeHTML(p.time)}</span></div>

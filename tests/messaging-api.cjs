@@ -105,12 +105,12 @@ app.use((error, request, response, next) => response.status(500).json({ message:
             URL,
             location: { origin: siteOrigin },
             self: { addEventListener(name, listener) { workerEvents[name] = listener; }, clients: { async claim() {} } },
-            caches: { async keys() { return ['cirvio-cache-v15', 'cirvio-cache-v16', 'cirvio-admin-shell-v7', 'unrelated-app']; }, async delete(key) { deletedCaches.push(key); } }
+            caches: { async keys() { return ['cirvio-cache-v15', 'cirvio-cache-v16', 'cirvio-cache-v17', 'cirvio-admin-shell-v8', 'unrelated-app']; }, async delete(key) { deletedCaches.push(key); } }
         });
         let activation;
         workerEvents.activate({ waitUntil(promise) { activation = promise; } });
         await activation;
-        assert.deepEqual(deletedCaches, ['cirvio-cache-v15'], 'Website updates preserve admin and unrelated caches');
+        assert.deepEqual(deletedCaches, ['cirvio-cache-v15', 'cirvio-cache-v16'], 'Website updates preserve admin and unrelated caches');
         for (const [url, headers] of [
             [siteOrigin + '/api/messages/my', {}],
             ['https://api.example.test/api/messages/my', {}],

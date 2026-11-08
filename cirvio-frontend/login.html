@@ -416,6 +416,37 @@
             margin-top: 16px;
         }
 
+        .preference-dialog {
+            width: min(620px, 100%);
+            max-height: calc(100vh - 32px);
+            overflow: auto;
+        }
+
+        .interest-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .interest-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--olive-deep);
+            font-size: .84rem;
+        }
+
+        .interest-option input { accent-color: var(--terracotta); }
+
+        @media (max-width: 520px) {
+            .interest-options { grid-template-columns: 1fr; }
+        }
+
         @keyframes authRise {
             from {
                 opacity: 0;
@@ -672,6 +703,41 @@
         </div>
     </div>
 
+    <div class="setup-overlay" id="preferenceOverlay" role="dialog" aria-modal="true" aria-labelledby="preferenceTitle">
+        <div class="setup-dialog preference-dialog">
+            <div class="setup-dialog-head">
+                <div class="setup-dialog-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 id="preferenceTitle">Find books for your course</h3>
+                    <p>Tell us your current class or course and what you want to explore. CIRVIO will prioritise matching listings.</p>
+                </div>
+            </div>
+            <form id="preferenceForm" novalidate>
+                <div class="field-group">
+                    <label for="preferenceLevel">Current education level</label>
+                    <select class="auth-input" id="preferenceLevel" required disabled>
+                        <option>Loading study options...</option>
+                    </select>
+                </div>
+                <div id="preferenceEducationFields"></div>
+                <div class="field-group">
+                    <label>Your interests</label>
+                    <p class="form-sub">Choose at least one category. You can choose up to 8.</p>
+                    <div class="interest-options" id="preferenceInterests"></div>
+                </div>
+                <div class="auth-note" id="preferenceStatus" role="status" aria-live="polite"></div>
+                <div class="auth-actions">
+                    <button class="btn btn-terracotta" type="submit" id="preferenceSubmit" disabled>Save preferences</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="toast" id="toast">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
             <path d="M20 6L9 17l-5-5" />
@@ -717,6 +783,8 @@
         let signupMode = false;
         let otpSent = false;
         let googleLoginUser = null;
+        let pendingPreferenceUser = null;
+        let preferenceTaxonomy = null;
 
         const statusText = document.getElementById('statusText');
         const authTitle = document.getElementById('authTitle');
@@ -727,6 +795,12 @@
         const passwordSetupOverlay = document.getElementById('passwordSetupOverlay');
         const setupStatusText = document.getElementById('setupStatusText');
         const setupPasswordSubmit = document.getElementById('setupPasswordSubmit');
+        const preferenceOverlay = document.getElementById('preferenceOverlay');
+        const preferenceStatus = document.getElementById('preferenceStatus');
+        const preferenceLevel = document.getElementById('preferenceLevel');
+        const preferenceEducationFields = document.getElementById('preferenceEducationFields');
+        const preferenceInterests = document.getElementById('preferenceInterests');
+        const preferenceSubmit = document.getElementById('preferenceSubmit');
 
         function setStatus(message, type = '') {
             statusText.textContent = message || '';
@@ -734,9 +808,118 @@
         }
 
         function finishLogin(user) {
+            if (user && user.onboardingCompleted !== true) {
+                showPreferenceSetup(user);
+                return;
+            }
             setStatus(`Welcome, ${user.name || 'student'}. Redirecting...`, 'ok');
             setTimeout(() => { window.location.assign(nextUrl); }, 650);
         }
+
+        function optionMarkup(id, label, options, placeholder, value = '') {
+            return `<div class="field-group"><label for="${id}">${label}</label><select class="auth-input" id="${id}" required><option value="">${placeholder}</option>${options.map(option => `<option value="${option.value || option.name || option}">${option.label || option.name || option}</option>`).join('')}</select></div>`;
+        }
+
+        function inputMarkup(id, label, value = '') {
+            return `<div class="field-group"><label for="${id}">${label}</label><input class="auth-input" id="${id}" value="${String(value || '').replace(/"/g, '&quot;')}" maxlength="100" required></div>`;
+        }
+
+        function renderPreferenceEducationFields() {
+            const profile = pendingPreferenceUser?.education || {};
+            const level = preferenceLevel.value;
+            const stage = preferenceTaxonomy?.levels?.[level];
+            if (!stage) { preferenceEducationFields.innerHTML = ''; return; }
+            if (stage.classes) {
+                preferenceEducationFields.innerHTML = optionMarkup('preferenceClass', 'Current class', stage.classes, 'Choose class', profile.className);
+                const classInput = document.getElementById('preferenceClass');
+                classInput.value = profile.className || '';
+                if (level === 'higher-secondary') {
+                    preferenceEducationFields.insertAdjacentHTML('beforeend', optionMarkup('preferenceStream', 'Stream', preferenceTaxonomy.streams, 'Choose stream', profile.stream));
+                    const streamInput = document.getElementById('preferenceStream');
+                    streamInput.value = profile.stream || '';
+                    const renderOtherStream = () => {
+                        const existing = document.getElementById('preferenceStreamOther');
+                        if (streamInput.value === 'Other' && !existing) preferenceEducationFields.insertAdjacentHTML('beforeend', inputMarkup('preferenceStreamOther', 'Stream name', profile.streamOther));
+                        if (streamInput.value !== 'Other' && existing) existing.closest('.field-group').remove();
+                    };
+                    streamInput.addEventListener('change', renderOtherStream);
+                    renderOtherStream();
+                }
+                return;
+            }
+            preferenceEducationFields.innerHTML = optionMarkup('preferenceCourse', 'Course / degree', stage.courses || [], 'Choose course', profile.course) + '<div id="preferenceYearWrap"></div>';
+            const courseInput = document.getElementById('preferenceCourse');
+            courseInput.value = profile.course || '';
+            const renderCourseDetails = () => {
+                const course = (stage.courses || []).find(item => item.name === courseInput.value);
+                const yearWrap = document.getElementById('preferenceYearWrap');
+                if (!course) { yearWrap.innerHTML = ''; return; }
+                const yearNames = ['First year', 'Second year', 'Third year', 'Fourth year', 'Fifth year', 'Sixth year'];
+                yearWrap.innerHTML = optionMarkup('preferenceYear', 'Current study year', Array.from({ length: course.years }, (_, index) => ({ value: String(index + 1), label: yearNames[index] })), 'Choose study year', profile.year);
+                document.getElementById('preferenceYear').value = profile.year || '';
+                if (course.name.startsWith('Other')) {
+                    yearWrap.insertAdjacentHTML('beforeend', inputMarkup('preferenceCourseOther', 'Course name', profile.courseOther));
+                }
+            };
+            courseInput.addEventListener('change', renderCourseDetails);
+            renderCourseDetails();
+        }
+
+        async function showPreferenceSetup(user) {
+            pendingPreferenceUser = user || CirvioStore.getProfile();
+            preferenceStatus.textContent = 'Loading study options...';
+            preferenceStatus.className = 'auth-note';
+            preferenceOverlay.classList.add('open');
+            try {
+                if (!preferenceTaxonomy) preferenceTaxonomy = await CirvioAPI.request('/api/products/categories');
+                const current = pendingPreferenceUser.education || {};
+                preferenceLevel.replaceChildren(new Option('Choose education level', ''), ...Object.entries(preferenceTaxonomy.levels || {}).map(([value, stage]) => new Option(stage.label, value)));
+                preferenceLevel.disabled = false;
+                preferenceLevel.value = current.level || '';
+                preferenceLevel.onchange = renderPreferenceEducationFields;
+                renderPreferenceEducationFields();
+                const selected = new Set(pendingPreferenceUser.interests || []);
+                preferenceInterests.innerHTML = (preferenceTaxonomy.categories || []).map(category => `<label class="interest-option"><input type="checkbox" value="${category.name}" ${selected.has(category.name) ? 'checked' : ''}>${category.name}</label>`).join('');
+                preferenceSubmit.disabled = false;
+                preferenceStatus.textContent = 'Choose your class or course and at least one interest.';
+            } catch (error) {
+                preferenceStatus.textContent = error.message || 'Could not load study options. Please retry.';
+                preferenceStatus.className = 'auth-note error';
+            }
+        }
+
+        document.getElementById('preferenceForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const education = {
+                level: preferenceLevel.value,
+                className: document.getElementById('preferenceClass')?.value || '',
+                stream: document.getElementById('preferenceStream')?.value || '',
+                streamOther: document.getElementById('preferenceStreamOther')?.value.trim() || '',
+                course: document.getElementById('preferenceCourse')?.value || '',
+                courseOther: document.getElementById('preferenceCourseOther')?.value.trim() || '',
+                year: document.getElementById('preferenceYear')?.value || ''
+            };
+            const interests = [...preferenceInterests.querySelectorAll('input:checked')].map(input => input.value);
+            if (!education.level || !interests.length) {
+                preferenceStatus.textContent = 'Choose your current class or course and at least one interest.';
+                preferenceStatus.className = 'auth-note error';
+                return;
+            }
+            try {
+                preferenceSubmit.disabled = true;
+                preferenceSubmit.textContent = 'Saving...';
+                const data = await CirvioAPI.updatePreferences(education, interests);
+                const user = data.user || { ...pendingPreferenceUser, education, interests, onboardingCompleted: true };
+                preferenceOverlay.classList.remove('open');
+                finishLogin(user);
+            } catch (error) {
+                preferenceStatus.textContent = error.message || 'Could not save your preferences.';
+                preferenceStatus.className = 'auth-note error';
+            } finally {
+                preferenceSubmit.disabled = false;
+                preferenceSubmit.textContent = 'Save preferences';
+            }
+        });
 
         function addPasswordSetupNotification() {
             const notifications = CirvioStore.getNotifications();

@@ -1,5 +1,5 @@
 /* Cache public application files only. Staff API responses never enter Cache Storage. */
-const CACHE = 'cirvio-admin-shell-v8';
+const CACHE = 'cirvio-admin-shell-v9';
 const ROOT = self.registration.scope;
 const FILES = [
     'index.html', 'offline.html', 'admin.css', 'admin-mobile.css', 'admin.js',
@@ -14,10 +14,18 @@ self.addEventListener('push', event => {
     let payload = {};
     try { payload = event.data?.json() || {}; } catch { /* Show a generic alert for an invalid payload. */ }
     const threadId = /^[a-f\d]{24}$/i.test(payload.threadId || '') ? payload.threadId : '';
+    const listingId = /^[a-f\d]{24}$/i.test(payload.listingId || '') ? payload.listingId : '';
+    const isListing = payload.kind === 'listing-review' && listingId;
     const target = new URL('./', ROOT);
-    if (threadId) target.searchParams.set('thread', threadId);
-    target.hash = 'messages';
-    event.waitUntil(self.registration.showNotification('CIRVIO · New message', { body: 'You have a new message. Tap to open the conversation.', icon: new URL('icons/admin-panel-192.png', ROOT).href, badge: new URL('icons/admin-panel-192.png', ROOT).href, tag: `cirvio-message-${threadId || 'inbox'}`, data: { url: target.href, threadId } }));
+    if (isListing) target.hash = 'listings';
+    else { if (threadId) target.searchParams.set('thread', threadId); target.hash = 'messages'; }
+    event.waitUntil(self.registration.showNotification(payload.title || (isListing ? 'CIRVIO ? New listing to review' : 'CIRVIO ? New message'), {
+        body: payload.body || (isListing ? 'A listing is waiting for review.' : 'You have a new message. Tap to open the conversation.'),
+        icon: new URL('icons/admin-panel-192.png', ROOT).href,
+        badge: new URL('icons/admin-panel-192.png', ROOT).href,
+        tag: payload.tag || (isListing ? 'cirvio-listing-' + listingId : 'cirvio-message-' + (threadId || 'inbox')),
+        data: { url: target.href, threadId, listingId, kind: isListing ? 'listing-review' : 'message' }
+    }));
 });
 
 self.addEventListener('notificationclick', event => {
@@ -26,7 +34,7 @@ self.addEventListener('notificationclick', event => {
     if (!target.href.startsWith(ROOT)) return;
     event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
         const existing = clients.find(client => client.url.startsWith(ROOT));
-        if (existing) { existing.postMessage({ type: 'OPEN_MESSAGE', threadId: event.notification.data?.threadId }); return existing.focus(); }
+        if (existing) { existing.postMessage({ type: event.notification.data?.kind === 'listing-review' ? 'OPEN_LISTING_REVIEW' : 'OPEN_MESSAGE', threadId: event.notification.data?.threadId, listingId: event.notification.data?.listingId }); return existing.focus(); }
         return self.clients.openWindow(target.href);
     }));
 });

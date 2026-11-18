@@ -46,9 +46,10 @@
                 </nav>
             </div>
             <div class="chat-admin-contact"><button type="button" class="btn btn-primary" id="messageAdminBtn" data-message-admin>Message admin</button></div>
+            <div class="chat-inbox-heading"><div><strong>Conversations</strong><span id="chatThreadCount">0 chats</span></div><span class="chat-live-dot">Live</span></div>
             <div class="chat-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input id="chatSearch" type="search" placeholder="Search chats">
+                <input id="chatSearch" type="search" placeholder="Search messages or listings">
             </div>
             <div class="chat-thread-list" id="chatThreadList"></div>
             <div class="chat-user-strip" id="chatUserStrip"></div>
@@ -87,13 +88,8 @@
                 </header>
                 <div class="chat-messages" id="chatMessages"></div>
                 <form class="chat-composer" id="chatComposer">
-                    <button class="chat-tool-btn" type="button" aria-label="Attach file" title="Attach file">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="m21.4 11.6-8.5 8.5a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>
-                    </button>
-                    <textarea id="chatInput" aria-label="Message" placeholder="Type a message..." maxlength="2000" rows="1"></textarea>
-                    <button class="chat-tool-btn chat-emoji-btn" type="button" aria-label="Emoji" title="Emoji">
-                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.3 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
-                    </button>
+                    <div class="chat-composer-copy"><span>Message CIRVIO</span><small>Enter to send ? Shift + Enter for a new line</small></div>
+                    <textarea id="chatInput" aria-label="Message" placeholder="Write a message?" maxlength="2000" rows="1"></textarea>
                     <button class="chat-send-btn" id="chatSendBtn" type="submit" aria-label="Send message">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 2 11 13"/>
@@ -207,18 +203,22 @@
             const q = document.getElementById('chatSearch').value.trim().toLowerCase();
             activeThreads = groupThreads();
             const filtered = q ? activeThreads.filter((t) => t.productTitle.toLowerCase().includes(q) || (t.latest?.text || '').toLowerCase().includes(q)) : activeThreads;
-            listEl.innerHTML = filtered.length ? filtered.map((t) => `
+            const count = document.getElementById('chatThreadCount');
+            if (count) count.textContent = filtered.length + (filtered.length === 1 ? ' chat' : ' chats');
+            listEl.innerHTML = filtered.length ? filtered.map((t) => {
+                const latestRole = t.latest ? (isOwnMessage(t.latest) ? 'You' : (t.latest.from === 'cirvio' ? 'CIRVIO' : (t.latest.from === 'seller' ? 'Seller' : 'Buyer'))) : '';
+                const kind = t.conversationType === 'direct' ? 'Private support' : 'Listing chat';
+                return `
                 <button class="chat-thread ${t.id === activeThreadId ? 'active' : ''} ${t.unread ? 'unread' : ''}" data-thread="${escChat(t.id)}">
                     ${chatThumb(t.productImg, t.productTitle)}
                     <span class="chat-thread-copy">
-                        <span class="chat-thread-top">
-                            <strong>${escChat(t.productTitle)}</strong>
-                            <time>${escChat(formatChatTime(t.latest?.createdAt))}</time>
-                        </span>
-                        <small>${t.latest ? `${escChat(isOwnMessage(t.latest) ? 'You' : (t.latest.from === 'cirvio' ? 'CIRVIO Admin' : (t.latest.from === 'seller' ? 'Seller' : 'Buyer')))}: ${escChat(t.latest.text || '')}` : 'Start a private conversation'}</small>
+                        <span class="chat-thread-top"><strong>${escChat(t.productTitle)}</strong><time>${escChat(formatChatTime(t.latest?.createdAt))}</time></span>
+                        <span class="chat-thread-kind">${kind}</span>
+                        <small>${t.latest ? `${escChat(latestRole)}: ${escChat(t.latest.text || '')}` : 'Start a conversation'}</small>
                     </span>
-                </button>
-            `).join('') : '<div class="chat-list-empty">No chats yet.</div>';
+                    ${t.unread ? '<span class="chat-new-badge">New</span>' : ''}
+                </button>`;
+            }).join('') : '<div class="chat-list-empty"><strong>No chats yet</strong><span>Message CIRVIO for help with listings, orders or delivery.</span></div>';
         }
 
         function markActiveRead() {

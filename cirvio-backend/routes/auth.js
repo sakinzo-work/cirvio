@@ -10,12 +10,12 @@ const router = express.Router();
 const phoneOtps = new Map();
 let firebaseCertCache = { expiresAt: 0, certs: null };
 
-function signToken(id) {
-    if (!process.env.JWT_SECRET) {
-        throw new Error('JWT_SECRET is not configured');
-    }
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+function signToken(user) {
+    if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not configured');
+    const isStaff = ['admin', 'employee'].includes(user.role);
+    return jwt.sign({ id: user._id || user.id }, process.env.JWT_SECRET, {
+        // Operations sessions renew while the admin app is active; a longer fallback avoids losing review alerts.
+        expiresIn: isStaff ? (process.env.ADMIN_JWT_EXPIRES_IN || '30d') : (process.env.JWT_EXPIRES_IN || '7d')
     });
 }
 
@@ -64,7 +64,7 @@ function sendPublicUser(user, viewerId = '') {
 }
 
 function issueSession(user, res, status = 200, extra = {}) {
-    const token = signToken(user._id);
+    const token = signToken(user);
     return res.status(status).json({ token, user: sendUser(user), ...extra });
 }
 
@@ -329,6 +329,11 @@ router.post('/phone/verify', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', protect, async (req, res) => {
     res.json({ user: sendUser(req.user) });
+});
+
+// POST /api/auth/refresh ? rotates a still-valid session without asking staff to sign in again.
+router.post('/refresh', protect, async (req, res) => {
+    return issueSession(req.user, res);
 });
 
 // GET /api/auth/users/:id - public student profile

@@ -61,4 +61,19 @@ function queueMessageNotification(message, actor) {
     notifyMessage(message, actor).catch(() => console.warn('Message notification could not be delivered'));
 }
 
-module.exports = { getVapidKeys, notifyMessage, queueMessageNotification, sendPushNotifications };
+async function notifyStaffAboutListing(product) {
+    const staff = await User.find({ role: { $in: ['admin', 'employee'] }, status: 'active' }).select('_id').lean();
+    if (!staff.length) return;
+    const title = String(product.title || 'A new listing').slice(0, 120);
+    await sendPushNotifications(staff.map(user => String(user._id)), {
+        kind: 'listing-review', listingId: String(product._id),
+        title: 'CIRVIO ? New listing to review',
+        body: title + ' was submitted and is waiting for review.',
+        tag: 'cirvio-listing-' + String(product._id)
+    }, { app: 'admin' });
+}
+function queueStaffListingNotification(product) {
+    notifyStaffAboutListing(product).catch(() => console.warn('Staff listing notification could not be delivered'));
+}
+
+module.exports = { getVapidKeys, notifyMessage, queueMessageNotification, notifyStaffAboutListing, queueStaffListingNotification, sendPushNotifications };

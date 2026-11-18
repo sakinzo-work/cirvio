@@ -45,6 +45,12 @@ const ADMIN_PURCHASES = new Map();
 let adminMessagePollStarted = false;
 let activeTab = 'dashboard';
 let activeMessageId = '';
+let adminListingPollStarted = false;
+let adminListingWatchReady = false;
+let knownPendingListingIds = new Set();
+let adminSessionRefreshStarted = false;
+let lastAdminSessionRefreshAt = 0;
+let adminSessionRefreshPromise = null;
 
 const loginScreen = document.getElementById('loginScreen');
 const adminApp = document.getElementById('adminApp');
@@ -75,6 +81,54 @@ function setupThemeToggle() {
     });
 }
 
+function saveAdminSession(token, user) {
+    TOKEN = token || TOKEN;
+    if (user) CURRENT_USER = user;
+    if (TOKEN) {
+        localStorage.setItem('cirvio_admin_token', TOKEN);
+        localStorage.setItem('cirvio_admin_session_api_base', API_BASE);
+    }
+    lastAdminSessionRefreshAt = Date.now();
+}
+function endAdminSession(message = 'Your session expired. Please sign in again.') {
+    TOKEN = '';
+    CURRENT_USER = null;
+    localStorage.removeItem('cirvio_admin_token');
+    localStorage.removeItem('cirvio_admin_session_api_base');
+    adminApp.classList.add('hidden');
+    loginScreen.classList.remove('hidden');
+    document.getElementById('loginError').textContent = message;
+}
+async function refreshAdminSession({ force = false } = {}) {
+    if (!TOKEN) return false;
+    if (!force && Date.now() - lastAdminSessionRefreshAt < 6 * 60 * 60 * 1000) return true;
+    if (adminSessionRefreshPromise) return adminSessionRefreshPromise;
+    adminSessionRefreshPromise = (async () => {
+        try {
+            const data = await api('/api/auth/refresh', { method: 'POST' });
+            if (!data.token || !['admin', 'employee'].includes(data.user?.role)) throw new Error('Staff session could not be renewed');
+            saveAdminSession(data.token, data.user);
+            updateAdminChrome();
+            return true;
+        } catch (error) {
+            if (error.status !== 401) console.warn('Admin session refresh will retry:', error.message);
+            return false;
+        } finally { adminSessionRefreshPromise = null; }
+    })();
+    return adminSessionRefreshPromise;
+}
+function startAdminSessionRefresh() {
+    if (adminSessionRefreshStarted) return;
+    adminSessionRefreshStarted = true;
+    setInterval(() => { if (!document.hidden && navigator.onLine !== false) refreshAdminSession(); }, 6 * 60 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && navigator.onLine !== false) {
+            refreshAdminSession();
+            if (CURRENT_USER) { loadListings({ notify: true }); loadMessages({ notify: true }); }
+        }
+    });
+}
+
 async function api(path, options = {}) {
     if (navigator.onLine === false) throw new Error('You are offline. Reconnect and try again. Your changes have not been sent.');
     const isFormData = options.body instanceof FormData;
@@ -95,13 +149,7 @@ async function api(path, options = {}) {
         });
         const data = await res.json().catch(err => { if (controller.signal.aborted) throw err; return null; });
         if (!res.ok) {
-            if (res.status === 401) {
-                TOKEN = '';
-                localStorage.removeItem('cirvio_admin_token');
-                adminApp.classList.add('hidden');
-                loginScreen.classList.remove('hidden');
-                document.getElementById('loginError').textContent = 'Your session expired. Please sign in again.';
-            }
+            if (res.status === 401) endAdminSession('Your session expired. Please sign in again.');
             const error = new Error(data?.message || 'Request failed');
             error.status = res.status;
             throw error;
@@ -136,10 +184,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             errEl.textContent = 'This account is not CIRVIO staff.';
             return;
         }
-        TOKEN = data.token;
-        CURRENT_USER = data.user;
-        localStorage.setItem('cirvio_admin_token', TOKEN);
-        localStorage.setItem('cirvio_admin_session_api_base', API_BASE);
+        saveAdminSession(data.token, data.user);
         showApp();
     } catch (err) {
         errEl.textContent = err.message;
@@ -151,10 +196,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
     await window.CirvioPush?.disconnect().catch(() => {});
-    localStorage.removeItem('cirvio_admin_token');
-    localStorage.removeItem('cirvio_admin_session_api_base');
-    TOKEN = '';
-    location.reload();
+    endAdminSession('You have logged out.');
 });
 
 /* ---------- tabs ---------- */
@@ -214,6 +256,8 @@ async function showApp() {
     if (linkedThread && ADMIN_MESSAGES.has(linkedThread)) handleMessageRowClick(null, linkedThread);
     if (!window.CirvioPush && window.createCirvioPushClient) window.CirvioPush = createCirvioPushClient({ api, token: () => TOKEN, app: 'admin', worker: './admin-sw.js', scope: './', button: document.getElementById('enableAdminNotifications'), status: document.getElementById('adminNotificationStatus') });
     startAdminMessagePoll();
+    startAdminListingPoll();
+    startAdminSessionRefresh();
 }
 
 async function initAdminSession() {
@@ -221,11 +265,11 @@ async function initAdminSession() {
     try {
         const data = await api('/api/auth/me');
         if (['admin', 'employee'].includes(data.user.role)) {
-            CURRENT_USER = data.user;
+            saveAdminSession(TOKEN, data.user);
+            await refreshAdminSession({ force: true });
             return showApp();
         }
-        TOKEN = '';
-        localStorage.removeItem('cirvio_admin_token');
+        endAdminSession('This account is not CIRVIO staff.');
     } catch (error) {
         if (error.status === 401) return;
         document.getElementById('loginError').textContent = error.message || 'Could not connect. Please retry.';
@@ -412,6 +456,12 @@ function setupNotificationButton() {
     if (!btn || btn.dataset.notificationBound) return;
     btn.dataset.notificationBound = 'true';
     btn.addEventListener('click', () => {
+        if (knownPendingListingIds.size) {
+            activateTab('listings');
+            document.querySelector('.filter-btn[data-status="pending"]')?.click();
+            showAdminNotice(knownPendingListingIds.size + ' listing' + (knownPendingListingIds.size === 1 ? '' : 's') + ' waiting for review');
+            return;
+        }
         activateTab('messages');
         showAdminNotice('Message queue opened');
     });
@@ -501,6 +551,7 @@ function emptyRow(colspan, message) {
 
 function updateMessageBadges(count) {
     const safeCount = Number(count || 0);
+    const pendingListings = knownPendingListingIds.size;
     const navBadge = document.getElementById('messageNavBadge');
     const notificationBtn = document.getElementById('adminNotificationBtn');
     if (navBadge) {
@@ -508,8 +559,9 @@ function updateMessageBadges(count) {
         navBadge.classList.toggle('is-zero', safeCount === 0);
     }
     if (notificationBtn) {
-        notificationBtn.dataset.count = String(safeCount);
-        notificationBtn.classList.toggle('is-clear', safeCount === 0);
+        notificationBtn.dataset.count = String(safeCount + pendingListings);
+        notificationBtn.classList.toggle('is-clear', safeCount + pendingListings === 0);
+        notificationBtn.setAttribute('aria-label', (safeCount + pendingListings) ? `${safeCount} message${safeCount === 1 ? '' : 's'} and ${pendingListings} listing${pendingListings === 1 ? '' : 's'} need attention` : 'Notifications');
     }
 }
 
@@ -632,6 +684,15 @@ async function loadListings(options = {}) {
     const { products: allProducts } = await api('/api/admin/products', { signal: options.signal });
     if (options.signal?.aborted) return;
     const products = allProducts.filter(p => !currentListingFilter || p.status === currentListingFilter);
+    const pendingIds = new Set(allProducts.filter(product => product.status === 'pending').map(product => String(product._id)));
+    const freshPending = options.notify && adminListingWatchReady ? allProducts.filter(product => product.status === 'pending' && !knownPendingListingIds.has(String(product._id))) : [];
+    knownPendingListingIds = pendingIds;
+    adminListingWatchReady = true;
+    if (freshPending.length) {
+        const title = freshPending.length === 1 ? (freshPending[0].title || 'A new listing') : freshPending.length + ' new listings';
+        showAdminNotice((freshPending.length === 1 ? 'New listing to review: ' : 'New listings to review: ') + title);
+    }
+    updateMessageBadges([...ADMIN_MESSAGES.values()].filter(messageNeedsReply).length);
     ADMIN_PRODUCTS.clear();
     allProducts.forEach((p) => ADMIN_PRODUCTS.set(String(p._id), p));
     AdminTables.set('listingsTable', products, (p) => `
@@ -1169,13 +1230,21 @@ function startAdminMessagePoll() {
     if (adminMessagePollStarted) return;
     adminMessagePollStarted = true;
     setInterval(async () => {
-    if (document.hidden || !TOKEN || navigator.onLine === false) return;
-        try {
-            await loadMessages({ notify: true });
-        } catch (err) {
-            console.warn('Could not refresh admin messages:', err.message);
-        }
+        if (document.hidden || !TOKEN || navigator.onLine === false) return;
+        try { await loadMessages({ notify: true }); }
+        catch (err) { console.warn('Could not refresh admin messages:', err.message); }
     }, 7000);
+}
+function startAdminListingPoll() {
+    if (adminListingPollStarted) return;
+    adminListingPollStarted = true;
+    setInterval(async () => {
+        if (document.hidden || !TOKEN || navigator.onLine === false) return;
+        try {
+            await loadListings({ notify: true });
+            if (activeTab === 'dashboard') await loadStats({ force: true });
+        } catch (err) { console.warn('Could not refresh admin listings:', err.message); }
+    }, 15000);
 }
 
 let adminNoticeTimer;
@@ -1942,7 +2011,15 @@ window.addEventListener('admin:online', () => {
 });
 
 navigator.serviceWorker?.addEventListener('message', async event => {
-    if (event.data?.type !== 'OPEN_MESSAGE' || !CURRENT_USER) return;
+    if (!CURRENT_USER) return;
+    if (event.data?.type === 'OPEN_LISTING_REVIEW') {
+        activateTab('listings', { load: false });
+        await loadListings({ force: true });
+        const pending = document.querySelector('.filter-btn[data-status="pending"]');
+        pending?.click();
+        return;
+    }
+    if (event.data?.type !== 'OPEN_MESSAGE') return;
     const thread = String(event.data.threadId || '');
     activateTab('messages', { load: false });
     await loadMessages();

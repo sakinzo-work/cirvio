@@ -3,6 +3,7 @@ const multer = require('multer');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
 const { taxonomy, normalizeClassification, describeClassification } = require('../services/listing-categories');
+const { queueStaffListingNotification } = require('../services/message-notifications');
 
 const router = express.Router();
 
@@ -229,6 +230,7 @@ router.post('/', protect, async (req, res) => {
             status: listingStatusOnCreate()
         });
         await product.populate('seller', 'name college verified');
+        queueStaffListingNotification(product);
         res.status(201).json({ product });
     } catch (err) {
         res.status(500).json({ message: 'Failed to create listing', error: err.message });

@@ -51,6 +51,17 @@ const orderSchema = new mongoose.Schema(
         dispatchPartner: { type: String, default: '', trim: true },
         dispatchDate: { type: Date },
         deliveredAt: { type: Date },
+        // The OTPs are encrypted so a code can be shown only to the assigned buyer/seller.
+        pickupOtpHash: { type: String, default: '', select: false },
+        pickupOtpCipher: { type: String, default: '', select: false },
+        pickupOtpExpiresAt: { type: Date },
+        pickupOtpVerifiedAt: { type: Date },
+        pickupOtpAttempts: { type: Number, default: 0, min: 0 },
+        deliveryOtpHash: { type: String, default: '', select: false },
+        deliveryOtpCipher: { type: String, default: '', select: false },
+        deliveryOtpExpiresAt: { type: Date },
+        deliveryOtpVerifiedAt: { type: Date },
+        deliveryOtpAttempts: { type: Number, default: 0, min: 0 },
         adminNotes: { type: String, default: '', trim: true, maxlength: 3000 },
         lastUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         deliveryAddress: { type: String, default: '', trim: true }

@@ -83,6 +83,20 @@ Order.create = async values => {
     orders.push(order.toObject()); return order;
 };
 Order.find = filter => query(() => orders.filter(order => matches(order, filter)), 'order');
+function orderDocument(values) {
+    const document = new Order(values);
+    document.save = async () => {
+        await document.validate();
+        const index = orders.findIndex(order => String(order._id) === String(document._id));
+        if (index >= 0) orders[index] = document.toObject();
+        return document;
+    };
+    return document;
+}
+Order.findById = key => ({
+    select() { return this; }, populate() { return this; },
+    then(resolve, reject) { return Promise.resolve(orders.find(order => String(order._id) === String(key))).then(value => resolve(value ? orderDocument(value) : null), reject); }
+});
 Order.updateOne = async (filter, update) => orders.filter(order => matches(order, filter)).forEach(order => apply(order, update));
 Notification.create = async values => {
     if (failNotification) { failNotification = false; throw new Error('Fixture notification storage failed'); }
@@ -191,7 +205,31 @@ app.use((error, request, response, next) => response.status(500).json({ message:
         assert.equal(publicView.product.selectedBuyer, undefined); assert.equal(publicView.product.selectedOrder, undefined);
         assert.equal(publicView.product.buyerSelectedAt, undefined);
         console.log('PASS Seller order details exclude other sellers and private buyer/staff fields');
-        console.log('\n5 listing lifecycle groups passed. No real notifications were sent.');
+
+        const otpProduct = listing(13, 'approved');
+        const otpCheckout = await checkout([{ productId: otpProduct }]);
+        assert.equal(otpCheckout.http, 201);
+        const otpOrderId = otpCheckout.order._id;
+        const buyerOtp = otpCheckout.order.deliveryOtp.code;
+        assert.match(buyerOtp, /^\d{6}$/);
+        const sellerOrders = await request('/api/orders/selling', users[1]);
+        const sellerOtp = sellerOrders.orders.find(order => String(order._id) === String(otpOrderId)).pickupOtp.code;
+        assert.match(sellerOtp, /^\d{6}$/);
+        assert.equal((await request(`/api/admin/orders/${otpOrderId}/otp/verify`, users[0], { stage: 'delivery', otp: buyerOtp }, 'POST')).http, 400);
+        assert.equal((await request(`/api/admin/orders/${otpOrderId}/otp/verify`, users[0], { stage: 'pickup', otp: '000000' }, 'POST')).http, 400);
+        const pickupVerified = await request(`/api/admin/orders/${otpOrderId}/otp/verify`, users[0], { stage: 'pickup', otp: sellerOtp }, 'POST');
+        assert.equal(pickupVerified.http, 200);
+        assert.equal(pickupVerified.order.status, 'shipped');
+        assert.equal(pickupVerified.order.dispatchStatus, 'in-transit');
+        assert.equal((await request(`/api/admin/orders/${otpOrderId}/operations`, users[0], { status: 'delivered', dispatchStatus: 'delivered' }, 'PUT')).http, 400);
+        const deliveryVerified = await request(`/api/admin/orders/${otpOrderId}/otp/verify`, users[0], { stage: 'delivery', otp: buyerOtp }, 'POST');
+        assert.equal(deliveryVerified.http, 200);
+        assert.equal(deliveryVerified.order.status, 'delivered');
+        assert.equal(deliveryVerified.order.dispatchStatus, 'delivered');
+        assert.equal(deliveryVerified.order.pickupOtp.hash, undefined);
+        assert.equal(deliveryVerified.order.deliveryOtp.code, undefined);
+        console.log('PASS Pickup and delivery OTPs gate automatic dispatch and completion');
+        console.log('\n6 listing lifecycle groups passed. No real notifications were sent.');
     } finally {
         server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
     }

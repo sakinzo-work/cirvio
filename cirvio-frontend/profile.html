@@ -225,6 +225,7 @@
                         <a class="btn btn-ghost btn-sm" href="my-listings.html">My Listings</a>
                         <a class="btn btn-ghost btn-sm" href="saved.html">Saved List</a>
                         <a class="btn btn-ghost btn-sm" href="messages.html">Messages</a>
+                        <button class="btn btn-ghost btn-sm" type="button" data-open-profile-tab="orders">My Orders</button>
                     </div>
                 </div>
                 <div class="profile-stats">
@@ -269,6 +270,11 @@
                         <strong>Messages</strong>
                         <span>Message alerts open here.</span>
                     </a>
+                    <button class="profile-quick-card" type="button" data-open-profile-tab="orders">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+                        <strong>My Orders</strong>
+                        <span>Open delivery OTPs and order progress.</span>
+                    </button>
                 </div>
             </div>
 
@@ -276,6 +282,7 @@
                 <a class="profile-tab-link" href="my-listings.html">My Listings</a>
                 <a class="profile-tab-link" href="saved.html">Saved</a>
                 <a class="profile-tab-link" href="messages.html">Messages</a>
+                <button class="profile-tab" data-tab="orders">My Orders</button>
                 <button class="profile-tab active" data-tab="settings">Settings</button>
             </div>
 
@@ -322,6 +329,16 @@
                     <span>Your product messages to CIRVIO admin will show up here.</span>
                     <a class='btn btn-terracotta' href='index.html#browse'>Browse Listings</a>
                 </div>
+            </div>
+
+            <!-- BUYER ORDERS -->
+            <div class="profile-panel" id="panel-orders">
+                <div class="orders-panel-head">
+                    <div><span class="eyebrow">Your purchases</span><h2>My Orders</h2><p>Keep the delivery OTP private. Show it to CIRVIO staff only after the item reaches you.</p></div>
+                    <button class="btn btn-outline btn-sm" type="button" id="refreshOrdersBtn">Refresh</button>
+                </div>
+                <div class="buyer-orders" id="buyerOrders" aria-live="polite"></div>
+                <div class="empty-state" id="buyerOrdersEmpty" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M4 5h16v15H4z"/><path d="M7 9h10M7 13h7"/></svg><p>No orders yet</p><span>Books you buy through CIRVIO will appear here with delivery progress.</span><a class="btn btn-terracotta" href="index.html#browse">Browse Listings</a></div>
             </div>
 
             <!-- SETTINGS -->
@@ -753,6 +770,37 @@
             }
         });
 
+        /* ---------- buyer orders and delivery OTP ---------- */
+        function buyerOrderCard(order) {
+            const otp = order.deliveryOtp || {};
+            const titles = (order.items || []).map(item => item.title || 'Study item').join(', ');
+            const delivered = order.status === 'delivered' || otp.verified;
+            const otpBody = delivered
+                ? '<div class="buyer-order-otp verified"><strong>Delivery completed</strong><span>Delivery OTP verified by CIRVIO.</span></div>'
+                : (otp.code ? `<div class="buyer-order-otp"><span>Delivery OTP - keep private</span><strong>${escapeHTML(otp.code)}</strong><small>Share this 6-digit code only when the CIRVIO runner hands over your order.</small></div>` : '<div class="buyer-order-otp muted"><strong>Delivery OTP unavailable</strong><span>Contact CIRVIO support if you need help with this order.</span></div>');
+            return `<article class="buyer-order-card"><div class="buyer-order-main"><div><span class="buyer-order-status">${escapeHTML(order.dispatchStatus || order.status || 'placed')}</span><h3>${escapeHTML(titles || 'Order')}</h3><p>Order #${escapeHTML(String(order._id || '').slice(-8).toUpperCase())} | Rs ${escapeHTML(order.totalAmount || 0)}</p></div><dl><div><dt>Order</dt><dd>${escapeHTML(order.status || 'placed')}</dd></div><div><dt>Dispatch</dt><dd>${escapeHTML(order.dispatchStatus || 'not-dispatched')}</dd></div></dl></div>${otpBody}</article>`;
+        }
+        function renderBuyerOrders(orders = []) {
+            const list = document.getElementById('buyerOrders');
+            const empty = document.getElementById('buyerOrdersEmpty');
+            if (!Array.isArray(orders) || !orders.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+            list.innerHTML = orders.map(buyerOrderCard).join('');
+        }
+        async function loadBuyerOrders() {
+            const list = document.getElementById('buyerOrders');
+            const empty = document.getElementById('buyerOrdersEmpty');
+            if (!window.CirvioAPI) return;
+            list.innerHTML = '<div class="data-state" role="status"><strong>Loading your orders...</strong></div>';
+            empty.style.display = 'none';
+            try {
+                const data = await CirvioAPI.request('/api/orders/my');
+                renderBuyerOrders(data.orders || []);
+            } catch (err) {
+                list.innerHTML = `<div class="data-state"><strong>Could not load orders</strong><p>${escapeHTML(err.message || 'Please try again.')}</p></div>`;
+            }
+        }
+
         /* ---------- tabs ---------- */
         const tabButtons = document.querySelectorAll('.profile-tab');
         function setActiveTab(tab) {
@@ -760,7 +808,9 @@
             document.querySelectorAll('.profile-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
             history.replaceState(null, '', '#' + tab);
         }
-        tabButtons.forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
+        tabButtons.forEach(b => b.addEventListener('click', () => { setActiveTab(b.dataset.tab); if (b.dataset.tab === 'orders') loadBuyerOrders(); }));
+        document.querySelectorAll('[data-open-profile-tab="orders"]').forEach(button => button.addEventListener('click', () => { setActiveTab('orders'); loadBuyerOrders(); }));
+        document.getElementById('refreshOrdersBtn').addEventListener('click', loadBuyerOrders);
 
         /* ---------- settings form ---------- */
         document.getElementById('settingsForm').addEventListener('submit', async (e) => {
@@ -943,6 +993,7 @@
                     if (initialTab === 'saved') window.location.replace('saved.html');
                     else if (initialTab === 'listings') window.location.replace('my-listings.html');
                     else if (initialTab === 'messages') window.location.replace('messages.html');
+                    else if (initialTab === 'orders') { setActiveTab('orders'); loadBuyerOrders(); }
                     else {
                         setActiveTab('settings');
                         if (initialTab === 'notifications') document.getElementById('notificationSettings').scrollIntoView({ block: 'center' });

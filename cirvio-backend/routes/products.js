@@ -22,6 +22,7 @@ function normalizeListingType(type) {
 }
 
 const RENTABLE_CATEGORIES = new Set(['School Books', 'College Books']);
+const BOOK_CATEGORIES = new Set(['School Books', 'College Books', 'Competitive Exams', 'Novels', 'Guides & Reference', 'Question Banks']);
 
 function normalizeMoney(value) {
     const amount = Number(value);
@@ -33,7 +34,7 @@ function validateListingPricing({ type, category, price, originalPrice, rentalTe
     const listingPrice = ['sell', 'rent'].includes(listingType) ? normalizeMoney(price) : 0;
     const original = normalizeMoney(originalPrice);
     const term = listingType === 'rent' ? String(rentalTerm || '').trim() : '';
-    if (listingType === 'sell' && requireOriginal && original <= 0) throw new Error('Original / MRP is required for sale listings');
+    if (requireOriginal && original <= 0) throw new Error('Original / MRP is required for every listing');
     if (listingType === 'sell' && listingPrice <= 0) throw new Error('Selling price must be greater than 0');
     if (listingType === 'sell' && original > 0 && listingPrice > original) throw new Error('Selling price cannot be higher than the original / MRP');
     if (listingType === 'rent') {
@@ -55,6 +56,16 @@ function normalizeImages(images = []) {
         .map((image) => String(image || '').trim())
         .filter((image) => /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(image) || /^https?:\/\//i.test(image))
         .slice(0, 4);
+}
+
+function validateListingPhotos(category, images, { requireBookEvidence = true, allowEmpty = false } = {}) {
+    if (!images.length) {
+        if (allowEmpty) return;
+        throw new Error('Please add at least one clear listing photo');
+    }
+    if (requireBookEvidence && BOOK_CATEGORIES.has(category) && images.length < 2) {
+        throw new Error('Book listings need two clear photos: the front cover and the printed MRP / back cover');
+    }
 }
 
 function publicProduct(product) {
@@ -181,14 +192,13 @@ router.post('/', protect, async (req, res) => {
         if (!title || !category || !condition || !location) {
             return res.status(400).json({ message: 'title, category, condition and location are required' });
         }
-        if (!listingImages.length) {
-            return res.status(400).json({ message: 'Please add at least one listing image' });
-        }
         let classification;
         try { classification = normalizeClassification(category, req.body.classification); }
         catch (err) { return res.status(400).json({ message: err.message }); }
         let pricing;
         try { pricing = validateListingPricing({ type, category, price, originalPrice, rentalTerm }); }
+        catch (err) { return res.status(400).json({ message: err.message }); }
+        try { validateListingPhotos(category, listingImages); }
         catch (err) { return res.status(400).json({ message: err.message }); }
         const product = await Product.create({
             title: String(title).trim(),
@@ -232,6 +242,16 @@ router.put('/:id', protect, async (req, res, next) => {
             if (req.body[f] !== undefined) changes[f] = f === 'images' ? normalizeImages(req.body[f]) : req.body[f];
         });
         if (req.body.classification !== undefined || changes.category !== undefined) changes.classification = product.classification;
+        const nextImages = changes.images ?? product.images ?? [];
+        const categoryChanged = changes.category !== undefined;
+        const imagesChanged = changes.images !== undefined;
+        try {
+            validateListingPhotos(changes.category ?? product.category, nextImages, {
+                // Legacy listings may be edited without photos, but any new photo/category submission follows the current proof rules.
+                requireBookEvidence: categoryChanged || imagesChanged || (nextImages || []).length > 0,
+                allowEmpty: !categoryChanged && !imagesChanged && !(nextImages || []).length
+            });
+        } catch (err) { return res.status(400).json({ message: err.message }); }
         let pricing;
         try {
             pricing = validateListingPricing({

@@ -2841,3 +2841,24 @@ td .sub { display: block; margin-top: 3px; max-width: 280px; white-space: normal
 .user-cell > div { min-width: 0; }
 .user-cell strong, .listing-book strong, .pair-cell { white-space: normal; }
 @media (max-width: 640px) { .data-pagination { padding: 12px; gap: 12px; } .data-page-controls { width: 100%; justify-content: space-between; } }
+
+
+/* Secure pickup and delivery confirmation inside order operations. */
+.ops-otp-panel {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid rgba(75, 214, 173, .28);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(32, 231, 173, .12), rgba(81, 132, 255, .08));
+}
+.ops-otp-panel h4 { margin: 4px 0 5px; color: var(--text); font-size: 15px; }
+.ops-otp-panel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.ops-otp-kicker { color: var(--green); font-size: 10px; font-weight: 950; letter-spacing: .09em; text-transform: uppercase; }
+.ops-otp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.ops-otp-step { display: grid; gap: 7px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: rgba(4, 24, 30, .33); }
+.ops-otp-step strong { color: var(--text); font-size: 13px; }
+.ops-otp-step > div { display: flex; gap: 8px; }
+.ops-otp-step input { min-width: 0; width: 100%; letter-spacing: .18em; font-weight: 900; text-align: center; }
+.ops-otp-step button { white-space: nowrap; }
+body[data-theme="light"] .ops-otp-step { background: rgba(255,255,255,.76); }
+@media (max-width: 680px) { .ops-otp-grid { grid-template-columns: 1fr; } .ops-otp-step > div { flex-wrap: wrap; } .ops-otp-step button { flex: 1; } }

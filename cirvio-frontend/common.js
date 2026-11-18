@@ -572,6 +572,7 @@ function cartEnsureDrawer() {
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.6 2.6L16 9.5"/></svg>
       <h4>Order placed!</h4>
       <p id="cdSuccessMsg"></p>
+      <div class="cd-order-otp" id="cdOrderOtp" hidden><span>Keep this private</span><strong id="cdOrderOtpCode"></strong><small>Share this delivery OTP only with the CIRVIO runner at handover.</small></div>
       <button class="btn btn-outline" id="cdSuccessClose">Continue Browsing</button>
     </div>
   </aside>
@@ -613,6 +614,8 @@ function renderCartDrawer() {
     const foot = document.getElementById('cdFoot');
     const success = document.getElementById('cdSuccess');
     success.classList.remove('show');
+    const otpPanel = document.getElementById('cdOrderOtp');
+    if (otpPanel) otpPanel.hidden = true;
     document.getElementById('cdHeadCount').textContent = items.reduce((s, it) => s + it.qty, 0);
 
     if (!items.length) {
@@ -666,12 +669,13 @@ async function cartPlaceOrder() {
     const count = items.reduce((s, it) => s + it.qty, 0);
     if (!window.CirvioAPI) { showToast('Checkout is unavailable. Reload the page and try again.'); return; }
     const button = document.getElementById('cdPlaceBtn');
+    let checkoutResult;
     cartOrderPending = true;
     if (button) { button.disabled = true; button.textContent = 'Placing order...'; }
     try {
         const address = (document.getElementById('cdAddress')?.value || '').trim();
-        const result = await CirvioAPI.checkout(items, address);
-        if (!result.order?._id) throw new Error('The server did not confirm your order. Please check your orders before retrying.');
+        checkoutResult = await CirvioAPI.checkout(items, address);
+        if (!checkoutResult.order?._id) throw new Error('The server did not confirm your order. Please check your orders before retrying.');
     } catch (err) {
         showToast(err.message || 'Could not place order');
         return;
@@ -684,6 +688,10 @@ async function cartPlaceOrder() {
     refreshCartBadge();
     document.getElementById('cdSuccessMsg').textContent =
         `${count} item${count > 1 ? 's' : ''} for Rs ${total} placed. Payment is pending manual confirmation; CIRVIO admin will update dispatch status.`;
+    const deliveryOtp = checkoutResult?.order?.deliveryOtp?.code || '';
+    const otpPanel = document.getElementById('cdOrderOtp');
+    otpPanel.hidden = !deliveryOtp;
+    document.getElementById('cdOrderOtpCode').textContent = deliveryOtp ? `Delivery OTP: ${deliveryOtp}` : '';
     document.getElementById('cdFoot').style.display = 'none';
     document.getElementById('cdBody').innerHTML = '';
     document.getElementById('cdSuccess').classList.add('show');

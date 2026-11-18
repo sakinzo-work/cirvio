@@ -334,6 +334,23 @@ async function mockPush(page, { permission = 'default', nextPermission = 'grante
             assert.equal(await page.locator('#statSold').innerText(), '1');
         }, pathname => pathname === '/api/products/mine' ? { body: { products: [{ ...products[0], status: 'sold' }] } } : undefined, true);
 
+        await check('Buyer order history keeps the delivery OTP available after checkout', async (page, base) => {
+            const order = {
+                _id: '000000000000000000000901', totalAmount: 220, status: 'shipped', dispatchStatus: 'in-transit',
+                items: [{ title: 'NCERT Physics Class 12' }],
+                deliveryOtp: { required: true, code: '654321', verified: false, expired: false, attemptsRemaining: 5 }
+            };
+            await page.goto(base + '/profile.html#orders');
+            await page.locator('.profile-tab[data-tab="orders"]').click();
+            await page.getByText('654321', { exact: true }).waitFor();
+            assert.equal(await page.locator('.buyer-order-card').count(), 1);
+            assert.match(await page.locator('.buyer-order-card').innerText(), /in-transit/);
+        }, pathname => pathname === '/api/orders/my' ? { body: { orders: [{
+            _id: '000000000000000000000901', totalAmount: 220, status: 'shipped', dispatchStatus: 'in-transit',
+            items: [{ title: 'NCERT Physics Class 12' }],
+            deliveryOtp: { required: true, code: '654321', verified: false, expired: false, attemptsRemaining: 5 }
+        }] } } : undefined, true);
+
         await check('An unavailable public profile never displays the viewer account data', async (page, base) => {
             await page.goto(base + '/profile.html?user=missing');
             await page.getByText('Profile unavailable', { exact: true }).waitFor();

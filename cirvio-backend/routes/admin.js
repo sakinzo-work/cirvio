@@ -12,6 +12,7 @@ const { protect, adminOnly, staffOnly } = require('../middleware/auth');
 const notifications = require('../services/message-notifications');
 const listingNotifications = require('../services/listing-notifications');
 const { openDirectConversation } = require('../services/direct-conversations');
+const { matchesOtp, MAX_ATTEMPTS } = require('../services/order-otp');
 
 const router = express.Router();
 const requireAdmin = [adminOnly];
@@ -45,6 +46,50 @@ const PAYMENT_STATUSES = ['pending', 'collected', 'failed', 'refunded'];
 const PAYMENT_MODES = ['manual', 'cash', 'upi', 'bank-transfer', 'other'];
 const DISPATCH_STATUSES = ['not-dispatched', 'packed', 'picked-up', 'in-transit', 'delivered', 'returned'];
 const DISPATCH_MODES = ['pending', 'cirvio-runner', 'seller-drop', 'buyer-pickup', 'courier', 'other'];
+
+
+function otpSummary(order, stage) {
+    const prefix = stage === 'pickup' ? 'pickupOtp' : 'deliveryOtp';
+    const hash = order[`${prefix}Hash`];
+    const expiresAt = order[`${prefix}ExpiresAt`];
+    const verifiedAt = order[`${prefix}VerifiedAt`];
+    return {
+        required: Boolean(hash),
+        verified: Boolean(verifiedAt),
+        verifiedAt: verifiedAt || null,
+        expiresAt: expiresAt || null,
+        expired: expiresAt ? new Date(expiresAt).getTime() < Date.now() : false,
+        attemptsRemaining: hash ? Math.max(0, MAX_ATTEMPTS - Number(order[`${prefix}Attempts`] || 0)) : 0
+    };
+}
+
+function safeAdminOrder(order) {
+    const obj = order.toObject ? order.toObject() : order;
+    const { pickupOtpHash, pickupOtpCipher, pickupOtpAttempts, deliveryOtpHash, deliveryOtpCipher, deliveryOtpAttempts, ...safe } = obj;
+    return { ...safe, pickupOtp: otpSummary(obj, 'pickup'), deliveryOtp: otpSummary(obj, 'delivery') };
+}
+
+function orderRequiresOtp(order) {
+    return Boolean(order.pickupOtpHash || order.deliveryOtpHash);
+}
+
+function dispatchOtpGuard(order, status, dispatchStatus) {
+    if (!orderRequiresOtp(order)) return '';
+    const nextStatus = status || order.status;
+    const nextDispatch = dispatchStatus || order.dispatchStatus;
+    if ((nextStatus === 'shipped' || ['picked-up', 'in-transit'].includes(nextDispatch)) && !order.pickupOtpVerifiedAt) {
+        return 'Verify the seller pickup OTP before dispatching this order';
+    }
+    if ((nextStatus === 'delivered' || nextDispatch === 'delivered') && !order.deliveryOtpVerifiedAt) {
+        return 'Verify the buyer delivery OTP before marking this order delivered';
+    }
+    return '';
+}
+
+async function findOtpOrder(id) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return Order.findById(id).select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher');
+}
 
 function splitOrigins(value = '') {
     return String(value)
@@ -329,6 +374,7 @@ router.delete('/products/:id', requireAdmin, async (req, res) => {
 // GET /api/admin/orders — full orders, buyer + item.seller + item.product populated
 router.get('/orders', async (req, res) => {
     const orders = await Order.find()
+        .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
         .populate('buyer', 'name email college city phone')
         .populate('items.seller', 'name email college city phone')
         .populate('items.product', 'title category images')
@@ -338,6 +384,7 @@ router.get('/orders', async (req, res) => {
 
 async function populateOrder(id) {
     return Order.findById(id)
+        .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
         .populate('buyer', 'name email college city phone')
         .populate('items.seller', 'name email college city phone')
         .populate('items.product', 'title category images status')
@@ -348,6 +395,7 @@ async function populateOrder(id) {
 // exactly what the dashboard "who bought what from whom" table needs.
 router.get('/purchases', async (req, res) => {
     const orders = await Order.find()
+        .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
         .populate('buyer', 'name email college city phone')
         .populate('items.seller', 'name email college city phone')
         .populate('items.product', 'title category images status')
@@ -369,6 +417,8 @@ router.get('/purchases', async (req, res) => {
                 dispatchPartner: order.dispatchPartner || '',
                 dispatchDate: order.dispatchDate,
                 deliveredAt: order.deliveredAt,
+                pickupOtp: otpSummary(order, 'pickup'),
+                deliveryOtp: otpSummary(order, 'delivery'),
                 adminNotes: order.adminNotes || '',
                 deliveryAddress: order.deliveryAddress || '',
                 updatedAt: order.updatedAt,
@@ -467,22 +517,63 @@ router.post('/messages/:id/reply', async (req, res, next) => {
 });
 
 // PUT /api/admin/orders/:id/status   body: { status }
-router.put('/orders/:id/status', async (req, res) => {
-    const { status } = req.body;
-    if (!ORDER_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid status' });
-    const update = { status, lastUpdatedBy: req.user._id };
-    if (status === 'shipped') update.dispatchStatus = 'in-transit';
-    if (status === 'delivered') {
-        update.dispatchStatus = 'delivered';
-        update.deliveredAt = new Date();
-    }
-    const order = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    res.json({ order });
+router.put('/orders/:id/status', async (req, res, next) => {
+    try {
+        const { status } = req.body;
+        if (!ORDER_STATUSES.includes(status)) return res.status(400).json({ message: 'Invalid status' });
+        const order = await findOtpOrder(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        const dispatchStatus = status === 'shipped' ? 'in-transit' : (status === 'delivered' ? 'delivered' : order.dispatchStatus);
+        const blocked = dispatchOtpGuard(order, status, dispatchStatus);
+        if (blocked) return res.status(400).json({ message: blocked });
+        order.status = status;
+        order.lastUpdatedBy = req.user._id;
+        if (status === 'shipped') { order.dispatchStatus = 'in-transit'; order.dispatchDate = order.dispatchDate || new Date(); }
+        if (status === 'delivered') { order.dispatchStatus = 'delivered'; order.deliveredAt = new Date(); }
+        await order.save();
+        res.json({ order: safeAdminOrder(await populateOrder(order._id)) });
+    } catch (error) { next(error); }
+});
+
+// POST /api/admin/orders/:id/otp/verify ? pickup verification automatically dispatches; delivery verification completes the order.
+router.post('/orders/:id/otp/verify', async (req, res, next) => {
+    try {
+        const stage = req.body.stage === 'pickup' ? 'pickup' : (req.body.stage === 'delivery' ? 'delivery' : '');
+        const code = String(req.body.otp || '').trim();
+        if (!stage || !/^\d{6}$/.test(code)) return res.status(400).json({ message: 'Enter the 6-digit pickup or delivery OTP' });
+        const order = await findOtpOrder(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        if (order.status === 'cancelled') return res.status(400).json({ message: 'Cancelled orders cannot be verified' });
+        const prefix = stage === 'pickup' ? 'pickupOtp' : 'deliveryOtp';
+        if (!order[`${prefix}Hash`]) return res.status(400).json({ message: 'This older order does not have OTP dispatch enabled' });
+        if (order[`${prefix}VerifiedAt`]) return res.json({ message: `${stage === 'pickup' ? 'Pickup' : 'Delivery'} OTP was already verified`, order: safeAdminOrder(await populateOrder(order._id)) });
+        if (new Date(order[`${prefix}ExpiresAt`]).getTime() < Date.now()) return res.status(410).json({ message: 'This OTP has expired. Create a new order handover code.' });
+        if (Number(order[`${prefix}Attempts`] || 0) >= MAX_ATTEMPTS) return res.status(423).json({ message: 'Too many incorrect attempts. Create a new order handover code.' });
+        if (stage === 'delivery' && !order.pickupOtpVerifiedAt) return res.status(400).json({ message: 'Verify the seller pickup OTP before accepting the delivery OTP' });
+        if (!matchesOtp(code, order[`${prefix}Hash`])) {
+            order[`${prefix}Attempts`] = Number(order[`${prefix}Attempts`] || 0) + 1;
+            await order.save();
+            return res.status(400).json({ message: `Incorrect OTP. ${Math.max(0, MAX_ATTEMPTS - order[`${prefix}Attempts`])} attempt(s) remaining.` });
+        }
+        const now = new Date();
+        order[`${prefix}VerifiedAt`] = now;
+        order.lastUpdatedBy = req.user._id;
+        if (stage === 'pickup') {
+            order.dispatchStatus = 'in-transit';
+            order.status = 'shipped';
+            order.dispatchDate = order.dispatchDate || now;
+        } else {
+            order.dispatchStatus = 'delivered';
+            order.status = 'delivered';
+            order.deliveredAt = now;
+        }
+        await order.save();
+        res.json({ message: stage === 'pickup' ? 'Pickup verified. Dispatch started automatically.' : 'Delivery verified. Order completed.', order: safeAdminOrder(await populateOrder(order._id)) });
+    } catch (error) { next(error); }
 });
 
 // PUT /api/admin/orders/:id/operations
-router.put('/orders/:id/operations', async (req, res) => {
+router.put('/orders/:id/operations', async (req, res, next) => {
     const update = { lastUpdatedBy: req.user._id };
     const {
         status,
@@ -530,9 +621,15 @@ router.put('/orders/:id/operations', async (req, res) => {
     if (dispatchDate !== undefined) update.dispatchDate = dispatchDate ? new Date(dispatchDate) : null;
     if (deliveredAt !== undefined) update.deliveredAt = deliveredAt ? new Date(deliveredAt) : null;
 
-    const order = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    res.json({ order: await populateOrder(order._id) });
+    try {
+        const order = await findOtpOrder(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        const blocked = dispatchOtpGuard(order, update.status, update.dispatchStatus);
+        if (blocked) return res.status(400).json({ message: blocked });
+        Object.assign(order, update);
+        await order.save();
+        res.json({ order: safeAdminOrder(await populateOrder(order._id)) });
+    } catch (error) { next(error); }
 });
 
 module.exports = router;

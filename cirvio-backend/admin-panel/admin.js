@@ -868,6 +868,13 @@ function ensureOrderOpsModal() {
         </div>
         <div class="ops-body">
           <div id="opsParties" class="ops-parties"></div>
+          <section class="ops-otp-panel" aria-labelledby="opsOtpHeading">
+            <div><span class="ops-otp-kicker">Secure handover</span><h4 id="opsOtpHeading">Verify order OTPs</h4><p id="opsOtpHelp">Verify pickup first. A valid pickup OTP starts dispatch automatically; delivery OTP completes the order.</p></div>
+            <div class="ops-otp-grid">
+              <div class="ops-otp-step" id="opsPickupOtpStep"><strong>1. Seller pickup OTP</strong><span class="sub" id="opsPickupOtpState"></span><div><input id="opsPickupOtp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit OTP" aria-label="Seller pickup OTP"><button type="button" class="row-btn btn-approve" data-otp-stage="pickup">Verify pickup</button></div></div>
+              <div class="ops-otp-step" id="opsDeliveryOtpStep"><strong>2. Buyer delivery OTP</strong><span class="sub" id="opsDeliveryOtpState"></span><div><input id="opsDeliveryOtp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit OTP" aria-label="Buyer delivery OTP"><button type="button" class="row-btn btn-approve" data-otp-stage="delivery">Verify delivery</button></div></div>
+            </div>
+          </section>
           <div class="ops-grid">
             <label>Order status<select id="opsOrderStatus"></select></label>
             <label>Payment status<select id="opsPaymentStatus"></select></label>
@@ -891,12 +898,64 @@ function ensureOrderOpsModal() {
     document.body.appendChild(modal);
     document.getElementById('opsClose').addEventListener('click', closeOrderOps);
     document.getElementById('opsSave').addEventListener('click', saveOrderOps);
+    modal.querySelectorAll('[data-otp-stage]').forEach(button => button.addEventListener('click', () => verifyOrderOtp(button.dataset.otpStage)));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeOrderOps();
     });
 }
 
 let activeOrderOpsId = '';
+function otpStateText(otp, stage) {
+    if (!otp?.required) return 'Not enabled for this older order';
+    if (otp.verified) return `Verified ${otp.verifiedAt ? fmtDate(otp.verifiedAt) : ''}`;
+    if (otp.expired) return 'Expired - ask operations to recreate the handover';
+    return `${otp.attemptsRemaining ?? 5} attempt(s) remaining${otp.expiresAt ? ` | expires ${fmtDate(otp.expiresAt)}` : ''}`;
+}
+function renderOrderOtpState(row) {
+    [['pickup', 'Pickup'], ['delivery', 'Delivery']].forEach(([stage, label]) => {
+        const otp = row[`${stage}Otp`] || {};
+        const state = document.getElementById(`ops${label}OtpState`);
+        const input = document.getElementById(`ops${label}Otp`);
+        const button = document.querySelector(`[data-otp-stage="${stage}"]`);
+        if (!state || !input || !button) return;
+        state.textContent = otpStateText(otp, stage);
+        const disabled = !otp.required || otp.verified || otp.expired || otp.attemptsRemaining === 0 || (stage === 'delivery' && !row.pickupOtp?.verified);
+        input.disabled = disabled;
+        button.disabled = disabled;
+        input.value = '';
+        button.textContent = otp.verified ? `${label} verified` : `Verify ${stage}`;
+    });
+}
+async function verifyOrderOtp(stage) {
+    if (!activeOrderOpsId) return;
+    const label = stage === 'pickup' ? 'Pickup' : 'Delivery';
+    const input = document.getElementById(`ops${label}Otp`);
+    const button = document.querySelector(`[data-otp-stage="${stage}"]`);
+    const status = document.getElementById('opsStatus');
+    const otp = String(input?.value || '').replace(/\D/g, '');
+    if (!/^\d{6}$/.test(otp)) { status.textContent = `Enter the 6-digit ${stage} OTP.`; input?.focus(); return; }
+    button.disabled = true;
+    status.textContent = `Verifying ${stage} OTP...`;
+    try {
+        const result = await api(`/api/admin/orders/${activeOrderOpsId}/otp/verify`, { method: 'POST', body: JSON.stringify({ stage, otp }) });
+        const row = ADMIN_PURCHASES.get(activeOrderOpsId);
+        if (row && result.order) {
+            row.orderStatus = result.order.status;
+            row.dispatchStatus = result.order.dispatchStatus;
+            row.dispatchDate = result.order.dispatchDate;
+            row.deliveredAt = result.order.deliveredAt;
+            row.pickupOtp = result.order.pickupOtp;
+            row.deliveryOtp = result.order.deliveryOtp;
+            document.getElementById('opsOrderStatus').innerHTML = selectOptions(['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'], row.orderStatus || 'placed');
+            document.getElementById('opsDispatchStatus').innerHTML = selectOptions(['not-dispatched', 'packed', 'picked-up', 'in-transit', 'delivered', 'returned'], row.dispatchStatus || 'not-dispatched');
+            document.getElementById('opsDispatchDate').value = dateInputValue(row.dispatchDate);
+            document.getElementById('opsDeliveredAt').value = dateInputValue(row.deliveredAt);
+            renderOrderOtpState(row);
+        }
+        status.textContent = result.message || `${label} OTP verified.`;
+        await Promise.all([loadPurchases(), loadStats()]);
+    } catch (err) { status.textContent = err.message || `Could not verify ${stage} OTP.`; button.disabled = false; }
+}
 function openOrderOps(orderId) {
     const row = ADMIN_PURCHASES.get(String(orderId));
     if (!row) return;
@@ -922,6 +981,7 @@ function openOrderOps(orderId) {
     document.getElementById('opsDeliveryAddress').value = row.deliveryAddress || '';
     document.getElementById('opsAdminNotes').value = row.adminNotes || '';
     document.getElementById('opsStatus').textContent = '';
+    renderOrderOtpState(row);
     document.getElementById('orderOpsModal').classList.add('open');
 }
 

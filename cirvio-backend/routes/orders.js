@@ -4,11 +4,34 @@ const Order = require('../models/Order');
 const { protect } = require('../middleware/auth');
 const mongoose = require('mongoose');
 const listingNotifications = require('../services/listing-notifications');
+const { createOtp, readOtp } = require('../services/order-otp');
 
 const router = express.Router();
 
+function orderObject(order) {
+    return order.toObject ? order.toObject() : order;
+}
+
+function otpState(order, stage, { revealCode = false } = {}) {
+    const prefix = stage === 'pickup' ? 'pickupOtp' : 'deliveryOtp';
+    const hash = order[`${prefix}Hash`];
+    const expiresAt = order[`${prefix}ExpiresAt`];
+    const verifiedAt = order[`${prefix}VerifiedAt`];
+    const expired = expiresAt ? new Date(expiresAt).getTime() < Date.now() : false;
+    const state = {
+        required: Boolean(hash),
+        verified: Boolean(verifiedAt),
+        verifiedAt: verifiedAt || null,
+        expiresAt: expiresAt || null,
+        expired,
+        attemptsRemaining: hash ? Math.max(0, 5 - Number(order[`${prefix}Attempts`] || 0)) : 0
+    };
+    if (revealCode && state.required && !state.verified && !state.expired) state.code = readOtp(order[`${prefix}Cipher`]);
+    return state;
+}
+
 function safeSellingOrder(order, sellerId) {
-    const obj = order.toObject ? order.toObject() : order;
+    const obj = orderObject(order);
     const buyer = obj.buyer && typeof obj.buyer === 'object'
         ? {
             _id: obj.buyer._id,
@@ -16,10 +39,21 @@ function safeSellingOrder(order, sellerId) {
             college: obj.buyer.college
         }
         : obj.buyer;
-    const items = obj.items.filter(item => String(item.seller) === String(sellerId));
+    const items = obj.items.filter(item => String(item.seller?._id || item.seller) === String(sellerId));
     return { _id: obj._id, buyer, items, totalAmount: items.reduce((total, item) => total + item.price * item.qty, 0), status: obj.status,
         paymentStatus: obj.paymentStatus, dispatchStatus: obj.dispatchStatus, dispatchMode: obj.dispatchMode,
-        trackingId: obj.trackingId, dispatchPartner: obj.dispatchPartner, createdAt: obj.createdAt, updatedAt: obj.updatedAt };
+        trackingId: obj.trackingId, dispatchPartner: obj.dispatchPartner, createdAt: obj.createdAt, updatedAt: obj.updatedAt,
+        pickupOtp: otpState(obj, 'pickup', { revealCode: true }) };
+}
+
+function safeBuyerOrder(order) {
+    const obj = orderObject(order);
+    const { pickupOtpHash, pickupOtpCipher, pickupOtpAttempts, deliveryOtpHash, deliveryOtpCipher, deliveryOtpAttempts, ...safe } = obj;
+    return {
+        ...safe,
+        pickupOtp: otpState(obj, 'pickup'),
+        deliveryOtp: otpState(obj, 'delivery', { revealCode: true })
+    };
 }
 
 // POST /api/orders — checkout the cart. Body: { items: [{ productId, qty }], deliveryAddress }
@@ -84,6 +118,8 @@ router.post('/', protect, async (req, res) => {
             reserved.push(item.product);
         }
 
+        const pickupOtp = createOtp();
+        const deliveryOtp = createOtp();
         const order = await Order.create({
             _id: orderId,
             buyer: req.user._id,
@@ -94,12 +130,18 @@ router.post('/', protect, async (req, res) => {
             paymentMode: 'manual',
             dispatchStatus: 'not-dispatched',
             dispatchMode: 'pending',
-            deliveryAddress: deliveryAddress || ''
+            deliveryAddress: deliveryAddress || '',
+            pickupOtpHash: pickupOtp.hash,
+            pickupOtpCipher: pickupOtp.cipher,
+            pickupOtpExpiresAt: pickupOtp.expiresAt,
+            deliveryOtpHash: deliveryOtp.hash,
+            deliveryOtpCipher: deliveryOtp.cipher,
+            deliveryOtpExpiresAt: deliveryOtp.expiresAt
         });
         committed = true;
         try { await listingNotifications.recordOrderEvents(order); }
         catch { console.warn('Seller notifications will retry after checkout'); }
-        res.status(201).json({ order });
+        res.status(201).json({ order: safeBuyerOrder(order) });
     } catch (err) {
         try { await release(); } catch { console.error('Could not release an incomplete checkout reservation'); }
         res.status(500).json({ message: 'Failed to place order', error: err.message });
@@ -110,9 +152,10 @@ router.post('/', protect, async (req, res) => {
 router.get('/my', protect, async (req, res, next) => {
     try {
         const orders = await Order.find({ buyer: req.user._id })
+            .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
             .populate('items.seller', 'name college')
             .sort({ createdAt: -1 });
-        res.json({ count: orders.length, orders });
+        res.json({ count: orders.length, orders: orders.map(safeBuyerOrder) });
     } catch (error) { next(error); }
 });
 
@@ -120,6 +163,7 @@ router.get('/my', protect, async (req, res, next) => {
 router.get('/selling', protect, async (req, res, next) => {
     try {
         const orders = await Order.find({ 'items.seller': req.user._id })
+            .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
             .populate('buyer', 'name college')
             .sort({ createdAt: -1 });
         res.json({ count: orders.length, orders: orders.map(order => safeSellingOrder(order, req.user._id)) });

@@ -4981,3 +4981,41 @@ footer {
 @keyframes data-shimmer { to { background-position: -200% 0; } }
 @media (max-width: 640px) { .data-skeletons { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .data-skeleton { height: 230px; } }
 @media (prefers-reduced-motion: reduce) { .data-skeleton { animation: none; } .reveal { opacity: 1; transform: none; transition: none; } }
+
+
+/* Listing evidence makes each book and its printed MRP reviewable. */
+.book-upload-guide { margin: 0 0 20px; padding: 15px 17px; border: 1px solid #d9c28d; border-radius: 12px; background: #fff9ea; color: #4f493b; }
+.book-upload-guide strong { color: var(--olive-deep); }
+.book-upload-guide ol { margin: 9px 0 0 19px; padding: 0; display: grid; gap: 6px; font-size: .86rem; line-height: 1.45; }
+.photo-evidence-guide { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 11px; }
+.photo-evidence-guide span { display: flex; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--sand-light); color: #625d4d; font-size: .73rem; font-weight: 700; line-height: 1.25; }
+.photo-evidence-guide b { display: grid; place-items: center; flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%; background: var(--olive-deep); color: var(--ivory); font-size: .71rem; }
+@media (max-width: 700px) { .photo-evidence-guide { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+
+.cd-order-otp { display: grid; gap: 5px; margin: 15px 0; padding: 13px; border: 1px solid rgba(200,164,90,.55); border-radius: 10px; background: rgba(200,164,90,.12); text-align: left; }
+.cd-order-otp span { color: var(--terracotta-deep); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.cd-order-otp strong, .handover-otp { color: var(--olive-deep); font-size: 1.25rem; letter-spacing: .16em; }
+.cd-order-otp small { color: #625d4d; line-height: 1.4; }
+.buyer-selection-details small { display: block; margin-top: 4px; color: #736d5c; line-height: 1.35; }
+
+
+.orders-panel-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.orders-panel-head h2 { margin: 5px 0 7px; color: var(--olive-deep); }
+.orders-panel-head p { max-width: 610px; margin: 0; color: #625d4d; font-size: .9rem; line-height: 1.55; }
+.buyer-orders { display: grid; gap: 14px; }
+.buyer-order-card { overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--ivory); box-shadow: var(--shadow-soft); }
+.buyer-order-main { display: flex; justify-content: space-between; gap: 18px; padding: 17px; }
+.buyer-order-main h3 { margin: 8px 0 6px; color: var(--olive-deep); font-size: 1rem; }
+.buyer-order-main p { margin: 0; color: #736d5c; font-size: .82rem; }
+.buyer-order-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; background: #e8eddc; color: var(--olive-deep); font-size: .69rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.buyer-order-main dl { display: grid; grid-template-columns: repeat(2, minmax(90px, 1fr)); align-content: start; gap: 9px; margin: 0; }
+.buyer-order-main dt { color: #8a856f; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
+.buyer-order-main dd { margin: 3px 0 0; color: var(--charcoal); font-size: .8rem; font-weight: 700; }
+.buyer-order-otp { display: grid; gap: 5px; padding: 14px 17px; border-top: 1px solid #dec985; background: #fff7df; }
+.buyer-order-otp > span { color: var(--terracotta-deep); font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.buyer-order-otp strong { color: var(--olive-deep); font-size: 1.25rem; letter-spacing: .15em; }
+.buyer-order-otp small, .buyer-order-otp.muted span { color: #625d4d; font-size: .8rem; line-height: 1.45; }
+.buyer-order-otp.verified { background: #edf5e5; border-top-color: #b7d4a5; }
+.buyer-order-otp.verified strong { font-size: .95rem; letter-spacing: 0; }
+@media (max-width: 620px) { .orders-panel-head, .buyer-order-main { align-items: stretch; flex-direction: column; } .orders-panel-head .btn { width: 100%; justify-content: center; } }

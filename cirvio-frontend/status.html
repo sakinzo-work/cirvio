@@ -320,7 +320,13 @@
         /* ---------- note under tracker ---------- */
         function note(l) {
             const order = sellingOrders.get(String(l.id));
-            if (order) return `<div class="approval-note approved-note">${order.status === 'cancelled' ? 'This buyer order was cancelled. Contact CIRVIO for the next step.' : 'A buyer placed an order. This does not confirm payment or delivery.'}</div><dl class="buyer-selection-details"><div><dt>Buyer</dt><dd>${escapeHTML(order.buyer?.name || 'Buyer')}</dd></div><div><dt>Order</dt><dd>#${escapeHTML(String(order._id).slice(-8).toUpperCase())} · ${escapeHTML(order.status || 'placed')}</dd></div><div><dt>Payment</dt><dd>${escapeHTML(order.paymentStatus || 'pending')}</dd></div><div><dt>Dispatch</dt><dd>${escapeHTML(order.dispatchStatus || 'not-dispatched')}</dd></div></dl>`;
+            if (order) {
+                const pickup = order.pickupOtp || {};
+                const pickupLine = pickup.verified
+                    ? `<div><dt>Pickup OTP</dt><dd>Verified</dd></div>`
+                    : (pickup.code ? `<div><dt>Pickup OTP</dt><dd><strong class="handover-otp">${escapeHTML(pickup.code)}</strong><small>Share only with the CIRVIO runner at pickup.</small></dd></div>` : '<div><dt>Pickup OTP</dt><dd>Will be available when CIRVIO prepares the handover.</dd></div>');
+                return `<div class="approval-note approved-note">${order.status === 'cancelled' ? 'This buyer order was cancelled. Contact CIRVIO for the next step.' : 'A buyer placed an order. Keep the pickup OTP private until the CIRVIO runner arrives.'}</div><dl class="buyer-selection-details"><div><dt>Buyer</dt><dd>${escapeHTML(order.buyer?.name || 'Buyer')}</dd></div><div><dt>Order</dt><dd>#${escapeHTML(String(order._id).slice(-8).toUpperCase())} ? ${escapeHTML(order.status || 'placed')}</dd></div><div><dt>Payment</dt><dd>${escapeHTML(order.paymentStatus || 'pending')}</dd></div><div><dt>Dispatch</dt><dd>${escapeHTML(order.dispatchStatus || 'not-dispatched')}</dd></div>${pickupLine}</dl>`;
+            }
             if (l.status === 'sold') return '<div class="approval-note">This listing is unavailable. Buyer details will appear when its order is confirmed by the server.</div>';
             if (l.status === 'pending') {
                 return `<div class="approval-note">${l.reviewViewedAt ? 'CIRVIO has viewed your listing. It is waiting for the final review decision.' : 'Your listing is waiting for CIRVIO to review its photos and details.'}</div>`;

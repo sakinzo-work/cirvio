@@ -222,6 +222,11 @@
                             </div>
                         </div>
 
+                        <aside class="book-upload-guide" aria-label="Book upload checklist">
+                            <strong>Before you upload</strong>
+                            <ol><li>List one book or study item per listing.</li><li>Enter the original printed MRP, even for free or donated items.</li><li>Use a bright, unblurred front-cover photo and a separate photo where the printed MRP is readable.</li></ol>
+                        </aside>
+
                         <div class="field-group">
                             <label for="itemTitle">Title</label>
                             <input type="text" id="itemTitle" placeholder="e.g. NCERT Class 12 Physics Part 1 & 2"
@@ -281,7 +286,7 @@
                             </div>
                             <div class="field-group">
                                 <label for="itemOrig" id="origLabel">Original / MRP <span
-                                        style="font-weight:500;color:#8a856f;">(required for sale)</span></label>
+                                        style="font-weight:500;color:#8a856f;">(required)</span></label>
                                 <div class="price-field">
                                     <span class="cur">₹</span>
                                     <input type="number" id="itemOrig" min="0" placeholder="0">
@@ -321,8 +326,9 @@
                             </div>
                         </div>
 
-                        <div class="field-group">
-                            <label>Photos</label>
+                        <div class="field-group" id="photoGroup">
+                            <label>Clear photos <span style="font-weight:500;color:#8a856f;">(2 required for books)</span></label>
+                            <div class="photo-evidence-guide"><span><b>1</b> Front cover</span><span><b>2</b> Printed MRP / back cover</span><span><b>3</b> Edition or condition</span><span><b>4</b> Optional extra detail</span></div>
                             <div class="dropzone" id="dropzone">
                                 <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round"
                                     stroke-linejoin="round">
@@ -469,7 +475,7 @@
                 priceInput.disabled = false;
                 priceLabel.textContent = 'Selling price';
                 priceHint.textContent = 'Set a fair price based on the edition and condition of your item.';
-                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(required for sale)</span>';
+                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(required)</span>';
                 rentalTermGroup.hidden = true;
                 rentalTerm.disabled = true;
                 rentalTerm.value = '';
@@ -479,7 +485,7 @@
                 priceInput.disabled = false;
                 priceLabel.textContent = 'Rent price';
                 priceHint.textContent = 'Set the amount for the selected rental period. Rental books are arranged directly with the owner.';
-                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(required for rentals)</span>';
+                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(required)</span>';
                 rentalTermGroup.hidden = false;
                 rentalTerm.disabled = false;
                 pageTitle.textContent = 'Rent Out a Book';
@@ -489,7 +495,7 @@
                 priceInput.value = '0';
                 priceLabel.textContent = 'Your price';
                 priceHint.textContent = t === 'donate' ? 'Donations are listed at \u20B90 with a "Donation" tag.' : 'Free items are listed at \u20B90 with a "Free" tag.';
-                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(optional)</span>';
+                origLabel.innerHTML = 'Original / MRP <span style="font-weight:500;color:#8a856f;">(required)</span>';
                 rentalTermGroup.hidden = true;
                 rentalTerm.disabled = true;
                 rentalTerm.value = '';
@@ -508,6 +514,9 @@
         const fileInput = document.getElementById('fileInput');
         const imgPreviewGrid = document.getElementById('imgPreviewGrid');
         const selectedFileList = document.getElementById('selectedFileList');
+        const BOOK_CATEGORIES = new Set(['School Books', 'College Books', 'Competitive Exams', 'Novels', 'Guides & Reference', 'Question Banks']);
+        const isBookListing = () => BOOK_CATEGORIES.has(document.getElementById('itemCategory').value);
+        const photoRole = (index) => ['Front cover', 'Printed MRP / back cover', 'Edition or condition', 'Extra detail'][index] || 'Photo';
 
         dropzone.addEventListener('click', (e) => {
             if (e.target !== fileInput) fileInput.click();
@@ -538,10 +547,10 @@
                     setPublishStatus('Each selected photo must be under 5 MB.', 'error');
                     return;
                 }
-                compressImageFile(file).then((dataUrl) => {
+                compressImageFile(file).then(({ dataUrl, width, height }) => {
                     photos.push(dataUrl);
                     photoFiles.push(file);
-                    photoMeta.push({ name: file.name, originalSize: file.size, storedSize: dataUrl.length });
+                    photoMeta.push({ name: file.name, originalSize: file.size, storedSize: dataUrl.length, width, height });
                     renderPreviewImages();
                     updatePreview();
                     setPublishStatus(`${photoFiles.length} photo(s) ready for database storage: ${photoFiles.map(f => f.name).join(', ')}`, 'ok');
@@ -575,8 +584,13 @@
         async function compressImageFile(file) {
             const source = await readFileAsDataURL(file);
             const img = await loadImage(source);
+            const sourceWidth = img.naturalWidth || img.width;
+            const sourceHeight = img.naturalHeight || img.height;
+            if (Math.min(sourceWidth, sourceHeight) < 600) {
+                throw new Error('Use a clearer photo: each image must be at least 600 px on its shortest side so the book and printed MRP can be read.');
+            }
             const maxSide = 1200;
-            const scale = Math.min(1, maxSide / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+            const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
             const canvas = document.createElement('canvas');
             canvas.width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
             canvas.height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
@@ -592,14 +606,14 @@
             if (dataUrl.length > 1200000) {
                 throw new Error('Image is still too large after compression. Please choose a smaller photo.');
             }
-            return dataUrl;
+            return { dataUrl, width: sourceWidth, height: sourceHeight };
         }
 
         function renderPreviewImages() {
             imgPreviewGrid.innerHTML = photos.map((src, i) => `
         <div class="img-preview">
-          ${i === 0 ? '<span class="cover-tag">Cover</span>' : ''}
-          <img src="${src}" alt="Listing photo ${i + 1}">
+          <span class="cover-tag">${photoRole(i)}</span>
+          <img src="${src}" alt="${photoRole(i)} photo for this listing">
           <button type="button" class="rm" data-i="${i}" aria-label="Remove photo">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
@@ -607,8 +621,8 @@
             selectedFileList.innerHTML = photoFiles.length
                 ? `<strong>Selected files</strong>${photoFiles.map((file, i) => `
                     <div class="selected-file-row">
-                        <span>${i + 1}. ${file.name}</span>
-                        <small>${(file.size / 1024 / 1024).toFixed(2)} MB -> ${((photoMeta[i]?.storedSize || 0) / 1024).toFixed(0)} KB stored</small>
+                        <span>${i + 1}. ${photoRole(i)} ? ${file.name}</span>
+                        <small>${photoMeta[i]?.width || '?'} ? ${photoMeta[i]?.height || '?'} px ? ${(file.size / 1024 / 1024).toFixed(2)} MB ? ${((photoMeta[i]?.storedSize || 0) / 1024).toFixed(0)} KB stored</small>
                     </div>
                 `).join('')}`
                 : '<span>No photos selected yet.</span>';
@@ -836,11 +850,11 @@
             ok = validateField('itemCondition', document.getElementById('itemCondition').value.length > 0) && ok;
             ok = validateField('itemDesc', document.getElementById('itemDesc').value.trim().length > 0) && ok;
             ok = validateField('itemLoc', document.getElementById('itemLoc').value.trim().length > 0) && ok;
+            const originalPrice = Number(document.getElementById('itemOrig').value);
+            ok = validateField('itemOrig', originalPrice > 0) && ok;
             if (listingType === 'sell') {
                 const sellingPrice = Number(document.getElementById('itemPrice').value);
-                const originalPrice = Number(document.getElementById('itemOrig').value);
                 ok = validateField('itemPrice', sellingPrice > 0) && ok;
-                ok = validateField('itemOrig', originalPrice > 0) && ok;
                 if (sellingPrice > originalPrice) {
                     ok = false;
                     setPublishStatus('Selling price cannot be higher than Original / MRP.', 'error');
@@ -856,16 +870,20 @@
                     setPublishStatus('Rent is available only for School Books and College Books.', 'error');
                 }
             }
-            if (!photos.length) {
+            const requiredPhotoCount = isBookListing() ? 2 : 1;
+            if (photos.length < requiredPhotoCount) {
                 ok = false;
-                setPublishStatus('Please add at least one clear listing photo. Images are stored with the listing as base64.', 'error');
+                validateField('photoGroup', false);
+                setPublishStatus(isBookListing() ? 'Add two clear book photos: front cover and printed MRP / back cover.' : 'Please add at least one clear listing photo.', 'error');
+            } else {
+                validateField('photoGroup', true);
             }
 
             if (!ok) {
                 const invalidField = document.querySelector('.field-group.invalid') || document.getElementById('dropzone');
                 invalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (photos.length) {
-                    setPublishStatus('Please complete the highlighted fields. Complete the required price and rental fields before publishing.', 'error');
+                if (photos.length >= (isBookListing() ? 2 : 1)) {
+                    setPublishStatus('Please complete the highlighted fields. Original / MRP is compulsory for every listing.', 'error');
                 }
                 showToast('Please fill in the highlighted fields');
                 return;

@@ -799,7 +799,7 @@ async function loadPurchases(options = {}) {
           <td class="pair-cell">${esc(row.title)}<span class="sub">${row.product ? esc(row.product.category) : ''}</span></td>
           <td class="pair-cell">${row.seller ? esc(row.seller.name) : '-'}<span class="sub">${row.seller ? esc(row.seller.email) : ''}</span></td>
           <td>${row.qty}</td>
-          <td>${inr(row.price * row.qty)}</td>
+          <td>${inr(row.price * row.qty)}<span class="sub">${deliveryChargeLabel(row)}</span></td>
           <td><span class="badge badge-${paymentBadge(row.paymentStatus)}">${labelStatus(row.paymentStatus)}</span><span class="sub">${labelStatus(row.paymentMode)}</span></td>
           <td><span class="badge badge-${dispatchBadge(row.dispatchStatus)}">${labelStatus(row.dispatchStatus)}</span><span class="sub">${esc(row.trackingId || row.dispatchPartner || row.dispatchMode || '')}</span></td>
           <td><span class="badge badge-${orderBadge(row.orderStatus)}">${labelStatus(row.orderStatus)}</span></td>
@@ -816,6 +816,20 @@ async function loadPurchases(options = {}) {
           <td>${inr(row.price * row.qty)}</td>
         </tr>`).join('') : emptyRow(5, 'No recent purchases yet.');
     applyActiveSearchFilter();
+}
+
+function deliveryChargeLabel(row) {
+    const delivery = row.delivery || {};
+    if (delivery.quoteStatus === 'needs-courier-quote') return 'Courier quote pending';
+    if (Number.isFinite(Number(delivery.finalFee))) return 'Delivery ' + inr(delivery.finalFee) + (Number(delivery.deliveryDiscount || 0) ? ' (discount ' + inr(delivery.deliveryDiscount) + ')' : '');
+    return 'Delivery not calculated';
+}
+function deliveryOpsSummary(row) {
+    const delivery = row.delivery || {};
+    if (delivery.quoteStatus === 'needs-courier-quote') return 'Courier quote needed / ' + Number(delivery.shipmentWeightKg || 0).toFixed(2) + ' kg / Rs 30 handling will be added';
+    if (!delivery.type) return 'Delivery pricing unavailable for this older order';
+    const route = delivery.type === 'local' ? 'Local ' + (delivery.distanceKm || '-') + ' km' : 'Courier ' + Number(delivery.shipmentWeightKg || 0).toFixed(2) + ' kg';
+    return route + ' / fee ' + inr(delivery.finalFee || 0) + (delivery.deliveryDiscount ? ' / discount ' + inr(delivery.deliveryDiscount) : '') + ' / total ' + inr(row.grandTotal ?? (Number(row.subtotal || 0) + Number(delivery.finalFee || 0)));
 }
 
 function labelStatus(value) {
@@ -868,6 +882,10 @@ function ensureOrderOpsModal() {
         </div>
         <div class="ops-body">
           <div id="opsParties" class="ops-parties"></div>
+          <section class="ops-delivery-panel" aria-labelledby="opsDeliveryHeading">
+            <div><span class="ops-otp-kicker">Delivery pricing</span><h4 id="opsDeliveryHeading">Delivery charge</h4><p id="opsDeliverySummary"></p></div>
+            <div class="ops-delivery-quote" id="opsDeliveryQuote" hidden><label>Actual courier rate<input id="opsActualCourierRate" type="number" min="1" step="1" placeholder="Courier amount"></label><button type="button" class="row-btn btn-approve" id="opsSaveCourierQuote">Confirm courier quote</button></div>
+          </section>
           <section class="ops-otp-panel" aria-labelledby="opsOtpHeading">
             <div><span class="ops-otp-kicker">Secure handover</span><h4 id="opsOtpHeading">Verify order OTPs</h4><p id="opsOtpHelp">Verify pickup first. A valid pickup OTP starts dispatch automatically; delivery OTP completes the order.</p></div>
             <div class="ops-otp-grid">
@@ -898,6 +916,7 @@ function ensureOrderOpsModal() {
     document.body.appendChild(modal);
     document.getElementById('opsClose').addEventListener('click', closeOrderOps);
     document.getElementById('opsSave').addEventListener('click', saveOrderOps);
+    document.getElementById('opsSaveCourierQuote').addEventListener('click', saveCourierQuote);
     modal.querySelectorAll('[data-otp-stage]').forEach(button => button.addEventListener('click', () => verifyOrderOtp(button.dataset.otpStage)));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeOrderOps();
@@ -981,8 +1000,36 @@ function openOrderOps(orderId) {
     document.getElementById('opsDeliveryAddress').value = row.deliveryAddress || '';
     document.getElementById('opsAdminNotes').value = row.adminNotes || '';
     document.getElementById('opsStatus').textContent = '';
+    renderDeliveryOps(row);
     renderOrderOtpState(row);
     document.getElementById('orderOpsModal').classList.add('open');
+}
+
+function renderDeliveryOps(row) {
+    const delivery = row.delivery || {};
+    const summary = document.getElementById('opsDeliverySummary');
+    const quote = document.getElementById('opsDeliveryQuote');
+    if (summary) summary.textContent = deliveryOpsSummary(row);
+    if (quote) quote.hidden = delivery.quoteStatus !== 'needs-courier-quote';
+    const input = document.getElementById('opsActualCourierRate');
+    if (input) input.value = delivery.actualCourierRate || '';
+}
+async function saveCourierQuote() {
+    if (!activeOrderOpsId) return;
+    const input = document.getElementById('opsActualCourierRate');
+    const button = document.getElementById('opsSaveCourierQuote');
+    const status = document.getElementById('opsStatus');
+    const actualCourierRate = Number(input?.value);
+    if (!(actualCourierRate > 0)) { status.textContent = 'Enter the actual courier rate.'; input?.focus(); return; }
+    button.disabled = true; status.textContent = 'Confirming courier quote...';
+    try {
+        const result = await api('/api/admin/orders/' + activeOrderOpsId + '/delivery-quote', { method: 'PUT', body: JSON.stringify({ actualCourierRate }) });
+        const row = ADMIN_PURCHASES.get(activeOrderOpsId);
+        if (row && result.order) { row.delivery = result.order.delivery; row.grandTotal = result.order.grandTotal; row.subtotal = result.order.totalAmount; renderDeliveryOps(row); }
+        status.textContent = 'Courier quote confirmed.';
+        await Promise.all([loadPurchases(), loadStats()]);
+    } catch (error) { status.textContent = error.message || 'Could not confirm courier quote.'; }
+    finally { button.disabled = false; }
 }
 
 function closeOrderOps() {

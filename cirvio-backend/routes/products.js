@@ -29,6 +29,13 @@ function normalizeMoney(value) {
     return Number.isFinite(amount) ? amount : 0;
 }
 
+function validateShippingWeight(value, { defaultWeight = true } = {}) {
+    if (value === undefined || value === null || value === '') return defaultWeight ? 0.5 : null;
+    const weight = Number(value);
+    if (!Number.isFinite(weight) || weight < 0.05 || weight > 50) throw new Error('Packed weight must be between 0.05 kg and 50 kg');
+    return weight;
+}
+
 function validateListingPricing({ type, category, price, originalPrice, rentalTerm }, { requireOriginal = true } = {}) {
     const listingType = normalizeListingType(type);
     const listingPrice = ['sell', 'rent'].includes(listingType) ? normalizeMoney(price) : 0;
@@ -83,7 +90,7 @@ function publicProduct(product) {
                 : 0
         }
         : obj.seller;
-    const { location, selectedBuyer, selectedOrder, buyerSelectedAt, ...safeProduct } = obj;
+    const { location, deliveryCity, shippingWeightKg, selectedBuyer, selectedOrder, buyerSelectedAt, ...safeProduct } = obj;
     return { ...safeProduct, classificationSummary: describeClassification(obj.classification), location: '', seller };
 }
 
@@ -187,7 +194,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/products — create a new listing (goes to "pending" for admin review)
 router.post('/', protect, async (req, res) => {
     try {
-        const { title, category, condition, type, price, originalPrice, rentalTerm, description, location, college, images } = req.body;
+        const { title, category, condition, type, price, originalPrice, rentalTerm, description, location, deliveryCity, shippingWeightKg, college, images } = req.body;
         const listingImages = normalizeImages(images);
         if (!title || !category || !condition || !location) {
             return res.status(400).json({ message: 'title, category, condition and location are required' });
@@ -197,6 +204,9 @@ router.post('/', protect, async (req, res) => {
         catch (err) { return res.status(400).json({ message: err.message }); }
         let pricing;
         try { pricing = validateListingPricing({ type, category, price, originalPrice, rentalTerm }); }
+        catch (err) { return res.status(400).json({ message: err.message }); }
+        let packedWeight;
+        try { packedWeight = validateShippingWeight(shippingWeightKg); }
         catch (err) { return res.status(400).json({ message: err.message }); }
         try { validateListingPhotos(category, listingImages); }
         catch (err) { return res.status(400).json({ message: err.message }); }
@@ -211,6 +221,8 @@ router.post('/', protect, async (req, res) => {
             rentalTerm: pricing.rentalTerm,
             description: String(description || '').trim(),
             location: String(location).trim(),
+            deliveryCity: String(deliveryCity || location).trim(),
+            shippingWeightKg: packedWeight,
             college: String(college || '').trim(),
             images: listingImages,
             seller: req.user._id,
@@ -236,7 +248,7 @@ router.put('/:id', protect, async (req, res, next) => {
             try { product.classification = normalizeClassification(req.body.category || product.category, req.body.classification); }
             catch (err) { return res.status(400).json({ message: err.message }); }
         }
-        const editable = ['title', 'category', 'condition', 'type', 'price', 'originalPrice', 'rentalTerm', 'description', 'location', 'college', 'images'];
+        const editable = ['title', 'category', 'condition', 'type', 'price', 'originalPrice', 'rentalTerm', 'description', 'location', 'deliveryCity', 'shippingWeightKg', 'college', 'images'];
         const changes = {};
         editable.forEach((f) => {
             if (req.body[f] !== undefined) changes[f] = f === 'images' ? normalizeImages(req.body[f]) : req.body[f];
@@ -253,6 +265,10 @@ router.put('/:id', protect, async (req, res, next) => {
             });
         } catch (err) { return res.status(400).json({ message: err.message }); }
         let pricing;
+        if (changes.shippingWeightKg !== undefined) {
+            try { changes.shippingWeightKg = validateShippingWeight(changes.shippingWeightKg, { defaultWeight: false }); }
+            catch (err) { return res.status(400).json({ message: err.message }); }
+        }
         try {
             pricing = validateListingPricing({
                 type: changes.type ?? product.type,

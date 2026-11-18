@@ -17,6 +17,9 @@ const productSchema = new mongoose.Schema(
         rentalTerm: { type: String, enum: ['', 'week', 'semester'], default: '' },
         description: { type: String, default: '' },
         location: { type: String, required: true },
+        // City and packed weight are used only by the delivery calculator, never exposed in public browse cards.
+        deliveryCity: { type: String, default: '', trim: true, maxlength: 100 },
+        shippingWeightKg: { type: Number, default: 0.5, min: 0.05, max: 50 },
         college: { type: String, default: '' },
         images: [{ type: String }], // base64 data URLs stored with the listing
 

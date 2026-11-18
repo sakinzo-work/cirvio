@@ -548,6 +548,35 @@ function cartSetQty(id, qty) {
 }
 
 /* ---------- drawer markup (built once, lazily) ---------- */
+let cartDeliveryQuoteState = null;
+let cartDeliveryQuoteTimer;
+let cartDeliveryQuoteRevision = 0;
+function rupees(value) { return 'Rs ' + Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
+function currentDeliveryInput() {
+    return { address: (document.getElementById('cdAddress')?.value || '').trim(), city: (document.getElementById('cdDeliveryCity')?.value || '').trim(), distanceKm: (document.getElementById('cdDeliveryDistance')?.value || '').trim() };
+}
+function renderDeliveryEstimate(quote, message = '') {
+    const target = document.getElementById('cdDeliveryEstimate');
+    if (!target) return;
+    if (!quote) { target.textContent = message || 'Enter delivery city and local distance if applicable to see the final delivery charge.'; return; }
+    if (quote.quoteStatus === 'needs-courier-quote') {
+        target.innerHTML = '<strong>Courier quote pending</strong><span>Shipment: ' + Number(quote.shipmentWeightKg || 0).toFixed(2) + ' kg. Rs 30 handling is added after CIRVIO confirms the courier rate.</span>';
+        return;
+    }
+    const route = quote.type === 'local' ? 'Local delivery' + (quote.distanceKm ? ' / ' + quote.distanceKm + ' km' : '') : 'Courier / ' + Number(quote.shipmentWeightKg || 0).toFixed(2) + ' kg';
+    const discount = Number(quote.deliveryDiscount || 0);
+    target.innerHTML = '<strong>' + route + '</strong><span>Delivery ' + rupees(Number(quote.baseFee || 0) + Number(quote.handlingFee || 0)) + (discount ? ' - discount ' + rupees(discount) : '') + ' = <b>' + rupees(quote.finalFee) + '</b></span><small>' + escapeHTML(quote.customerMessage || '') + '</small>';
+}
+function scheduleDeliveryQuote() { clearTimeout(cartDeliveryQuoteTimer); cartDeliveryQuoteTimer = setTimeout(requestDeliveryQuote, 320); }
+async function requestDeliveryQuote() {
+    const items = CirvioStore.getCart(); const delivery = currentDeliveryInput();
+    if (!items.length || !delivery.city) { cartDeliveryQuoteState = null; renderDeliveryEstimate(null, 'Enter your delivery city to see the delivery charge.'); return; }
+    if (!window.CirvioAPI?.deliveryQuote) { renderDeliveryEstimate(null, 'Sign in to calculate delivery.'); return; }
+    const revision = ++cartDeliveryQuoteRevision; renderDeliveryEstimate(null, 'Calculating delivery...');
+    try { const quote = await CirvioAPI.deliveryQuote(items, delivery); if (revision !== cartDeliveryQuoteRevision) return; cartDeliveryQuoteState = quote; renderDeliveryEstimate(quote.delivery); }
+    catch (error) { if (revision !== cartDeliveryQuoteRevision) return; cartDeliveryQuoteState = null; renderDeliveryEstimate(null, error.message || 'Delivery charge could not be calculated yet.'); }
+}
+
 function cartEnsureDrawer() {
     if (document.getElementById('cartDrawerOverlay')) return;
     const holder = document.createElement('div');
@@ -562,8 +591,17 @@ function cartEnsureDrawer() {
     </div>
     <div class="cd-body" id="cdBody"></div>
     <div class="cd-foot" id="cdFoot">
-      <div class="cd-total-row"><span>Subtotal</span><span id="cdSubtotal">₹0</span></div>
-      <textarea class="cd-address" id="cdAddress" placeholder="Delivery / pickup address for CIRVIO team"></textarea>
+      <div class="cd-total-row"><span>Items subtotal</span><span id="cdSubtotal">Rs 0</span></div>
+      <section class="cd-delivery" aria-labelledby="cdDeliveryHeading">
+        <div class="cd-delivery-heading"><strong id="cdDeliveryHeading">Delivery details</strong><span>Price calculated securely</span></div>
+        <textarea class="cd-address" id="cdAddress" placeholder="Full delivery address, building and landmark" aria-label="Full delivery address"></textarea>
+        <div class="cd-delivery-fields">
+          <label>Delivery city<input id="cdDeliveryCity" autocomplete="address-level2" placeholder="e.g. Panvel"></label>
+          <label>Local distance (km)<input id="cdDeliveryDistance" inputmode="decimal" min="0.1" step="0.1" placeholder="Only for same-city delivery"></label>
+        </div>
+        <p class="cd-delivery-help">Same-city deliveries use the distance slab. Other cities use the combined packed weight. For 5 kg+ courier orders, CIRVIO confirms the courier quote before payment.</p>
+        <div class="cd-delivery-estimate" id="cdDeliveryEstimate" aria-live="polite">Enter delivery city and local distance if applicable to see the final delivery charge.</div>
+      </section>
       <div class="cd-manual-note">No online payment gateway. Admin will confirm payment manually and update dispatch.</div>
       <button class="btn btn-terracotta cd-place-btn" id="cdPlaceBtn" style="width:100%;justify-content:center;">Place Order</button>
       <div class="cd-secure"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Manual checkout via CIRVIO operations</div>
@@ -603,6 +641,8 @@ function cartEnsureDrawer() {
         }
     });
 
+    document.getElementById('cdDeliveryCity').value = CirvioStore.getProfile().city || '';
+    ['cdAddress', 'cdDeliveryCity', 'cdDeliveryDistance'].forEach(id => document.getElementById(id).addEventListener('input', scheduleDeliveryQuote));
     document.getElementById('cdPlaceBtn').addEventListener('click', cartPlaceOrder);
     document.getElementById('cdSuccessClose').addEventListener('click', cartClose);
 }
@@ -645,7 +685,8 @@ function renderCartDrawer() {
       </button>
     </div>
   `).join('');
-    document.getElementById('cdSubtotal').textContent = '₹' + cartTotal();
+    document.getElementById('cdSubtotal').textContent = rupees(cartTotal());
+    if (document.getElementById('cdDeliveryCity')?.value.trim()) scheduleDeliveryQuote();
 }
 
 function cartOpen() {
@@ -673,8 +714,10 @@ async function cartPlaceOrder() {
     cartOrderPending = true;
     if (button) { button.disabled = true; button.textContent = 'Placing order...'; }
     try {
-        const address = (document.getElementById('cdAddress')?.value || '').trim();
-        checkoutResult = await CirvioAPI.checkout(items, address);
+        const delivery = currentDeliveryInput();
+        if (!delivery.address) throw new Error('Enter the full delivery address.');
+        if (!delivery.city) throw new Error('Enter the delivery city.');
+        checkoutResult = await CirvioAPI.checkout(items, delivery);
         if (!checkoutResult.order?._id) throw new Error('The server did not confirm your order. Please check your orders before retrying.');
     } catch (err) {
         showToast(err.message || 'Could not place order');
@@ -686,8 +729,12 @@ async function cartPlaceOrder() {
     const orderedIds = new Set(items.map(item => String(item.id)));
     CirvioStore.setCart(CirvioStore.getCart().filter(item => !orderedIds.has(String(item.id))));
     refreshCartBadge();
+    const order = checkoutResult.order;
+    const orderDelivery = order.delivery || {};
+    const payable = Number.isFinite(order.grandTotal) ? rupees(order.grandTotal) : 'courier quote pending';
+    const deliveryText = Number.isFinite(orderDelivery.finalFee) ? 'Delivery ' + rupees(orderDelivery.finalFee) : 'Courier rate pending';
     document.getElementById('cdSuccessMsg').textContent =
-        `${count} item${count > 1 ? 's' : ''} for Rs ${total} placed. Payment is pending manual confirmation; CIRVIO admin will update dispatch status.`;
+        `${count} item${count > 1 ? 's' : ''}: items ${rupees(total)} + ${deliveryText} = ${payable}. Payment is pending manual confirmation; CIRVIO admin will update dispatch status.`;
     const deliveryOtp = checkoutResult?.order?.deliveryOtp?.code || '';
     const otpPanel = document.getElementById('cdOrderOtp');
     otpPanel.hidden = !deliveryOtp;

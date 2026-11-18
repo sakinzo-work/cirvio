@@ -778,7 +778,11 @@
             const otpBody = delivered
                 ? '<div class="buyer-order-otp verified"><strong>Delivery completed</strong><span>Delivery OTP verified by CIRVIO.</span></div>'
                 : (otp.code ? `<div class="buyer-order-otp"><span>Delivery OTP - keep private</span><strong>${escapeHTML(otp.code)}</strong><small>Share this 6-digit code only when the CIRVIO runner hands over your order.</small></div>` : '<div class="buyer-order-otp muted"><strong>Delivery OTP unavailable</strong><span>Contact CIRVIO support if you need help with this order.</span></div>');
-            return `<article class="buyer-order-card"><div class="buyer-order-main"><div><span class="buyer-order-status">${escapeHTML(order.dispatchStatus || order.status || 'placed')}</span><h3>${escapeHTML(titles || 'Order')}</h3><p>Order #${escapeHTML(String(order._id || '').slice(-8).toUpperCase())} | Rs ${escapeHTML(order.totalAmount || 0)}</p></div><dl><div><dt>Order</dt><dd>${escapeHTML(order.status || 'placed')}</dd></div><div><dt>Dispatch</dt><dd>${escapeHTML(order.dispatchStatus || 'not-dispatched')}</dd></div></dl></div>${otpBody}</article>`;
+            const delivery = order.delivery || {};
+            const deliveryLine = delivery.quoteStatus === 'needs-courier-quote'
+                ? '<div class="buyer-delivery-summary pending"><strong>Courier quote pending</strong><span>Shipment is above 5 kg. CIRVIO will confirm the courier charge before payment.</span></div>'
+                : '<div class="buyer-delivery-summary"><span>Items: Rs ' + escapeHTML(order.totalAmount || 0) + '</span><span>Delivery: ' + (Number.isFinite(Number(delivery.finalFee)) ? 'Rs ' + escapeHTML(delivery.finalFee) : 'pending') + '</span><strong>Total payable: Rs ' + (Number.isFinite(Number(order.grandTotal)) ? escapeHTML(order.grandTotal) : 'pending') + '</strong></div>';
+            return `<article class="buyer-order-card"><div class="buyer-order-main"><div><span class="buyer-order-status">${escapeHTML(order.dispatchStatus || order.status || 'placed')}</span><h3>${escapeHTML(titles || 'Order')}</h3><p>Order #${escapeHTML(String(order._id || '').slice(-8).toUpperCase())}</p></div><dl><div><dt>Order</dt><dd>${escapeHTML(order.status || 'placed')}</dd></div><div><dt>Dispatch</dt><dd>${escapeHTML(order.dispatchStatus || 'not-dispatched')}</dd></div></dl></div>${deliveryLine}${otpBody}</article>`;
         }
         function renderBuyerOrders(orders = []) {
             const list = document.getElementById('buyerOrders');

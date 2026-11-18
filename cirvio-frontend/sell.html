@@ -326,6 +326,21 @@
                             </div>
                         </div>
 
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label for="itemDeliveryCity">Delivery city</label>
+                                <input type="text" id="itemDeliveryCity" placeholder="e.g. Mumbai" required>
+                                <div class="hint">This decides whether a buyer gets local delivery or courier pricing. Do not enter your full address here.</div>
+                                <div class="field-error">Enter the city where this item can be collected.</div>
+                            </div>
+                            <div class="field-group">
+                                <label for="itemShippingWeight">Packed weight (kg)</label>
+                                <input type="number" id="itemShippingWeight" min="0.05" max="50" step="0.05" value="0.5" required>
+                                <div class="hint">Include the book and basic packaging. This sets courier delivery charges.</div>
+                                <div class="field-error">Enter a packed weight from 0.05 kg to 50 kg.</div>
+                            </div>
+                        </div>
+
                         <div class="field-group" id="photoGroup">
                             <label>Clear photos <span style="font-weight:500;color:#8a856f;">(2 required for books)</span></label>
                             <div class="photo-evidence-guide"><span><b>1</b> Front cover</span><span><b>2</b> Printed MRP / back cover</span><span><b>3</b> Edition or condition</span><span><b>4</b> Optional extra detail</span></div>
@@ -680,7 +695,7 @@
           </div>
         </div>`;
         }
-        ['itemTitle', 'itemCategory', 'itemCondition', 'itemPrice', 'itemOrig', 'rentalTerm', 'itemLoc'].forEach(id => {
+        ['itemTitle', 'itemCategory', 'itemCondition', 'itemPrice', 'itemOrig', 'rentalTerm', 'itemLoc', 'itemDeliveryCity', 'itemShippingWeight'].forEach(id => {
             document.getElementById(id).addEventListener('input', updatePreview);
             document.getElementById(id).addEventListener('change', updatePreview);
         });
@@ -710,6 +725,8 @@
                 rentalTerm: listingType === 'rent' ? document.getElementById('rentalTerm').value : '',
                 desc: document.getElementById('itemDesc').value.trim(),
                 loc: document.getElementById('itemLoc').value.trim(),
+                deliveryCity: document.getElementById('itemDeliveryCity').value.trim(),
+                shippingWeightKg: Number(document.getElementById('itemShippingWeight').value) || 0,
                 college: document.getElementById('itemCollege').value.trim(),
                 type: listingType,
                 img: photos[0] || PLACEHOLDER_IMG,
@@ -793,6 +810,8 @@
                 rentalTerm: listingType === 'rent' ? document.getElementById('rentalTerm').value : '',
                 desc: document.getElementById('itemDesc').value.trim(),
                 loc: document.getElementById('itemLoc').value.trim(),
+                deliveryCity: document.getElementById('itemDeliveryCity').value.trim(),
+                shippingWeightKg: Number(document.getElementById('itemShippingWeight').value) || 0,
                 college: document.getElementById('itemCollege').value.trim(),
                 type: listingType,
                 img: photos[0] || PLACEHOLDER_IMG,
@@ -826,6 +845,8 @@
                 rentalTerm: listing.rentalTerm,
                 description: listing.desc,
                 location: listing.loc,
+                deliveryCity: listing.deliveryCity,
+                shippingWeightKg: listing.shippingWeightKg,
                 college: listing.college,
                 images: photos
             });
@@ -850,6 +871,9 @@
             ok = validateField('itemCondition', document.getElementById('itemCondition').value.length > 0) && ok;
             ok = validateField('itemDesc', document.getElementById('itemDesc').value.trim().length > 0) && ok;
             ok = validateField('itemLoc', document.getElementById('itemLoc').value.trim().length > 0) && ok;
+            ok = validateField('itemDeliveryCity', document.getElementById('itemDeliveryCity').value.trim().length > 0) && ok;
+            const shippingWeightKg = Number(document.getElementById('itemShippingWeight').value);
+            ok = validateField('itemShippingWeight', shippingWeightKg >= 0.05 && shippingWeightKg <= 50) && ok;
             const originalPrice = Number(document.getElementById('itemOrig').value);
             ok = validateField('itemOrig', originalPrice > 0) && ok;
             if (listingType === 'sell') {

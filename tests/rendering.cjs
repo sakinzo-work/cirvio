@@ -418,6 +418,8 @@ async function mockPush(page, { permission = 'default', nextPermission = 'grante
             await page.goto(base + '/index.html');
             await page.evaluate(() => { CirvioCart.add({ id: 'book-in-cart', title: 'One book', price: 100 }); CirvioCart.add({ id: 'book-in-cart', title: 'One book', price: 100 }); CirvioCart.open(); });
             assert.equal(await page.evaluate(() => CirvioStore.getCart()[0].qty), 1);
+            await page.locator('#cdAddress').fill('12 Test Street, Bengaluru');
+            await page.locator('#cdDeliveryCity').fill('Bengaluru');
             await page.locator('#cdPlaceBtn').click();
             await page.getByText('Checkout failed', { exact: true }).waitFor();
             assert.equal(await page.evaluate(() => CirvioStore.getCart().length), 1);

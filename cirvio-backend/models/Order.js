@@ -10,7 +10,9 @@ const orderItemSchema = new mongoose.Schema(
         title: { type: String, required: true },
         price: { type: Number, required: true },
         qty: { type: Number, default: 1, min: 1 },
-        img: { type: String, default: '' }
+        img: { type: String, default: '' },
+        shippingWeightKg: { type: Number, default: 0.5, min: 0.05 },
+        sourceCity: { type: String, default: '' }
     },
     { _id: false }
 );
@@ -20,7 +22,24 @@ const orderSchema = new mongoose.Schema(
         buyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         notificationPending: { type: Boolean, default: false, select: false },
         items: { type: [orderItemSchema], required: true },
+        // totalAmount remains the item subtotal for backwards-compatible reporting.
         totalAmount: { type: Number, required: true },
+        grandTotal: { type: Number, default: null },
+        delivery: {
+            type: { type: String, enum: ['local', 'courier'], default: 'courier' },
+            quoteStatus: { type: String, enum: ['calculated', 'needs-courier-quote'], default: 'calculated' },
+            deliveryCity: { type: String, default: '' },
+            originCities: [{ type: String }],
+            shipmentWeightKg: { type: Number, default: 0 },
+            distanceKm: { type: Number, default: null },
+            baseFee: { type: Number, default: null },
+            handlingFee: { type: Number, default: 0 },
+            actualCourierRate: { type: Number, default: null },
+            deliveryDiscount: { type: Number, default: 0 },
+            finalFee: { type: Number, default: null },
+            customerMessage: { type: String, default: '' },
+            calculatedAt: { type: Date }
+        },
         status: {
             type: String,
             enum: ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'],

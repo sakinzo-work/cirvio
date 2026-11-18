@@ -2862,3 +2862,10 @@ td .sub { display: block; margin-top: 3px; max-width: 280px; white-space: normal
 .ops-otp-step button { white-space: nowrap; }
 body[data-theme="light"] .ops-otp-step { background: rgba(255,255,255,.76); }
 @media (max-width: 680px) { .ops-otp-grid { grid-template-columns: 1fr; } .ops-otp-step > div { flex-wrap: wrap; } .ops-otp-step button { flex: 1; } }
+.ops-delivery-panel { display: grid; gap: 12px; margin: 14px 0; padding: 14px; border: 1px solid #d5dec5; border-radius: 12px; background: #f7faef; }
+.ops-delivery-panel h4 { margin: 3px 0; color: var(--ink); }
+.ops-delivery-panel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.ops-delivery-quote { display: flex; align-items: end; gap: 8px; }
+.ops-delivery-quote label { display: grid; flex: 1; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.ops-delivery-quote input { min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
+@media (max-width: 540px) { .ops-delivery-quote { align-items: stretch; flex-direction: column; } }

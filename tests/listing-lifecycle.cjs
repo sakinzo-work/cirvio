@@ -127,7 +127,7 @@ app.use((error, request, response, next) => response.status(500).json({ message:
     }
     const review = product => request(`/api/admin/products/${product}/review-viewed`, users[0], {}, 'PUT');
     const approve = product => request(`/api/admin/products/${product}/approve`, users[0], {}, 'PUT');
-    const checkout = (items, user = users[2]) => request('/api/orders', user, { items }, 'POST');
+    const checkout = (items, user = users[2], delivery = {}) => request('/api/orders', user, { items, delivery: { address: '1 Test Road, Test City', city: 'Test City', distanceKm: 1.5, ...delivery } }, 'POST');
     try {
         const product = listing(10);
         assert.equal((await request(`/api/admin/products/${product}/review-viewed`, users[2], {}, 'PUT')).http, 403);
@@ -222,6 +222,9 @@ app.use((error, request, response, next) => response.status(500).json({ message:
         assert.equal(pickupVerified.order.status, 'shipped');
         assert.equal(pickupVerified.order.dispatchStatus, 'in-transit');
         assert.equal((await request(`/api/admin/orders/${otpOrderId}/operations`, users[0], { status: 'delivered', dispatchStatus: 'delivered' }, 'PUT')).http, 400);
+        assert.equal(otpCheckout.order.delivery.type, 'local');
+        assert.equal(otpCheckout.order.delivery.finalFee, 49);
+        assert.equal(otpCheckout.order.grandTotal, 149);
         const deliveryVerified = await request(`/api/admin/orders/${otpOrderId}/otp/verify`, users[0], { stage: 'delivery', otp: buyerOtp }, 'POST');
         assert.equal(deliveryVerified.http, 200);
         assert.equal(deliveryVerified.order.status, 'delivered');

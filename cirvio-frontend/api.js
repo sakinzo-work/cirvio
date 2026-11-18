@@ -315,13 +315,24 @@ const CirvioAPI = {
         if (!Array.isArray(data.products)) throw new Error('Listings could not be read. Please try again.');
         return { ...data, products: data.products.filter(Boolean).map(normalizeProduct) };
     },
-    async checkout(items, deliveryAddress = '') {
+    async deliveryQuote(items, delivery = {}) {
         await this.ensureSession();
+        return this.request('/api/orders/quote', {
+            method: 'POST',
+            body: JSON.stringify({
+                items: items.map(item => ({ productId: item.id || item.productId, qty: item.qty || 1 })),
+                delivery
+            })
+        });
+    },
+    async checkout(items, delivery = {}) {
+        await this.ensureSession();
+        const normalizedDelivery = typeof delivery === 'string' ? { address: delivery } : delivery;
         return this.request('/api/orders', {
             method: 'POST',
             body: JSON.stringify({
                 items: items.map(item => ({ productId: item.id || item.productId, qty: item.qty || 1 })),
-                deliveryAddress
+                delivery: normalizedDelivery
             })
         });
     },

@@ -5019,3 +5019,17 @@ footer {
 .buyer-order-otp.verified { background: #edf5e5; border-top-color: #b7d4a5; }
 .buyer-order-otp.verified strong { font-size: .95rem; letter-spacing: 0; }
 @media (max-width: 620px) { .orders-panel-head, .buyer-order-main { align-items: stretch; flex-direction: column; } .orders-panel-head .btn { width: 100%; justify-content: center; } }
+/* Delivery checkout and admin courier quote UI */
+.cd-delivery { margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--sand-light); }
+.cd-delivery-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; color: var(--olive-deep); font-size: .82rem; }
+.cd-delivery-heading span, .cd-delivery-help, .cd-delivery-estimate small { color: var(--muted); font-size: .7rem; }
+.cd-delivery-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+.cd-delivery-fields label { display: grid; gap: 4px; color: var(--charcoal); font-size: .72rem; font-weight: 700; }
+.cd-delivery-fields input { min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 8px; background: white; font: inherit; }
+.cd-delivery-help { margin: 8px 0; line-height: 1.45; }
+.cd-delivery-estimate { display: grid; gap: 3px; padding: 9px; border-radius: 9px; background: #f3f0e7; color: var(--charcoal); font-size: .76rem; line-height: 1.35; }
+.cd-delivery-estimate strong { color: var(--olive-deep); }
+.buyer-delivery-summary { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 12px 0 0; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--sand-light); color: var(--muted); font-size: .76rem; }
+.buyer-delivery-summary strong { color: var(--olive-deep); }
+.buyer-delivery-summary.pending { display: grid; gap: 4px; }
+@media (max-width: 420px) { .cd-delivery-fields { grid-template-columns: 1fr; } }

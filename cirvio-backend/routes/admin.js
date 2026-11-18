@@ -13,6 +13,7 @@ const notifications = require('../services/message-notifications');
 const listingNotifications = require('../services/listing-notifications');
 const { openDirectConversation } = require('../services/direct-conversations');
 const { matchesOtp, MAX_ATTEMPTS } = require('../services/order-otp');
+const { applyCourierQuote } = require('../services/delivery-pricing');
 
 const router = express.Router();
 const requireAdmin = [adminOnly];
@@ -379,7 +380,7 @@ router.get('/orders', async (req, res) => {
         .populate('items.seller', 'name email college city phone')
         .populate('items.product', 'title category images')
         .sort({ createdAt: -1 });
-    res.json({ count: orders.length, orders });
+    res.json({ count: orders.length, orders: orders.map(safeAdminOrder) });
 });
 
 async function populateOrder(id) {
@@ -421,6 +422,9 @@ router.get('/purchases', async (req, res) => {
                 deliveryOtp: otpSummary(order, 'delivery'),
                 adminNotes: order.adminNotes || '',
                 deliveryAddress: order.deliveryAddress || '',
+                delivery: order.delivery || {},
+                subtotal: order.totalAmount || 0,
+                grandTotal: order.grandTotal,
                 updatedAt: order.updatedAt,
                 date: order.createdAt,
                 buyer: order.buyer,
@@ -570,6 +574,22 @@ router.post('/orders/:id/otp/verify', async (req, res, next) => {
         await order.save();
         res.json({ message: stage === 'pickup' ? 'Pickup verified. Dispatch started automatically.' : 'Delivery verified. Order completed.', order: safeAdminOrder(await populateOrder(order._id)) });
     } catch (error) { next(error); }
+});
+
+// PUT /api/admin/orders/:id/delivery-quote ? finalise a 5 kg+ courier amount; customer discount rules still apply.
+router.put('/orders/:id/delivery-quote', async (req, res, next) => {
+    try {
+        const order = await findOtpOrder(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        order.delivery = applyCourierQuote(order.delivery, order.totalAmount, req.body.actualCourierRate);
+        order.grandTotal = Number(order.totalAmount || 0) + Number(order.delivery.finalFee || 0);
+        order.lastUpdatedBy = req.user._id;
+        await order.save();
+        res.json({ order: safeAdminOrder(await populateOrder(order._id)) });
+    } catch (error) {
+        if (/courier quote|actual courier rate/i.test(error.message || '')) return res.status(400).json({ message: error.message });
+        next(error);
+    }
 });
 
 // PUT /api/admin/orders/:id/operations

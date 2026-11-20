@@ -5,7 +5,7 @@ const taxonomy = {
         { name: 'School Books', group: 'Education', mode: 'school' },
         { name: 'College Books', group: 'Education', mode: 'college' },
         ...['Competitive Exams', 'Notes', 'Study Material', 'Guides & Reference', 'Question Banks', 'Practical Files'].map(name => ({ name, group: 'Study resources', mode: 'resource' })),
-        ...['Novels', 'Calculators', 'Stationery Bundles', 'Drawing & Art Supplies', 'Lab & Engineering Tools', 'Bags & Accessories', 'Electronics & Accessories', 'Other Study Items'].map(name => ({ name, group: 'Other items', mode: 'general' }))
+        ...['Academic Projects', 'Novels', 'Calculators', 'Stationery Bundles', 'Drawing & Art Supplies', 'Lab & Engineering Tools', 'Bags & Accessories', 'Electronics & Accessories', 'Other Student Essentials', 'Other Study Items'].map(name => ({ name, group: 'Other items', mode: 'general' }))
     ],
     levels: {
         school: { label: 'School · Nursery to Class 10', classes: schoolClasses },
@@ -19,12 +19,14 @@ const taxonomy = {
     streams: ['Science (PCM)', 'Science (PCB)', 'Science (PCMB)', 'Commerce', 'Arts / Humanities', 'Vocational', 'Other'],
     boards: ['CBSE / NCERT', 'ICSE / ISC', 'State Board', 'IB', 'Cambridge', 'NIOS', 'Other'],
     itemTypes: {
+        'Academic Projects': ['School working model', 'Science project', 'Electronics / robotics project', 'Engineering project', 'Software / code project', 'Art / craft project', 'Project report', 'Other'],
         Calculators: ['Basic calculator', 'Scientific calculator', 'Financial calculator', 'Graphing calculator', 'Other'],
         'Stationery Bundles': ['Notebooks', 'Pens & pencils', 'Geometry set', 'Mixed stationery', 'Other'],
         'Drawing & Art Supplies': ['Drawing instruments', 'Art materials', 'Drawing sheets & books', 'Other'],
         'Lab & Engineering Tools': ['Lab equipment', 'Engineering instruments', 'Project components', 'Other'],
         'Bags & Accessories': ['School bag', 'College bag', 'Book covers & organisers', 'Other'],
         'Electronics & Accessories': ['Computer accessories', 'Study lamp', 'Headphones', 'Other'],
+        'Other Student Essentials': ['Study table', 'Water bottle / lunch box', 'Uniform / apron', 'Sports item', 'Other'],
         'Other Study Items': ['Other']
     }
 };

@@ -1,5 +1,5 @@
 /* Cache public application files only. Staff API responses never enter Cache Storage. */
-const CACHE = 'cirvio-admin-shell-v9';
+const CACHE = 'cirvio-admin-shell-v10';
 const ROOT = self.registration.scope;
 const FILES = [
     'index.html', 'offline.html', 'admin.css', 'admin-mobile.css', 'admin.js',

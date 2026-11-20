@@ -65,7 +65,7 @@ function productDocument(values) {
     return document;
 }
 function listing(number, status = 'pending', seller = users[1]._id) {
-    const document = new Product({ _id: id(number), title: 'Listing ' + number, category: 'School Books', condition: 'Good', location: 'Test City', price: 100, seller, status, images: [], createdAt: new Date(), ...(status === 'approved' ? { reviewViewedAt: new Date(), decidedAt: new Date() } : {}) });
+    const document = new Product({ _id: id(number), title: 'Listing ' + number, category: 'School Books', condition: 'Good', location: '1 Seller Road, Test City', pickupAddress: '1 Seller Road, Test City', pickupPinCode: '400001', price: 100, seller, status, images: [], createdAt: new Date(), ...(status === 'approved' ? { reviewViewedAt: new Date(), decidedAt: new Date() } : {}) });
     products.set(id(number), document.toObject()); return id(number);
 }
 User.findById = key => query(() => users.find(user => user._id === String(key)) || null);
@@ -127,7 +127,7 @@ app.use((error, request, response, next) => response.status(500).json({ message:
     }
     const review = product => request(`/api/admin/products/${product}/review-viewed`, users[0], {}, 'PUT');
     const approve = product => request(`/api/admin/products/${product}/approve`, users[0], {}, 'PUT');
-    const checkout = (items, user = users[2], delivery = {}) => request('/api/orders', user, { items, delivery: { address: '1 Test Road, Test City', city: 'Test City', distanceKm: 1.5, ...delivery } }, 'POST');
+    const checkout = (items, user = users[2], delivery = {}) => request('/api/orders', user, { items, delivery: { address: '1 Test Road, Test City', pinCode: '400001', ...delivery } }, 'POST');
     try {
         const product = listing(10);
         assert.equal((await request(`/api/admin/products/${product}/review-viewed`, users[2], {}, 'PUT')).http, 403);

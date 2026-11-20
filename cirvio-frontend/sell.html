@@ -315,9 +315,9 @@
 
                         <div class="field-row">
                             <div class="field-group">
-                                <label for="itemLoc">Pickup location</label>
-                                <input type="text" id="itemLoc" placeholder="e.g. Powai, Mumbai" required>
-                                <div class="field-error">Let buyers know roughly where to collect it.</div>
+                                <label for="itemLoc">Seller pickup address</label>
+                                <textarea id="itemLoc" placeholder="Full pickup address, building, area and landmark" required></textarea>
+                                <div class="hint">Only CIRVIO staff sees this address for pickup and delivery.</div><div class="field-error">Enter the full pickup address.</div>
                             </div>
                             <div class="field-group">
                                 <label for="itemCollege">College / campus <span
@@ -328,10 +328,10 @@
 
                         <div class="field-row">
                             <div class="field-group">
-                                <label for="itemDeliveryCity">Delivery city</label>
-                                <input type="text" id="itemDeliveryCity" placeholder="e.g. Mumbai" required>
-                                <div class="hint">This decides whether a buyer gets local delivery or courier pricing. Do not enter your full address here.</div>
-                                <div class="field-error">Enter the city where this item can be collected.</div>
+                                <label for="itemPickupPinCode">Pickup PIN code</label>
+                                <input type="text" id="itemPickupPinCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="e.g. 400001" required>
+                                <div class="hint">Same buyer and seller PIN code gets a fixed ₹49 local delivery rate.</div>
+                                <div class="field-error">Enter a valid 6-digit pickup PIN code.</div>
                             </div>
                             <div class="field-group">
                                 <label for="itemShippingWeight">Packed weight (kg)</label>
@@ -695,7 +695,7 @@
           </div>
         </div>`;
         }
-        ['itemTitle', 'itemCategory', 'itemCondition', 'itemPrice', 'itemOrig', 'rentalTerm', 'itemLoc', 'itemDeliveryCity', 'itemShippingWeight'].forEach(id => {
+        ['itemTitle', 'itemCategory', 'itemCondition', 'itemPrice', 'itemOrig', 'rentalTerm', 'itemLoc', 'itemPickupPinCode', 'itemShippingWeight'].forEach(id => {
             document.getElementById(id).addEventListener('input', updatePreview);
             document.getElementById(id).addEventListener('change', updatePreview);
         });
@@ -725,7 +725,7 @@
                 rentalTerm: listingType === 'rent' ? document.getElementById('rentalTerm').value : '',
                 desc: document.getElementById('itemDesc').value.trim(),
                 loc: document.getElementById('itemLoc').value.trim(),
-                deliveryCity: document.getElementById('itemDeliveryCity').value.trim(),
+                pickupPinCode: document.getElementById('itemPickupPinCode').value.trim(),
                 shippingWeightKg: Number(document.getElementById('itemShippingWeight').value) || 0,
                 college: document.getElementById('itemCollege').value.trim(),
                 type: listingType,
@@ -810,7 +810,7 @@
                 rentalTerm: listingType === 'rent' ? document.getElementById('rentalTerm').value : '',
                 desc: document.getElementById('itemDesc').value.trim(),
                 loc: document.getElementById('itemLoc').value.trim(),
-                deliveryCity: document.getElementById('itemDeliveryCity').value.trim(),
+                pickupPinCode: document.getElementById('itemPickupPinCode').value.trim(),
                 shippingWeightKg: Number(document.getElementById('itemShippingWeight').value) || 0,
                 college: document.getElementById('itemCollege').value.trim(),
                 type: listingType,
@@ -845,7 +845,8 @@
                 rentalTerm: listing.rentalTerm,
                 description: listing.desc,
                 location: listing.loc,
-                deliveryCity: listing.deliveryCity,
+                pickupAddress: listing.loc,
+                pickupPinCode: listing.pickupPinCode,
                 shippingWeightKg: listing.shippingWeightKg,
                 college: listing.college,
                 images: photos
@@ -871,7 +872,7 @@
             ok = validateField('itemCondition', document.getElementById('itemCondition').value.length > 0) && ok;
             ok = validateField('itemDesc', document.getElementById('itemDesc').value.trim().length > 0) && ok;
             ok = validateField('itemLoc', document.getElementById('itemLoc').value.trim().length > 0) && ok;
-            ok = validateField('itemDeliveryCity', document.getElementById('itemDeliveryCity').value.trim().length > 0) && ok;
+            ok = validateField('itemPickupPinCode', /^\d{6}$/.test(document.getElementById('itemPickupPinCode').value.trim())) && ok;
             const shippingWeightKg = Number(document.getElementById('itemShippingWeight').value);
             ok = validateField('itemShippingWeight', shippingWeightKg >= 0.05 && shippingWeightKg <= 50) && ok;
             const originalPrice = Number(document.getElementById('itemOrig').value);

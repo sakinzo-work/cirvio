@@ -91,7 +91,7 @@ function publicProduct(product) {
                 : 0
         }
         : obj.seller;
-    const { location, deliveryCity, shippingWeightKg, selectedBuyer, selectedOrder, buyerSelectedAt, ...safeProduct } = obj;
+    const { location, pickupAddress, pickupPinCode, deliveryCity, shippingWeightKg, selectedBuyer, selectedOrder, buyerSelectedAt, ...safeProduct } = obj;
     return { ...safeProduct, classificationSummary: describeClassification(obj.classification), location: '', seller };
 }
 
@@ -195,11 +195,14 @@ router.get('/:id', async (req, res) => {
 // POST /api/products — create a new listing (goes to "pending" for admin review)
 router.post('/', protect, async (req, res) => {
     try {
-        const { title, category, condition, type, price, originalPrice, rentalTerm, description, location, deliveryCity, shippingWeightKg, college, images } = req.body;
+        const { title, category, condition, type, price, originalPrice, rentalTerm, description, location, pickupAddress, pickupPinCode, shippingWeightKg, college, images } = req.body;
+        const privatePickupAddress = String(pickupAddress || location || '').trim();
+        const privatePickupPinCode = String(pickupPinCode || '').trim();
         const listingImages = normalizeImages(images);
-        if (!title || !category || !condition || !location) {
-            return res.status(400).json({ message: 'title, category, condition and location are required' });
+        if (!title || !category || !condition || !privatePickupAddress) {
+            return res.status(400).json({ message: 'title, category, condition and pickup address are required' });
         }
+        if (!/^\d{6}$/.test(privatePickupPinCode)) return res.status(400).json({ message: 'Enter a valid 6-digit seller pickup PIN code' });
         let classification;
         try { classification = normalizeClassification(category, req.body.classification); }
         catch (err) { return res.status(400).json({ message: err.message }); }
@@ -221,8 +224,9 @@ router.post('/', protect, async (req, res) => {
             originalPrice: pricing.originalPrice,
             rentalTerm: pricing.rentalTerm,
             description: String(description || '').trim(),
-            location: String(location).trim(),
-            deliveryCity: String(deliveryCity || location).trim(),
+            location: privatePickupAddress,
+            pickupAddress: privatePickupAddress,
+            pickupPinCode: privatePickupPinCode,
             shippingWeightKg: packedWeight,
             college: String(college || '').trim(),
             images: listingImages,
@@ -250,11 +254,21 @@ router.put('/:id', protect, async (req, res, next) => {
             try { product.classification = normalizeClassification(req.body.category || product.category, req.body.classification); }
             catch (err) { return res.status(400).json({ message: err.message }); }
         }
-        const editable = ['title', 'category', 'condition', 'type', 'price', 'originalPrice', 'rentalTerm', 'description', 'location', 'deliveryCity', 'shippingWeightKg', 'college', 'images'];
+        const editable = ['title', 'category', 'condition', 'type', 'price', 'originalPrice', 'rentalTerm', 'description', 'location', 'pickupAddress', 'pickupPinCode', 'shippingWeightKg', 'college', 'images'];
         const changes = {};
         editable.forEach((f) => {
             if (req.body[f] !== undefined) changes[f] = f === 'images' ? normalizeImages(req.body[f]) : req.body[f];
         });
+        if (changes.pickupAddress !== undefined || changes.location !== undefined) {
+            const address = String(changes.pickupAddress ?? changes.location ?? '').trim();
+            if (!address) return res.status(400).json({ message: 'Enter the seller pickup address' });
+            changes.pickupAddress = address;
+            changes.location = address; // legacy field retained for existing admin records
+        }
+        if (changes.pickupPinCode !== undefined) {
+            changes.pickupPinCode = String(changes.pickupPinCode).trim();
+            if (!/^\d{6}$/.test(changes.pickupPinCode)) return res.status(400).json({ message: 'Enter a valid 6-digit seller pickup PIN code' });
+        }
         if (req.body.classification !== undefined || changes.category !== undefined) changes.classification = product.classification;
         const nextImages = changes.images ?? product.images ?? [];
         const categoryChanged = changes.category !== undefined;

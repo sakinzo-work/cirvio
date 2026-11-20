@@ -4,9 +4,29 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const express = require('../cirvio-backend/node_modules/express');
 const { chromium } = require('playwright');
 const Product = require('../cirvio-backend/models/Product');
+
+function crc32(buffer) {
+    let crc = 0xffffffff;
+    for (const byte of buffer) { crc ^= byte; for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+function pngChunk(type, data) {
+    const typeBuffer = Buffer.from(type);
+    const header = Buffer.alloc(8); header.writeUInt32BE(data.length, 0); typeBuffer.copy(header, 4);
+    const checksum = Buffer.alloc(4); checksum.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0);
+    return Buffer.concat([header, data, checksum]);
+}
+function clearBookPhoto(size = 600) {
+    const header = Buffer.alloc(13); header.writeUInt32BE(size, 0); header.writeUInt32BE(size, 4); header[8] = 8; header[9] = 6;
+    const pixels = Buffer.alloc((size * 4 + 1) * size, 255);
+    for (let row = 0; row < size; row++) pixels[row * (size * 4 + 1)] = 0;
+    return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk('IHDR', header), pngChunk('IDAT', zlib.deflateSync(pixels)), pngChunk('IEND', Buffer.alloc(0))]);
+}
+const clearBookImage = clearBookPhoto();
 
 const root = path.resolve(__dirname, '..');
 const app = express();
@@ -419,7 +439,7 @@ async function mockPush(page, { permission = 'default', nextPermission = 'grante
             await page.evaluate(() => { CirvioCart.add({ id: 'book-in-cart', title: 'One book', price: 100 }); CirvioCart.add({ id: 'book-in-cart', title: 'One book', price: 100 }); CirvioCart.open(); });
             assert.equal(await page.evaluate(() => CirvioStore.getCart()[0].qty), 1);
             await page.locator('#cdAddress').fill('12 Test Street, Bengaluru');
-            await page.locator('#cdDeliveryCity').fill('Bengaluru');
+            await page.locator('#cdDeliveryPinCode').fill('560001');
             await page.locator('#cdPlaceBtn').click();
             await page.getByText('Checkout failed', { exact: true }).waitFor();
             assert.equal(await page.evaluate(() => CirvioStore.getCart().length), 1);
@@ -485,9 +505,10 @@ async function mockPush(page, { permission = 'default', nextPermission = 'grante
             await page.locator('#itemPrice').fill('100');
             await page.locator('#itemOrig').fill('300');
             await page.locator('#itemDesc').fill('Physics textbook');
-            await page.locator('#itemLoc').fill('Test City');
-            await page.locator('#fileInput').setInputFiles({ name: 'book.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6lGAAAAAASUVORK5CYII=', 'base64') });
-            await page.waitForFunction(() => photos.length === 1);
+            await page.locator('#itemLoc').fill('1 Test Street, Test City');
+            await page.locator('#itemPickupPinCode').fill('400001');
+            await page.locator('#fileInput').setInputFiles([{ name: 'cover.png', mimeType: 'image/png', buffer: clearBookImage }, { name: 'mrp.png', mimeType: 'image/png', buffer: clearBookImage }]);
+            await page.waitForFunction(() => photos.length === 2);
             assert.equal(await page.locator('#previewCard .p-title').innerText(), 'Physics <b>book</b>');
             assert.equal(await page.locator('#previewCard b').count(), 0);
             await page.locator('#submitBtn').click();

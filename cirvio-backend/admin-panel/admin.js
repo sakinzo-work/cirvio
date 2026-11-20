@@ -823,7 +823,9 @@ async function viewListingImages(id) {
         <div><dt>${product.type === 'rent' ? 'Rent price' : 'Selling price'}</dt><dd>${esc(listingPrice(product))}</dd></div>
         ${product.type === 'rent' ? `<div><dt>Rental period</dt><dd>${product.rentalTerm === 'semester' ? '1 semester' : '1 week'}</dd></div>` : ''}
         <div><dt>Uploaded photos</dt><dd>${images.length} clear book photo${images.length === 1 ? '' : 's'} available for review</dd></div>
-        <div><dt>Location</dt><dd>${esc(product.location || '-')}</dd></div>
+        <div><dt>Pickup address</dt><dd>${esc(product.pickupAddress || product.location || '-')}</dd></div>
+        <div><dt>Pickup PIN code</dt><dd>${esc(product.pickupPinCode || 'Missing — ask seller to update')}</dd></div>
+        <div><dt>Packed weight</dt><dd>${Number(product.shippingWeightKg || 0).toFixed(2)} kg</dd></div>
         <div><dt>Description</dt><dd>${esc(product.description || 'No description provided.')}</dd></div>
       </dl>
       ${product.seller ? `<button type="button" class="row-btn btn-view" data-message-listing="${esc(product._id)}">Message seller</button>` : ''}
@@ -889,7 +891,7 @@ function deliveryOpsSummary(row) {
     const delivery = row.delivery || {};
     if (delivery.quoteStatus === 'needs-courier-quote') return 'Courier quote needed / ' + Number(delivery.shipmentWeightKg || 0).toFixed(2) + ' kg / Rs 30 handling will be added';
     if (!delivery.type) return 'Delivery pricing unavailable for this older order';
-    const route = delivery.type === 'local' ? 'Local ' + (delivery.distanceKm || '-') + ' km' : 'Courier ' + Number(delivery.shipmentWeightKg || 0).toFixed(2) + ' kg';
+    const route = delivery.type === 'local' ? 'Same PIN delivery' : 'Courier ' + Number(delivery.shipmentWeightKg || 0).toFixed(2) + ' kg';
     return route + ' / fee ' + inr(delivery.finalFee || 0) + (delivery.deliveryDiscount ? ' / discount ' + inr(delivery.deliveryDiscount) : '') + ' / total ' + inr(row.grandTotal ?? (Number(row.subtotal || 0) + Number(delivery.finalFee || 0)));
 }
 

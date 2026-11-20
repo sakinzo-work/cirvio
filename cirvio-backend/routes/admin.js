@@ -378,7 +378,7 @@ router.get('/orders', async (req, res) => {
         .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
         .populate('buyer', 'name email college city phone')
         .populate('items.seller', 'name email college city phone')
-        .populate('items.product', 'title category images')
+        .populate('items.product', 'title category images pickupAddress pickupPinCode location shippingWeightKg')
         .sort({ createdAt: -1 });
     res.json({ count: orders.length, orders: orders.map(safeAdminOrder) });
 });
@@ -388,7 +388,7 @@ async function populateOrder(id) {
         .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
         .populate('buyer', 'name email college city phone')
         .populate('items.seller', 'name email college city phone')
-        .populate('items.product', 'title category images status')
+        .populate('items.product', 'title category images status pickupAddress pickupPinCode location shippingWeightKg')
         .populate('lastUpdatedBy', 'name email role');
 }
 
@@ -399,7 +399,7 @@ router.get('/purchases', async (req, res) => {
         .select('+pickupOtpHash +pickupOtpCipher +deliveryOtpHash +deliveryOtpCipher')
         .populate('buyer', 'name email college city phone')
         .populate('items.seller', 'name email college city phone')
-        .populate('items.product', 'title category images status')
+        .populate('items.product', 'title category images status pickupAddress pickupPinCode location shippingWeightKg')
         .sort({ createdAt: -1 })
         .lean();
 

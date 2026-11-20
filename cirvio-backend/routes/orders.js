@@ -14,22 +14,20 @@ function positiveWeight(value) {
     const weight = Number(value);
     return Number.isFinite(weight) && weight >= 0.05 && weight <= 50 ? weight : 0.5;
 }
-function cityForProduct(product) { return String(product.deliveryCity || product.location || '').trim(); }
+function pinForProduct(product) { return String(product.pickupPinCode || '').trim(); }
 function requestedDelivery(body = {}) {
     const delivery = body.delivery && typeof body.delivery === 'object' ? body.delivery : {};
     return {
         address: String(delivery.address ?? body.deliveryAddress ?? '').trim(),
-        city: String(delivery.city ?? '').trim(),
-        distanceKm: delivery.distanceKm
+        pinCode: String(delivery.pinCode ?? body.deliveryPinCode ?? '').trim()
     };
 }
 function priceQuote(orderItems, delivery) {
     return calculateDelivery({
         subtotal: orderItems.reduce((total, item) => total + Number(item.price || 0) * Number(item.qty || 1), 0),
         shipmentWeightKg: orderItems.reduce((total, item) => total + positiveWeight(item.shippingWeightKg) * Number(item.qty || 1), 0),
-        deliveryCity: delivery.city,
-        originCities: orderItems.map(item => item.sourceCity),
-        distanceKm: delivery.distanceKm
+        deliveryPinCode: delivery.pinCode,
+        originPinCodes: orderItems.map(item => item.sourcePinCode)
     });
 }
 
@@ -57,7 +55,7 @@ async function collectOrderItems(items, buyerId) {
             qty: 1,
             img: product.images && product.images[0] ? product.images[0] : '',
             shippingWeightKg: positiveWeight(product.shippingWeightKg),
-            sourceCity: cityForProduct(product)
+            sourcePinCode: pinForProduct(product)
         });
     }
     return orderItems;
@@ -93,10 +91,13 @@ function safeSellingOrder(order, sellerId) {
 function safeBuyerOrder(order) {
     const obj = orderObject(order);
     const { pickupOtpHash, pickupOtpCipher, pickupOtpAttempts, deliveryOtpHash, deliveryOtpCipher, deliveryOtpAttempts, ...safe } = obj;
-    return { ...safe, pickupOtp: otpState(obj, 'pickup'), deliveryOtp: otpState(obj, 'delivery', { revealCode: true }) };
+    const delivery = { ...(obj.delivery || {}) };
+    // A buyer can see their own delivery PIN but never a seller's pickup PIN.
+    delete delivery.originPinCodes;
+    return { ...safe, delivery, pickupOtp: otpState(obj, 'pickup'), deliveryOtp: otpState(obj, 'delivery', { revealCode: true }) };
 }
 
-// POST /api/orders/quote — server-side delivery preview. Product price and weight are always read from the database.
+// POST /api/orders/quote ï¿½ server-side delivery preview. Product price and weight are always read from the database.
 router.post('/quote', protect, async (req, res, next) => {
     try {
         const orderItems = await collectOrderItems(req.body.items, req.user._id);
@@ -110,7 +111,7 @@ router.post('/quote', protect, async (req, res, next) => {
     }
 });
 
-// POST /api/orders — checkout the cart. Body: { items, delivery: { address, city, distanceKm } }
+// POST /api/orders - checkout the cart. Body: { items, delivery: { address, pinCode } }
 router.post('/', protect, async (req, res) => {
     const orderId = new mongoose.Types.ObjectId();
     const reserved = [];
@@ -124,6 +125,7 @@ router.post('/', protect, async (req, res) => {
         const orderItems = await collectOrderItems(req.body.items, req.user._id);
         const deliveryInput = requestedDelivery(req.body);
         if (!deliveryInput.address) return res.status(400).json({ message: 'Enter the delivery address before placing the order' });
+        if (!/^\d{6}$/.test(deliveryInput.pinCode)) return res.status(400).json({ message: 'Enter a valid 6-digit delivery PIN code before placing the order' });
         const delivery = priceQuote(orderItems, deliveryInput);
         const totalAmount = orderItems.reduce((total, item) => total + item.price * item.qty, 0);
 

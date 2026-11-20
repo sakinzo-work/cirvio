@@ -17,7 +17,10 @@ const productSchema = new mongoose.Schema(
         rentalTerm: { type: String, enum: ['', 'week', 'semester'], default: '' },
         description: { type: String, default: '' },
         location: { type: String, required: true },
-        // City and packed weight are used only by the delivery calculator, never exposed in public browse cards.
+        // Pickup address and PIN are private: they are visible only to the seller and CIRVIO staff.
+        pickupAddress: { type: String, default: '', trim: true, maxlength: 500 },
+        pickupPinCode: { type: String, default: '', trim: true, maxlength: 6 },
+        // Kept temporarily so older records can still be read. New listings use pickupPinCode.
         deliveryCity: { type: String, default: '', trim: true, maxlength: 100 },
         shippingWeightKg: { type: Number, default: 0.5, min: 0.05, max: 50 },
         college: { type: String, default: '' },

@@ -92,7 +92,7 @@ app.use((error, request, response, next) => response.status(500).json({ message:
         assert.deepEqual(normalizeInterests(['School Books', 'Calculators', 'School Books']), ['School Books', 'Calculators']);
         assert.throws(() => normalizeInterests(['Not a category']), /valid interests/);
         const details = { className: 'Class 12', stream: 'Science (PCM)', board: 'CBSE / NCERT' };
-        const body = { title: 'Physics', category: 'School Books', classification: details, condition: 'Good', type: 'sell', price: 100, originalPrice: 300, location: 'Test City', images: ['data:image/png;base64,ZmFrZQ==', 'data:image/png;base64,ZmFrZTI='] };
+        const body = { title: 'Physics', category: 'School Books', classification: details, condition: 'Good', type: 'sell', price: 100, originalPrice: 300, location: 'Test City', pickupAddress: '1 Seller Road, Test City', pickupPinCode: '400001', images: ['data:image/png;base64,ZmFrZQ==', 'data:image/png;base64,ZmFrZTI='] };
         assert.equal((await request('/api/products', users[1], { ...body, classification: {} })).status, 400);
         assert.match((await request('/api/products', users[1], { ...body, originalPrice: 0 })).message, /Original/);
         assert.match((await request('/api/products', users[1], { ...body, price: 400 })).message, /cannot be higher/);

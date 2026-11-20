@@ -12,7 +12,7 @@ const orderItemSchema = new mongoose.Schema(
         qty: { type: Number, default: 1, min: 1 },
         img: { type: String, default: '' },
         shippingWeightKg: { type: Number, default: 0.5, min: 0.05 },
-        sourceCity: { type: String, default: '' }
+        sourcePinCode: { type: String, default: '' }
     },
     { _id: false }
 );
@@ -28,10 +28,9 @@ const orderSchema = new mongoose.Schema(
         delivery: {
             type: { type: String, enum: ['local', 'courier'], default: 'courier' },
             quoteStatus: { type: String, enum: ['calculated', 'needs-courier-quote'], default: 'calculated' },
-            deliveryCity: { type: String, default: '' },
-            originCities: [{ type: String }],
+            deliveryPinCode: { type: String, default: '' },
+            originPinCodes: [{ type: String }],
             shipmentWeightKg: { type: Number, default: 0 },
-            distanceKm: { type: Number, default: null },
             baseFee: { type: Number, default: null },
             handlingFee: { type: Number, default: 0 },
             actualCourierRate: { type: Number, default: null },
